@@ -1,0 +1,17 @@
+INSTRUÇÕES E GARANTIA!
+
+Passo 1: Extraia arquivos .txt do arquivo atual .rar.
+
+Passo 2: Use o Multilogin para acessar vários sites antes de entrar na conta do Facebook.
+
+Passo 3: Quando inserir o login e senha, um código de 6 dígitos será solicitado. Procure o arquivo .txt denominado “DADOS” para obter o código, e vá ao site “2fa.live” para gerar um novo código. Copie e cole este código no Facebook para continuar o login.
+
+Passo 4: Altere a senha imediatamente (nas primeiras 24 horas) para proteger seu perfil contra possíveis ataques hackers.
+
+Passo 5: Ative a autenticação de 2 fatores tanto no perfil do Facebook quanto no próprio e-mail, para maior segurança.
+
+Passo 6: Se não forem realizadas alterações nas primeiras 24 horas, qualquer ataque hacker subsequente não estará coberto pela garantia do serviço.
+
+Passo 7: A garantia do serviço inclui checkpoint e suspensão definitiva do perfil nos primeiros 30 dias, desde que o usuário siga todas as instruções corretamente.
+
+Passo 8 - Para perfis restabelecidos, a garantia cobre bloqueios por atividades incomuns nos primeiros 30 dias, desde que o usuário sega as instruções corretamente.

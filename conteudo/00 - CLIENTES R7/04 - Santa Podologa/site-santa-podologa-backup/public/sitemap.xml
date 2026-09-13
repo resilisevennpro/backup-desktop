@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <url>
+    <loc>https://santapodologa.com.br/</loc>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://santapodologa.com.br/"/>
+    <lastmod>2026-08-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/capa-santa-podologa.png</image:loc>
+      <image:title>Santa Podóloga - Clínica de Podologia em Samambaia</image:title>
+      <image:caption>Atendimento de podologia infantil e geriátrica em Samambaia Sul, Brasília - DF</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/clinica-santa-podologa.png</image:loc>
+      <image:title>Estrutura da clínica Santa Podóloga</image:title>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/procedimentos.png</image:loc>
+      <image:title>Procedimentos de podologia realizados na Santa Podóloga</image:title>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/antes-depois-1.png</image:loc>
+      <image:title>Antes e depois - tratamento de unha encravada</image:title>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/antes-depois-2.png</image:loc>
+      <image:title>Antes e depois - tratamento podológico</image:title>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/antes-depois-3.png</image:loc>
+      <image:title>Antes e depois - tratamento de micose de unha</image:title>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/antes-depois-4.png</image:loc>
+      <image:title>Antes e depois - cuidado com calosidades</image:title>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/especialista-santa.jpeg</image:loc>
+      <image:title>Santa de Matos - podóloga</image:title>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://santapodologa.com.br/images/especialista-uanna.jpeg</image:loc>
+      <image:title>Uanna Reis - podóloga</image:title>
+    </image:image>
+  </url>
+
+</urlset>

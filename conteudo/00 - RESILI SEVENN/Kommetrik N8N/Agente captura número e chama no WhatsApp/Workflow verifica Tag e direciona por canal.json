@@ -1,0 +1,964 @@
+{
+  "name": "AGENTE INSTAGRAM-WHATSAPP [VERIFICA TAG]",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "eb378262-2578-4b95-b4ed-a6cbd1baa2bb",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        192,
+        336
+      ],
+      "id": "51bceea4-1f94-4e59-a864-687293ca43de",
+      "name": "Webhook",
+      "webhookId": "eb378262-2578-4b95-b4ed-a6cbd1baa2bb"
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 1 - CREDENCIAIS, DADOS, STATUS, E PROMPT AGENTE\nO nó `Status Fluxo` controla se está em fase de testes ou não. Se tiver, o fluxo irá permitir ser executado somente contatos que possuem o id no campo `contatos_permitidos`\n\nO campo `contatos_permitidos` deverá conter os ids dos contatos separados por vírgula",
+        "height": 770,
+        "width": 1139,
+        "color": 5
+      },
+      "id": "ad7e3f9d-4e8e-4037-8f15-acb490c48d8f",
+      "name": "Sticky Note6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 2 - SE LEAD TEM A TAG",
+        "height": 750,
+        "width": 819,
+        "color": 6
+      },
+      "id": "581f332c-6395-4d04-94df-eddad3204f00",
+      "name": "Sticky Note12",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "255f7f52-1921-4658-b86a-3c82f9c145e8",
+              "name": "kommoToken",
+              "value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjE3N2Q4YjE4MWRiNjdkMjI4MzQ4NjllYmI2NjZhM2Y4ZGRiMDZkNzcyOTZjODNmZWVhMTY0NmZlYWQ5NjE5MjVlMjQ4MjNjZGFlNjFjNjMzIn0.eyJhdWQiOiI5MWZmM2U2Ny03ZDcwLTQxN2EtODhlOC0zMjI0ZmM0YjRmYWUiLCJqdGkiOiIxNzdkOGIxODFkYjY3ZDIyODM0ODY5ZWJiNjY2YTNmOGRkYjA2ZDc3Mjk2YzgzZmVlYTE2NDZmZWFkOTYxOTI1ZTI0ODIzY2RhZTYxYzYzMyIsImlhdCI6MTc1NzUyMTQ5OSwibmJmIjoxNzU3NTIxNDk5LCJleHAiOjE3NTkxOTA0MDAsInN1YiI6IjExNTQxOTYzIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjM1MTU3Mjg4LCJiYXNlX2RvbWFpbiI6ImtvbW1vLmNvbSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJjcm0iLCJmaWxlcyIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiLCJwdXNoX25vdGlmaWNhdGlvbnMiXSwidXNlcl9mbGFncyI6MCwiaGFzaF91dWlkIjoiYzNiYWJjNjMtOThiNi00ZGExLWI4NWQtMDQyN2FjMGNjMzBjIiwiYXBpX2RvbWFpbiI6ImFwaS1jLmtvbW1vLmNvbSJ9.DKnz0-1F8WTbpg4qV0H4b44Dhq8AZ4hRVnnosB-kJK93ifwEHlXDzCPq_U_6OVpYLllsAeDepQLV8RtL7TNr5MASyuEUHjP9bbEa__iVAEKsI_C3LcG9u3ZhtmWK_Tst_1dGk1MIlP9Bn-QHpvtuI1yWn-UJ1sZyCu9Xxaw6Qc1XI-6gVJ7n5WHPfqLNXW6WpFljlgdQfSldvXmyi4W2rvoHSLu4W0o1az_mylB4PL1eUL2116a8wqHvmZVsYhtpVALcEboAZMQoehIjthEsbObMR3xohVrbMlAHotezzlltz5NK2YSLvMEmVjnPRXQC74lQ9wiWYVCOwM7nzf9WYg",
+              "type": "string"
+            },
+            {
+              "id": "a7e819f1-2d34-4998-8f41-69c4f8cd8be8",
+              "name": "tagsPermitidas",
+              "value": "=IA-Luã",
+              "type": "string"
+            },
+            {
+              "id": "6ed345d1-5fb3-4d18-9a85-12ba10decfef",
+              "name": "tokenKommetrik",
+              "value": "ywPlb7P2IiFJytRlAdr60jJPJkBGGh_a4ldVxOYPJP3UrfMjAMMB6svI3YqAH_Etb6ZafyXV7SVEnKyhDS2WAWyK888q",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2950c537-2e97-4c13-b584-3a6046ea5e05",
+      "name": "CONFIGURAÇÃO IA",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        336
+      ],
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "481c6f80-64a0-47fd-b1bb-3f1140e91751",
+              "leftValue": "={{ $('Webhook').item.json.body['message[add][0][text]'].toLowerCase() }}",
+              "rightValue": "reset",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        336
+      ],
+      "id": "f60797ea-ea10-456b-ac37-8e5087fcab18",
+      "name": "SE RESET"
+    },
+    {
+      "parameters": {
+        "content": "## RESETA MEMÓRIA DA CONVERSA NO POSTGRES",
+        "height": 280,
+        "width": 760,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        128
+      ],
+      "id": "e6ab2946-564c-45d1-be0d-c23583acb578",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Conversa resetada"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        240
+      ],
+      "id": "bdb389e3-bc33-4b3d-8638-0e79a3b383a2",
+      "name": "Conversa Resetada"
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_lua_chat",
+          "mode": "list",
+          "cachedResultName": "n8n_lua_chat"
+        },
+        "deleteCommand": "delete",
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{ $('Webhook').item.json.body[\"message[add][0][contact_id]\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1488,
+        240
+      ],
+      "id": "f78d984c-7514-4194-8452-00fb294744fe",
+      "name": "Deleta Linhas do Contato",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b597ae62-8326-4019-9993-e324bf614d17",
+              "leftValue": "={{ \n  $('BUSCA LEAD').first().json._embedded.tags.some(\n    t => $('CONFIGURAÇÃO IA').first().json['tagsPermitidas']\n      .split(',')\n      .map(tag => tag.trim())\n      .includes(t.name)\n  ) \n}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1616,
+        544
+      ],
+      "id": "7a016079-521d-422d-9ef1-4ea35fe1e4c7",
+      "name": "SE LEAD TEM A TAG"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').first().json.body['account[_links][self]'] }}/api/v4/leads/{{ $('Webhook').item.json.body['message[add][0][entity_id]'] }}?with=contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('CONFIGURAÇÃO IA').item.json.kommoToken }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1616,
+        784
+      ],
+      "id": "1e1da7ba-fc59-4851-8f4f-61274e14a91e",
+      "name": "BUSCA LEAD (RETENTATIVA)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').first().json.body['account[_links][self]'] }}/api/v4/leads/{{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}?with=contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "={{ $('CONFIGURAÇÃO IA').item.json.kommoToken }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1152,
+        752
+      ],
+      "id": "4874c28a-a8ae-435b-9cc2-7a6b31ba6419",
+      "name": "BUSCA LEAD"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1392,
+        784
+      ],
+      "id": "91654e34-533f-49c0-bbe0-fca886ec3023",
+      "name": "Espera p/ Retentativa",
+      "webhookId": "d9211eff-b920-4b02-a6b7-2d61e6c6f425"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b597ae62-8326-4019-9993-e324bf614d17",
+              "leftValue": "={{ \n  $('BUSCA LEAD (RETENTATIVA)').first().json._embedded.tags.some(\n    t => $('CONFIGURAÇÃO IA').first().json['tagsPermitidas']\n      .split(',')\n      .map(tag => tag.trim())\n      .includes(t.name)\n  ) \n}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1840,
+        784
+      ],
+      "id": "9b38003c-4487-4e84-9247-e1f66cc3a7d8",
+      "name": "SE LEAD TEM A TAG (RETENTATIVA)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        1008
+      ],
+      "id": "97a1dfaa-9082-4040-be05-2ec0d4ec6ab3",
+      "name": "No Operation, do nothing2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "240b7a4a-af1e-4c1e-80b9-0f9ca475f27e",
+              "leftValue": "={{ $('Webhook').first().json.body[\"message[add][0][text]\"] }}",
+              "rightValue": "The message could not be displayed due to API restrictions",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        736
+      ],
+      "id": "a25bfeed-4df6-48a2-bd7a-034d46258499",
+      "name": "restricaoAPI"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        528
+      ],
+      "id": "7557eabc-b172-413b-8ce7-23a9cd665783",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ \n  ( $('BUSCA LEAD').all().length > 0 \n    && Object.keys($('BUSCA LEAD').item?.json ?? {}).length > 0\n  )\n    ? $('BUSCA LEAD').item.json\n    : $('SE LEAD TEM A TAG (RETENTATIVA)').item.json\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1984,
+        528
+      ],
+      "id": "1e30acd9-7fdb-4176-a354-e84d6f703b36",
+      "name": "FORMATA BUSCA LEAD"
+    },
+    {
+      "parameters": {
+        "content": "## VERIFICA ORIGEM",
+        "height": 448,
+        "width": 752
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        432
+      ],
+      "id": "d0f1d60a-5f88-4733-aadf-1e68d946e013",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook').first().json.body[\"message[add][0][origin]\"] }}",
+                    "rightValue": "=instagram_business",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "1432ea69-c74d-4249-b26f-1991d66a104f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "instagram_business"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3e394187-2c09-453f-8686-c2f4c5d0c9f8",
+                    "leftValue": "={{ $('Webhook').first().json.body[\"message[add][0][origin]\"] }}",
+                    "rightValue": "com.amocrm.amocrmwa",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "WhatsAppLite"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c6d17ab6-9d49-4dc0-b160-405b0509996b",
+                    "leftValue": "={{ $('Webhook').first().json.body[\"message[add][0][origin]\"] }}",
+                    "rightValue": "waba",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "WhatsAppBusiness"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2208,
+        512
+      ],
+      "id": "c366b637-b2b0-454f-9cdd-b4b051259723",
+      "name": "origem"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "sI2ktmTIGDhvWWQq",
+          "mode": "list",
+          "cachedResultName": "AGENTE DE IA INSTAGRAM-WHATSAPP"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "webhook": "={{ $('Webhook').all().toJsonString() }}",
+            "buscaLead": "={{ $('FORMATA BUSCA LEAD').all().toJsonString() }}",
+            "configuracaoIA": "={{ $('CONFIGURAÇÃO IA').all().toJsonString() }}"
+          },
+          "matchingColumns": [
+            ""
+          ],
+          "schema": [
+            {
+              "id": "webhook",
+              "displayName": "webhook",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "buscaLead",
+              "displayName": "buscaLead",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "configuracaoIA",
+              "displayName": "configuracaoIA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2720,
+        480
+      ],
+      "id": "f9fa664e-5604-41fa-bb67-8ae867842119",
+      "name": "agenteInstagram"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "sI2ktmTIGDhvWWQq",
+          "mode": "list",
+          "cachedResultName": "AGENTE DE IA INSTAGRAM-WHATSAPP"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "webhook": "={{ $('Webhook').all().toJsonString() }}",
+            "buscaLead": "={{ $('FORMATA BUSCA LEAD').all().toJsonString() }}",
+            "configuracaoIA": "={{ $('CONFIGURAÇÃO IA').all().toJsonString() }}"
+          },
+          "matchingColumns": [
+            ""
+          ],
+          "schema": [
+            {
+              "id": "webhook",
+              "displayName": "webhook",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "buscaLead",
+              "displayName": "buscaLead",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "configuracaoIA",
+              "displayName": "configuracaoIA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2720,
+        640
+      ],
+      "id": "63411e75-0a91-4ae6-a31c-600a1fa61f9b",
+      "name": "agenteWhatsApp"
+    },
+    {
+      "parameters": {
+        "content": "## Nota\nVerificamos a origem do lead através do campo \"origin\" no evento de mensagem recebida. Dessa forma, dividimos os lead entre aqueles que devem ser atendidos pelo agente de IA do Instagram e aqueles que devem ser atendidos pelo agente de IA do WhatsApp",
+        "width": 480,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        704
+      ],
+      "id": "6becfe5f-514e-4343-bee9-d6f0d635c8f9",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Nota\nAlgumas tipos de mensagens do Instagram não conseguem ser processadas pela API, gerando um texto estranho tanto na conversa do lead card quanto no evento de mensagem recebida. Com o nó \"restricaoAPI\" nós filtramos as requisições que carregam este erro. ",
+        "height": 144,
+        "width": 496,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        224,
+        720
+      ],
+      "id": "7b51fa17-b8d7-4b64-a6bb-ae80118ed1cf",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 144,
+        "width": 224,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        720,
+        720
+      ],
+      "id": "09d433cc-b075-48f7-ab5f-404d132de1df",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## CRIAR TABELA MESSAGE NO POSTGRES",
+        "height": 280,
+        "width": 320,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        -176
+      ],
+      "id": "1a7594fb-ff43-4ca1-9a2e-9903508c71c2",
+      "name": "Sticky Note20"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE\n  public.messages (\n    id serial NOT NULL,\n    contact_id character varying(255) NOT NULL,\n    message text NOT NULL\n  );\n\nALTER TABLE\n  public.messages\nADD\n  CONSTRAINT messages_pkey PRIMARY KEY (id)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        224,
+        -64
+      ],
+      "id": "73a32a5a-12b2-4662-b108-bdde75d859cd",
+      "name": "Cria Tabela",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.carrosbacanas.com",
+            "user-agent": "amoCRM-Webhooks/3.0",
+            "content-length": "974",
+            "accept-encoding": "gzip",
+            "content-type": "application/x-www-form-urlencoded",
+            "x-amocrm-requestid": "312312312312",
+            "x-forwarded-for": "204.74.253.164",
+            "x-forwarded-host": "webhook.carrosbacanas.com",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "sd3123123",
+            "x-real-ip": "2023123.164"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "account[subdomain]": "carrosbacanas",
+            "account[id]": "35157288",
+            "account[_links][self]": "https://carrosbacanas.amocrm.com",
+            "message[add][0][id]": "204c81ad-6190-4425-a1a4-fbe4f9c39552",
+            "message[add][0][chat_id]": "3c548a71-7aef-43be-86b6-9585d5f1e1da",
+            "message[add][0][talk_id]": "133",
+            "message[add][0][contact_id]": "20248848",
+            "message[add][0][text]": "Claro meu número é 61 996049827",
+            "message[add][0][created_at]": "1758131291",
+            "message[add][0][element_type]": "2",
+            "message[add][0][entity_type]": "lead",
+            "message[add][0][element_id]": "12722840",
+            "message[add][0][entity_id]": "12722840",
+            "message[add][0][type]": "incoming",
+            "message[add][0][author][id]": "825b8fd0-116a-42fb-8803-5a29dc9083e5",
+            "message[add][0][author][type]": "external",
+            "message[add][0][author][name]": "Luã",
+            "message[add][0][origin]": "instagram_business"
+          },
+          "webhookUrl": "https://webhook.carrosbacanas.com/webhook/eb31826178-4b3131232a2bb",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "CONFIGURAÇÃO IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONFIGURAÇÃO IA": {
+      "main": [
+        [
+          {
+            "node": "SE RESET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SE RESET": {
+      "main": [
+        [
+          {
+            "node": "Deleta Linhas do Contato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "restricaoAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deleta Linhas do Contato": {
+      "main": [
+        [
+          {
+            "node": "Conversa Resetada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SE LEAD TEM A TAG": {
+      "main": [
+        [
+          {
+            "node": "FORMATA BUSCA LEAD",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Espera p/ Retentativa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA LEAD (RETENTATIVA)": {
+      "main": [
+        [
+          {
+            "node": "SE LEAD TEM A TAG (RETENTATIVA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA LEAD": {
+      "main": [
+        [
+          {
+            "node": "SE LEAD TEM A TAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Espera p/ Retentativa": {
+      "main": [
+        [
+          {
+            "node": "BUSCA LEAD (RETENTATIVA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SE LEAD TEM A TAG (RETENTATIVA)": {
+      "main": [
+        [
+          {
+            "node": "FORMATA BUSCA LEAD",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "restricaoAPI": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BUSCA LEAD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FORMATA BUSCA LEAD": {
+      "main": [
+        [
+          {
+            "node": "origem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "origem": {
+      "main": [
+        [
+          {
+            "node": "agenteInstagram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "agenteWhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "agenteWhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bf4a8967-0f86-4cbc-8963-07ec04778664",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "jOLuzsZLru8u7vIB",
+  "tags": []
+}

@@ -1,0 +1,108 @@
+{
+  "name": "Threads Demo – Content Publish",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Post de exemplo para demonstração\nreturn [{\n  json: {\n    texto: \"Automação funcionando! Este post foi publicado via API do Threads. #automation #threads\"\n  }\n}];"
+      },
+      "id": "node-conteudo",
+      "name": "1. Definir conteúdo do post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.threads.net/v1.0/me/threads",
+        "method": "POST",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "media_type", "value": "TEXT" },
+            { "name": "text", "value": "={{ $json.texto }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-criar",
+      "name": "2. Criar container do post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 200],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "THREADS_CREDENTIAL_ID",
+          "name": "Threads API Token"
+        }
+      },
+      "notes": "Cria o container do post. Retorna um creation_id que será usado no próximo nó para publicar."
+    },
+    {
+      "parameters": {
+        "jsCode": "const creation_id = $input.first().json.id;\n\nif (!creation_id) {\n  throw new Error('creation_id não retornado. Verifique o token e a permissão threads_content_publish.');\n}\n\nreturn [{ json: { creation_id } }];"
+      },
+      "id": "node-extrair",
+      "name": "3. Extrair creation_id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.threads.net/v1.0/me/threads_publish",
+        "method": "POST",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "creation_id", "value": "={{ $json.creation_id }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-publicar",
+      "name": "4. Publicar post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 200],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "THREADS_CREDENTIAL_ID",
+          "name": "Threads API Token"
+        }
+      },
+      "notes": "Publica o container criado no nó anterior. Retorna o ID do post publicado."
+    },
+    {
+      "parameters": {
+        "jsCode": "const post_id = $input.first().json.id;\n\nreturn [{\n  json: {\n    status: 'PUBLICADO',\n    post_id,\n    link: `https://www.threads.net/post/${post_id}`,\n    publicado_em: new Date().toLocaleString('pt-BR')\n  }\n}];"
+      },
+      "id": "node-resultado",
+      "name": "5. Confirmar publicação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 200]
+    }
+  ],
+  "connections": {
+    "1. Definir conteúdo do post": {
+      "main": [[{ "node": "2. Criar container do post", "type": "main", "index": 0 }]]
+    },
+    "2. Criar container do post": {
+      "main": [[{ "node": "3. Extrair creation_id", "type": "main", "index": 0 }]]
+    },
+    "3. Extrair creation_id": {
+      "main": [[{ "node": "4. Publicar post", "type": "main", "index": 0 }]]
+    },
+    "4. Publicar post": {
+      "main": [[{ "node": "5. Confirmar publicação", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

@@ -1,0 +1,27 @@
+https://developers.facebook.com/products/whatsapp/
+https://developers.facebook.com/documentation/business-messaging/whatsapp/overview
+https://developers.facebook.com/search/?referer=dev_header&q=whatsapp%20business
+
+
+Encarregado de Proteção de Dados – Resili Sevenn
+contato@resilisevenn.com.br
+Rua Domingos Coelho 830
+Biguaçu
+88160308
+
+Sevenn Clinic 360 - Waba
+sevennclinicwaba
+contato@resilisevenn.com.br
+https://resilisevenn.com.br/politica-de-privacidade
+
+https://resilisevenn.com.br/termos-de-uso
+
+
+A plataforma Sevenn Clinic 360 permite que empresas conectem suas contas do whatsApp business de forma segura por meio do fluxo oficial Embedded Signup da Meta.
+
+A permissão whatsapp_business_management é utilizada exclusivamente para:
+- permitir que o cliente conecte seu próprio número de WhatsApp Business à plataforma;
+- consultar e gerenciar informações básicas da conta comercial, como número conectado, status e configurações necessárias para funcionamento doo atendimento;
+- possibilitar o gerenciamento de templatess de mensagens aprovados pela Meta dentro da própria interface do sistema.
+
+Nenhuma informação é utilizada fora do contexto operacional do próprio cliente que autorizou a conexão, e e todos os dados seguem as políticas de privacidade e segurança da Meta e da LGPD.

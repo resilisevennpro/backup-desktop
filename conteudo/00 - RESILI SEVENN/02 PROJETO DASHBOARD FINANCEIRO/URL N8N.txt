@@ -1,0 +1,13 @@
+// URL de LEITURA (GET) - ⚠️ Ler Planilja
+  const N8N_GET_URL = "https://n8n-n8n.wtgf7u.easypanel.host/webhook/bd622e25-707a-470e-b052-277df2e1812c"
+  
+  // URL de EXCLUSÃO (POST) - ⚠️ Deletar Linha
+  const N8N_DELETE_URL = "https://n8n-n8n.wtgf7u.easypanel.host/webhook/07ae495f-5f68-4a64-a007-09cfad35d577"
+
+  // URL de EDIÇÃO (PATCH) - ⚠️ Editar Transação
+  const N8N_PATCH_URL = "https://n8n-n8n.wtgf7u.easypanel.host/webhook/203e7b53-d683-4073-9434-57715cd6db79"
+
+
+ const SHEET_ID = "13DTsONPjNXR-fy-JmjSxecEYZcpevjcJ_7VhUs7MuYM"
+  const N8N_GET_URL = "https://n8n-n8n.wtgf7u.easypanel.host/webhook/bd622e25-707a-470e-b052-277df2e1812c"
+  const N8N_DELETE_URL = "https://n8n-n8n.wtgf7u.easypanel.host/webhook/07ae495f-5f68-4a64-a007-09cfad35d577" // URL DO DELETE QUE JÁ FUNCIONA

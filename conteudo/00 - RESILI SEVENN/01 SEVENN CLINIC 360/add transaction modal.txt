@@ -1,0 +1,521 @@
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+
+import { Loader2, Calendar, User, UserRound, Sparkles, Calculator, FileText, AlertCircle, Search } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Transaction } from "./types";
+
+interface AddTransactionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess: () => void;
+    transactionToEdit?: Transaction | null;
+    defaultValues?: {
+        lead_id?: string;
+        patient?: string;
+        professional?: string;
+        professional_id?: string;
+        procedure?: string;
+        amount?: number;
+    };
+}
+
+export function AddTransactionModal({ isOpen, onClose, onSuccess, transactionToEdit, defaultValues }: AddTransactionModalProps) {
+    const { clinic } = useAuth();
+    const [loading, setLoading] = useState(false);
+
+    // Dynamic Lists
+    const [professionalsList, setProfessionalsList] = useState<{ id: string, name: string }[]>([]);
+    const [servicesList, setServicesList] = useState<{ id: string, name: string }[]>([]);
+
+    const [formData, setFormData] = useState({
+        lead_id: "",
+        patient: "",
+        professional: "",
+        professional_id: "", // Add store ID
+        procedure: "",
+        amount: "",
+        transaction_date: new Date().toISOString().split('T')[0],
+        notes: "",
+        status: "pending",
+        payment_method: "" // Fix TS error
+    });
+
+    // States for Patient Search
+    const [searchTerm, setSearchTerm] = useState("");
+    const [searchResults, setSearchResults] = useState<{ id: string, name: string, phone: string | null }[]>([]);
+    const [showPatientList, setShowPatientList] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+
+    // Determine if Patient field is locked (CRM Mode or Edit Mode with existing lead)
+    // We lock if it was passed via defaultValues (CRM) or provided in transactionToEdit
+    const isPatientLocked = !!(defaultValues?.lead_id || (transactionToEdit?.lead_id));
+
+
+    // 1. Efeito para carregar listas do Banco (Médicos e Serviços)
+    useEffect(() => {
+        if (isOpen && clinic?.id) {
+            const fetchData = async () => {
+                // Busca Profissionais na tabela nova
+                const { data: pros } = await supabase
+                    .from('professionals')
+                    .select('id, name')
+                    .eq('clinic_id', clinic.id);
+                if (pros) setProfessionalsList(pros);
+
+                // Busca Serviços
+                const { data: servs } = await supabase
+                    .from('services')
+                    .select('id, name')
+                    .eq('clinic_id', clinic.id);
+                if (servs) setServicesList(servs);
+            };
+            fetchData();
+        }
+    }, [isOpen, clinic?.id]);
+
+    // ... (useEffect for fetch lists remains same)
+
+    useEffect(() => {
+        if (isOpen) {
+            // Reset Search States
+            setSearchTerm("");
+            setSearchResults([]);
+            setShowPatientList(false);
+
+            if (transactionToEdit) {
+                // Edit Mode
+                setFormData({
+                    lead_id: transactionToEdit.lead_id || "",
+                    patient: transactionToEdit.patient || "",
+                    professional: transactionToEdit.professional || 'Não Atribuído',
+                    professional_id: transactionToEdit.professional_id || "",
+                    procedure: transactionToEdit.procedure || "",
+                    amount: transactionToEdit.amount.toString(),
+                    transaction_date: transactionToEdit.transaction_date.split('T')[0],
+                    notes: transactionToEdit.notes || "",
+                    status: transactionToEdit.status,
+                    payment_method: transactionToEdit.payment_method || ""
+                });
+            } else if (defaultValues) {
+                // Create Mode with Pre-fill
+                setFormData({
+                    lead_id: defaultValues.lead_id || "",
+                    patient: defaultValues.patient || "",
+                    professional: defaultValues.professional || "",
+                    professional_id: defaultValues.professional_id || "",
+                    procedure: defaultValues.procedure || "",
+                    amount: defaultValues.amount?.toString() || "",
+                    transaction_date: new Date().toISOString().split('T')[0],
+                    notes: "",
+                    status: "pending",
+                    payment_method: ""
+                });
+            } else {
+                // Brand New
+                setFormData({
+                    lead_id: "",
+                    patient: "",
+                    professional: "",
+                    professional_id: "",
+                    procedure: "",
+                    amount: "",
+                    transaction_date: new Date().toISOString().split('T')[0],
+                    notes: "",
+                    status: "pending",
+                    payment_method: ""
+                });
+            }
+        }
+    }, [isOpen, transactionToEdit, defaultValues]);
+
+    // ... (getBrazilISO remains same)
+    const getBrazilISO = () => {
+        const now = new Date();
+        const offset = -3; // Horário de Brasília
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const brazilDate = new Date(utc + (3600000 * offset));
+
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const YYYY = brazilDate.getFullYear();
+        const MM = pad(brazilDate.getMonth() + 1);
+        const DD = pad(brazilDate.getDate());
+        const HH = pad(brazilDate.getHours());
+        const mm = pad(brazilDate.getMinutes());
+        const ss = pad(brazilDate.getSeconds());
+
+        return `${YYYY}-${MM}-${DD}T${HH}:${mm}:${ss}-03:00`;
+    };
+
+
+    const handleSave = async () => {
+        if (!clinic?.id || !formData.amount) {
+            alert("Preencha o valor da cobrança.");
+            return;
+        }
+
+        if (!formData.lead_id) {
+            alert("É obrigatório vincular um Paciente/Lead à cobrança.");
+            return;
+        }
+
+        if (formData.payment_method === 'other' && !formData.notes?.trim()) {
+            alert("Para o método 'Outro / A definir', o campo de Observações é obrigatório.");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            // 1. VALIDAÇÃO DE SEGURANÇA (A Correção Real)
+            // Verifica se o ID que veio do formulário REALMENTE existe na lista de profissionais ativos.
+            // Isso impede que um ID antigo/deletado (vindo do Lead) quebre o banco.
+            let finalProfessionalId = null;
+
+            if (formData.professional_id) {
+                // Só aceita o ID se ele estiver na lista carregada do banco
+                const isValid = professionalsList.some(p => p.id === formData.professional_id);
+                if (isValid) {
+                    finalProfessionalId = formData.professional_id;
+                }
+            }
+            // 2. Fallback: Se não tem ID válido mas tem nome, tenta achar pelo nome
+            if (!finalProfessionalId && formData.professional) {
+                const found = professionalsList.find(p => p.name === formData.professional);
+                if (found) finalProfessionalId = found.id;
+            }
+
+            const payload = {
+                clinic_id: clinic.id,
+                lead_id: formData.lead_id || null,
+                professional_id: finalProfessionalId, // UUID da tabela professionals - Importante para comissão!
+                description: `${formData.procedure || 'Cobrança'} - ${formData.patient}`,
+                amount: parseFloat(formData.amount),
+                type: 'income',
+                category: 'Procedimentos',
+                transaction_date: formData.transaction_date === new Date().toISOString().split('T')[0] ? getBrazilISO() : `${formData.transaction_date}T12:00:00-03:00`,
+                // CORREÇÃO: Aceita o que veio do form (para Venda Rápida funcionar)
+                status: formData.status || 'pending',
+                payment_method: formData.payment_method || null,
+                installments: 1,
+                notes: formData.notes,
+                metadata: {
+                    patient_name: formData.patient,
+                    procedure_name: formData.procedure,
+                    professional_name: formData.professional // Nome visual
+                },
+                ...(transactionToEdit ? { is_edited: true } : {})
+            };
+
+            let error;
+            if (transactionToEdit?.id) {
+                // Update
+                const { error: updateError } = await supabase
+                    .from('financial_transactions')
+                    .update(payload)
+                    .eq('id', transactionToEdit.id);
+                error = updateError;
+            } else {
+                // Create
+                const { error: insertError } = await supabase
+                    .from('financial_transactions')
+                    .insert([payload]);
+                error = insertError;
+
+                // CRITICAL: If new sale is pending, register activity
+                if (!error && payload.status === 'pending' && payload.lead_id) {
+                    const formattedValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payload.amount);
+                    await supabase.from('lead_activities').insert({
+                        lead_id: payload.lead_id,
+                        clinic_id: clinic.id,
+                        type: 'system',
+                        description: `Cobrança de ${formattedValue} gerada (Aguardando Pagamento)`,
+                        created_at: getBrazilISO()
+                    });
+                }
+            }
+
+            if (error) throw error;
+
+            onSuccess();
+            onClose();
+        } catch (error) {
+            console.error("Error saving transaction:", error);
+            alert("Erro ao salvar operação.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    // Search Effect
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            // Search criteria: Not locked, no Lead ID selected, and (length >= 2 to start showing something, or just click?)
+            // User requested "quando clicca". So if they focus, we might want to show recent?
+            // Let's stick to typing for now but reduce limit to 1 char or just 2.
+            if (!isPatientLocked && !formData.lead_id && searchTerm.length >= 2) {
+                setIsSearching(true);
+                try {
+                    const { data } = await supabase
+                        .from('leads')
+                        .select('id, name, phone')
+                        .ilike('name', `%${searchTerm}%`)
+                        .limit(5);
+
+                    if (data) {
+                        setSearchResults(data);
+                        setShowPatientList(true);
+                    }
+                } catch (err) {
+                    console.error("Error searching leads:", err);
+                } finally {
+                    setIsSearching(false);
+                }
+            } else if (!isPatientLocked && !formData.lead_id && searchTerm.length === 0) {
+                setSearchResults([]);
+                setShowPatientList(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm, isPatientLocked, formData.patient, formData.lead_id]);
+
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[550px] max-h-[85vh] p-0 overflow-hidden border-none shadow-2xl rounded-2xl bg-white flex flex-col">
+                <DialogHeader className="p-6 bg-zinc-50/50 border-b shrink-0">
+                    <DialogTitle className="text-2xl font-black text-zinc-800 tracking-tight">
+                        {transactionToEdit ? "Editar Lançamento" : "Nova Cobrança"}
+                    </DialogTitle>
+                    <DialogDescription className="text-zinc-500 font-medium">
+                        {transactionToEdit ? "Atualize os dados do lançamento." : "Preencha os dados abaixo para gerar uma nova pendência financeira."}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+                    {/* Row 1: Date and Patient */}
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                <Calendar className="w-3 h-3" /> Data
+                            </label>
+                            <Input
+                                type="date"
+                                className="h-12 bg-zinc-50 border-zinc-200 focus:ring-[#59A52C]/20 focus:border-[#59A52C] rounded-xl font-medium"
+                                value={formData.transaction_date}
+                                onChange={e => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
+                            />
+                        </div>
+                        <div className="space-y-2 relative">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                {isPatientLocked ? <User className="w-3 h-3" /> : <Search className="w-3 h-3" />}
+                                Paciente
+                            </label>
+
+                            <div className="relative">
+                                <Input
+                                    placeholder={isPatientLocked ? "Nome do paciente..." : "Busque por nome..."}
+                                    className={cn(
+                                        "h-12 bg-zinc-50 border-zinc-200 focus:ring-[#59A52C]/20 focus:border-[#59A52C] rounded-xl font-medium",
+                                        isPatientLocked && "bg-zinc-100 cursor-not-allowed opacity-70"
+                                    )}
+                                    value={isPatientLocked ? formData.patient : searchTerm}
+                                    onChange={e => {
+                                        if (!isPatientLocked) {
+                                            const val = e.target.value;
+                                            setSearchTerm(val);
+                                            // Clear selection if they type
+                                            if (formData.lead_id) {
+                                                setFormData(prev => ({ ...prev, lead_id: "", patient: "" }));
+                                            }
+                                            if (val.length >= 2) setShowPatientList(true);
+                                        }
+                                    }}
+                                    readOnly={isPatientLocked}
+                                    onFocus={() => !isPatientLocked && !formData.lead_id && searchTerm.length >= 2 && setShowPatientList(true)}
+                                // OnBlur handling can be tricky with click events on the list.
+                                // Usually we rely on clicking the item.
+                                />
+
+                                {!isPatientLocked && isSearching && (
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    </div>
+                                )}
+
+                                {/* Manual Dropdown List */}
+                                {!isPatientLocked && showPatientList && searchResults.length > 0 && (
+                                    <div className="absolute z-50 mt-1 w-full bg-white border border-zinc-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                                        {searchResults.map(lead => (
+                                            <div
+                                                key={lead.id}
+                                                className="p-3 hover:bg-zinc-50 cursor-pointer border-b border-zinc-50 last:border-0 transition-colors"
+                                                onClick={() => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        lead_id: lead.id,
+                                                        patient: lead.name
+                                                    }));
+                                                    setSearchTerm(lead.name);
+                                                    setShowPatientList(false);
+                                                }}
+                                            >
+                                                <p className="font-bold text-sm text-zinc-800">{lead.name}</p>
+                                                {lead.phone && <p className="text-xs text-zinc-400">{lead.phone}</p>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 2: Professional and Procedure */}
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                <UserRound className="w-3 h-3" /> Profissional
+                            </label>
+                            {/* We allow typing OR selecting. But Select is stricter. Better to use Select with a "Other" option or just Select. 
+                                Task says "lista de Procedimentos e Profissionais devem ser exibidos".
+                                But also "campos livres para edição".
+                                A ComboBox (Input + Select) is ideal but hard to implement quickly without shadcn combobox.
+                                I will stick to SELECT for now as it pulls from DB, but I'll add "Outro" or just map the list.
+                                If the pulled professional isn't in the list, it won't show if I strictly control Value. 
+                                I will use a Select but with a text input fallback if needed? 
+                                No, let's just use Select for simplicity and assume configuration exists. 
+                              */}
+                            <Select
+                                value={formData.professional_id || formData.professional} // Prioritize ID
+                                onValueChange={val => {
+                                    // Val is the ID from the SelectItem
+                                    if (val === 'unassigned') {
+                                        setFormData(prev => ({ ...prev, professional: "Não Atribuído", professional_id: "" }));
+                                    } else {
+                                        const selected = professionalsList.find(p => p.id === val);
+                                        if (selected) {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                professional: selected.name,
+                                                professional_id: selected.id
+                                            }));
+                                        }
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="h-12 bg-zinc-50 border-zinc-200 rounded-xl font-medium">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {professionalsList.map(p => (
+                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem> // Value is ID now!
+                                    ))}
+                                    <SelectItem value="unassigned">Sem responsável</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                <Sparkles className="w-3 h-3" /> Procedimento
+                            </label>
+                            <Select value={formData.procedure} onValueChange={val => setFormData(prev => ({ ...prev, procedure: val }))}>
+                                <SelectTrigger className="h-12 bg-zinc-50 border-zinc-200 rounded-xl font-medium">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {servicesList.map(s => (
+                                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                                    ))}
+                                    <SelectItem value="Consultoria">Consultoria</SelectItem>
+                                    <SelectItem value="Outro">Outro</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-zinc-100 my-2" />
+
+                    {/* Row 3: Value and Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                <Calculator className="w-3 h-3" /> Valor (R$)
+                            </label>
+                            <Input
+                                type="number"
+                                placeholder="0,00"
+                                className="h-12 bg-zinc-50 border-zinc-200 rounded-xl font-bold text-zinc-800"
+                                value={formData.amount}
+                                onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                                disabled={!!transactionToEdit && transactionToEdit.status === 'paid'}
+                            />
+                        </div>
+                        {/* Opcional: Aviso visual se estiver travado */}
+                        {transactionToEdit?.status === 'paid' && (
+                            <p className="text-[11px] text-amber-600 mt-1 font-medium">
+                                * Valor travado pois a transação já foi paga.
+                            </p>
+                        )}
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex gap-2 items-start">
+                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-[11px] text-amber-700 leading-tight">
+                                <span className="font-bold">Nota:</span> A forma de pagamento e o parcelamento serão definidos no momento da confirmação do recebimento.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Row 4: Notes */}
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                            <FileText className="w-3 h-3" /> Observações
+                        </label>
+                        <textarea
+                            className={cn(
+                                "w-full min-h-[100px] bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#59A52C]/20 focus:border-[#59A52C] transition-all font-medium"
+                            )}
+                            placeholder="Anote detalhes adicionais da venda..."
+                            value={formData.notes}
+                            onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                        />
+                    </div>
+                </div>
+
+                <div className="p-6 bg-zinc-50/50 border-t flex gap-4 shrink-0">
+                    <Button
+                        variant="ghost"
+                        onClick={onClose}
+                        disabled={loading}
+                        className="flex-1 h-12 rounded-xl border border-zinc-200 font-bold text-zinc-600 bg-white"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={handleSave}
+                        disabled={
+                            loading ||
+                            !formData.amount ||
+                            !formData.lead_id
+                        }
+                        className="flex-[1.5] h-12 rounded-xl bg-[#59A52C] hover:bg-[#4d8f26] text-white font-bold text-base shadow-lg shadow-[#59A52C]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (transactionToEdit ? "Salvar Alterações" : "Confirmar Cobrança")}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}

@@ -1,0 +1,2160 @@
+{
+  "name": "Agente de FollowUp - Template",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// ====== CONFIG ======\nconst SOURCE_NODE = 'formataConfiguracoes';   // nó que formata os flows\n\n// ==================== agoraMenos ====================\ntry {\n  // Fonte\n  const nodeData = $(SOURCE_NODE).all();\n  if (!nodeData || nodeData.length === 0) {\n    throw new Error(`Dados do nó \"${SOURCE_NODE}\" não encontrados.`);\n  }\n\n  // ===== Helpers =====\n  function parseTempo(tempoStr) {\n    if (typeof tempoStr !== 'string') {\n      throw new Error(`Valor de tempo inválido: ${tempoStr} (não é string)`);\n    }\n    const match = tempoStr.match(/^(\\d+)(min|h|s)$/);\n    if (!match) {\n      throw new Error(`Formato de tempo inválido: ${tempoStr} (use <número>min, <número>h ou <número>s)`);\n    }\n    return { value: parseInt(match[1], 10), unit: match[2] };\n  }\n  function toMinutes(value, unit) {\n    if (unit === 'min') return value;\n    if (unit === 'h')   return value * 60;\n    if (unit === 's')   return value / 60;\n    throw new Error(`Unidade de tempo não reconhecida: ${unit}`);\n  }\n  function toSeconds(value, unit) {\n    if (unit === 'min') return value * 60;\n    if (unit === 'h')   return value * 3600;\n    if (unit === 's')   return value;\n    throw new Error(`Unidade de tempo não reconhecida: ${unit}`);\n  }\n  function agoraMenosISO(minutos) {\n    if (typeof minutos !== 'number' || isNaN(minutos) || minutos < 0) {\n      throw new Error(`Valor de minutos inválido: ${minutos} (tipo: ${typeof minutos})`);\n    }\n    const ms = minutos * 60 * 1000;\n    const data = new Date(Date.now() - ms);\n    // ISO “sv-SE” + offset fixo -03:00 (America/Sao_Paulo)\n    return (\n      data\n        .toLocaleString('sv-SE', {\n          timeZone: 'America/Sao_Paulo',\n          year: 'numeric',\n          month: '2-digit',\n          day: '2-digit',\n          hour: '2-digit',\n          minute: '2-digit',\n          second: '2-digit',\n        })\n        .replace(' ', 'T') + '-03:00'\n    );\n  }\n\n  const results = [];\n\n  nodeData.forEach((item) => {\n    const cfg = item?.json;\n    if (!cfg || typeof cfg !== 'object') return;\n\n    // Identificação (OBRIGATÓRIO)\n    const followup_flow_name = cfg.followup_flow_name;\n    if (typeof followup_flow_name !== 'string' || followup_flow_name.trim() === '') {\n      throw new Error(\n        `agoraMenos: 'followup_flow_name' ausente ou vazio no item de entrada. ` +\n        `Garanta que '${SOURCE_NODE}' emita 'followup_flow_name' para cada fluxo.`\n      );\n    }\n\n    const agent = cfg.agent ?? null;\n\n    // Cadências (mantém unidade original)\n    const cadList = Array.isArray(cfg.cadencia) ? cfg.cadencia : [];\n    const parsedIntervals = cadList\n      .map((str) => {\n        try {\n          const p = parseTempo(str);\n          return {\n            original: str,\n            value: p.value,\n            unit: p.unit,\n            minutes: toMinutes(p.value, p.unit),\n            seconds: toSeconds(p.value, p.unit),\n          };\n        } catch {\n          return null; // ignora itens inválidos\n        }\n      })\n      .filter(Boolean);\n\n    // Espera sem resposta\n    const esperaRaw =\n      cfg.esperaSemResposta === '' || cfg.esperaSemResposta == null\n        ? null\n        : String(cfg.esperaSemResposta);\n\n    let esperaSemResposta = false;\n    let esperaInterval = null;\n\n    if (esperaRaw !== null) {\n      try {\n        const p = parseTempo(esperaRaw);\n        esperaSemResposta = true;\n        esperaInterval = {\n          original: esperaRaw,\n          value: p.value,\n          unit: p.unit,\n          minutes: toMinutes(p.value, p.unit),\n          seconds: toSeconds(p.value, p.unit),\n        };\n      } catch {\n        esperaSemResposta = false;\n        esperaInterval = null;\n      }\n    }\n\n    // Se não houver nenhum intervalo válido e também não houver espera válida, ignora\n    if (parsedIntervals.length === 0 && !esperaInterval) return;\n\n    // Se houver espera válida, ela entra por último nas listas\n    const finalIntervals = [...parsedIntervals];\n    if (esperaInterval) finalIntervals.push(esperaInterval);\n\n    // ==== ALTERAÇÃO: chaves únicas com índice -> agoraMenos{valor}{unidade}_{i}\n    const agoraMenos = {};\n    finalIntervals.forEach((x, i) => {\n      const key = `agoraMenos${x.value}${x.unit}_${i}`;\n      agoraMenos[key] = agoraMenosISO(x.minutes);\n    });\n\n    // intervalos\n    const intervalos = {\n      segundos: finalIntervals.map((x) => x.seconds),\n      minutos:  finalIntervals.map((x) => x.minutes),\n      horas:    finalIntervals.map((x) => Math.round((x.minutes / 60) * 100) / 100),\n      total:    finalIntervals.length,\n    };\n\n    // Output final\n    const out = {\n      followup_flow_name,   \n      agent,\n      esperaSemResposta,    // booleano\n      intervalos,           // segundos, minutos, horas, total\n      agoraMenos            // { agoraMenos2s_0, agoraMenos2s_1, agoraMenos2h_3, ... }\n    };\n\n    results.push({ json: out });\n  });\n\n  if (results.length === 0) {\n    throw new Error(`Nenhum resultado válido foi gerado a partir de \"${SOURCE_NODE}\".`);\n  }\n\n  return results;\n\n} catch (error) {\n  return [{\n    json: {\n      erro: true,\n      mensagem: error.message,\n      timestamp: new Date().toISOString(),\n      tipoErro: 'processamento_followup',\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        976
+      ],
+      "id": "51c58033-8c31-4ed5-8496-f2a7c843f757",
+      "name": "agoraMenos"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        -48
+      ],
+      "id": "8bdf9fcb-02e7-452f-8684-928f8d3be11a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f37ece97-d136-4cee-a2f9-49ac9041f932",
+              "name": "domingo",
+              "value": "0-0",
+              "type": "string"
+            },
+            {
+              "id": "ae2fdda9-d00c-4755-a574-e75bfeca5ab8",
+              "name": "segunda",
+              "value": "0-24",
+              "type": "string"
+            },
+            {
+              "id": "e3fa886c-f4d0-49d8-a5e3-8dba1d94a071",
+              "name": "terca",
+              "value": "8-17",
+              "type": "string"
+            },
+            {
+              "id": "13512952-5450-4b96-ac2b-6daaac97abde",
+              "name": "quarta",
+              "value": "8-17",
+              "type": "string"
+            },
+            {
+              "id": "b604d67b-b49c-4ff2-9791-cf14cfdaa9c5",
+              "name": "quinta",
+              "value": "8-17",
+              "type": "string"
+            },
+            {
+              "id": "ab4cd187-3255-479e-b9e1-387857826555",
+              "name": "sexta",
+              "value": "0-24",
+              "type": "string"
+            },
+            {
+              "id": "f43b76ba-9104-41b0-b4c8-42e2356e1639",
+              "name": "sabado",
+              "value": "0-24",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        -48
+      ],
+      "id": "98a811d7-d4f2-40ed-bc4e-9975d7361236",
+      "name": "configuracoesHorarioComercial",
+      "executeOnce": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        864,
+        208
+      ],
+      "id": "f08b2e9d-4605-467c-9f73-b4f8ebf476fb",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d1628673-0bd3-43c1-b3b5-4fbf2eff419c",
+              "leftValue": "={{ $('iteraLeads').item.json.validacao.leadExiste}}",
+              "rightValue": 204,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3024,
+        1232
+      ],
+      "id": "de72160d-12ca-4c29-988b-cbd6221cf3fb",
+      "name": "seLeadNaoExiste",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ia.kommetrik.com.br/api/executions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('iteraFluxos').first().json.configuracoesAcessos.secrets.tokenKommetrik }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "=https://{{ $('iteraFluxos').first().json.configuracoesAcessos.subdomainKommo }}.amocrm.com"
+            },
+            {
+              "name": "kommo_account_id",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.kommo_account_id }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.chat_id }}"
+            },
+            {
+              "name": "entity_id",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.entity_id }}"
+            },
+            {
+              "name": "element_type",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.element_type }}"
+            },
+            {
+              "name": "user_name",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.user_name }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Mensagem').first().json.text }}"
+            },
+            {
+              "name": "author_id",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.author_id }}"
+            },
+            {
+              "name": "talk_id",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.talk_id }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.contact_id }}"
+            },
+            {
+              "name": "token_kommo",
+              "value": "={{ $('iteraFluxos').first().json.configuracoesAcessos.secrets.tokenKommo }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5616,
+        1984
+      ],
+      "id": "4cbabdf1-ad9f-4c29-92b4-5f6192d7a562",
+      "name": "Envia mensagem na Kommo"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6176,
+        2192
+      ],
+      "id": "fdaf0a8d-2d91-459a-9ac0-8323825b034a",
+      "name": "Wait",
+      "webhookId": "6182a132-5877-4be2-96b8-6afd28fd13e5"
+    },
+    {
+      "parameters": {
+        "content": "\n### **Instruções:**\n\n* Os intervalos devem ser definidos seguindo o modelo: **X-Y**\n  * **X** = início do horário de atividade  \n  * **Y** = fim do horário de atividade\n\n> *Exemplo:*  \n> Para o Agente de Follow ser habilitado a enviar mensagens entre as **7h** e as **21h** nas **segundas-feiras**, escrever:  \n> `segunda: 7-21`\n\n### **Casos especiais:**\n\n* Para agente **inativo durante um dia inteiro**:  \n  `0-0`\n\n* Para agente **ativo durante o dia inteiro**:  \n  `0-24`\n\n* Para agente **ativo das X horas até 23:59**:  \n  `X-24`\n",
+        "height": 836,
+        "width": 1184
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        48,
+        -432
+      ],
+      "id": "f3d1a427-323c-4906-b869-ccc5972df0de",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 200,
+        "width": 260,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        544,
+        -80
+      ],
+      "id": "85260da4-6bfa-4b4f-8460-76c78fb7736b",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f6b13706-d721-4ffa-a497-00b73f0cf4ae",
+              "leftValue": "={{ $('iteraLeads').item.json.validacao.tagsPermitidas }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3024,
+        1696
+      ],
+      "id": "495d3b84-5e1f-43ba-ac92-9c0a9ed4b4a7",
+      "name": "seLeadTag",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f67e4748-87ae-40b9-a60a-49dd2892c87f",
+              "name": "supercelulares_julio_1",
+              "value": "={\n    \"agent\": \"julio\",\n    \"tags_permitidas\": [\"IA-Julio\"],\n    \"funisEtapas\": [\"Celulares-Follow-Up (Contato Inicial)\"],\n    \"cadencia\": [\"5s\", \"5s\", \"5s\"],\n    \"funilEtapaSemResposta\": \"Rmkt-Cadência 1\",\n    \"esperaSemResposta\": \"5s\",\n    \"prompt\": \"envie uma mensagem de followup\"\n}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1952,
+        208
+      ],
+      "id": "90ec3b4d-8f79-4d22-a2bc-1c4441f88101",
+      "name": "configuracoesFollowUp"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "={{ $('iteraLeads').context.done }}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2976,
+        992
+      ],
+      "id": "9e9225d8-32f2-4fe6-843c-93fba81c1da5",
+      "name": "iteraLeads",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1296,
+        640
+      ],
+      "id": "1a90bb49-3a07-48b2-a755-482ee0630d5e",
+      "name": "iteraFluxos"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ====== CONFIG ======\nconst SOURCE_NODE = 'formataConfiguracoes';\nconst PIPES_NODE  = 'buscaFunisEtapas';\n\n// ====== Helpers (normalização e afins) ======\nfunction normStrict(str){return String(str??'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');}\nfunction normLight(str){return String(str??'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/\\s+/g,' ').trim();}\nfunction tokenBagKey(str){const t=String(str??'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().match(/[a-z0-9]+/g)||[];t.sort();return t.join('|');}\nfunction makeKeys(str){return [normStrict(str),normLight(str),tokenBagKey(str)];}\nfunction isEmptyListOrString(v){if(v==null)return true;if(Array.isArray(v))return v.length===0;if(typeof v==='string')return v.trim()==='';return false;}\nfunction manualDeCorrecao(){return `Manual:\n1) Você pode informar por NOME: \"NOME DO FUNIL - NOME DA ETAPA\".\n2) Ou por ID: \"pipelineId-statusId\".\n3) Nomes ignoram acentos/maiúsculas/espaços/pontuação.\n4) Em duplicidade, informe por ID.\n\nAjuda: use os nomes exatamente como aparecem no Kommo (ou IDs).`;}\nfunction listarFunisDisponiveis(pipes){return pipes.map(p=>`- ${p.name} (id: ${p.id})`).join('\\n');}\nfunction listarEtapasDisponiveis(p){const sts=(p?._embedded?.statuses||[]).map(s=>`- ${s.name} (id: ${s.id})`).join('\\n');return sts||'(nenhuma etapa encontrada)';}\nfunction throwEr(headerLine,flowName,body){throw new Error(`${headerLine}\n[confereFunisEtapas] Flow \"${flowName}\" — não reconhecido\n${body}\n\n${manualDeCorrecao()}`);}\n\nfunction splitFunilEtapa(raw){\n  const s=String(raw??''); const i=s.indexOf('-');\n  if(i===-1) return {ok:false,reason:'semHifen',funilRaw:s.trim(),etapaRaw:''};\n  const f=s.slice(0,i).trim(); const e=s.slice(i+1).trim();\n  if(!f && !e) return {ok:false,reason:'vazioDuplo',funilRaw:f,etapaRaw:e};\n  if(!f)       return {ok:false,reason:'semFunil',funilRaw:f,etapaRaw:e};\n  if(!e)       return {ok:false,reason:'semEtapa',funilRaw:f,etapaRaw:e};\n  return {ok:true,funilRaw:f,etapaRaw:e};\n}\n\n// ====== Indexação dos pipelines ======\nfunction buildIndexes(pipelinesRaw){\n  const pipelineById = new Map();\n  const pipelinesByName = new Map();\n  const statusByPipelineAndId = new Map();\n  const statusKeysByPipelineId = new Map();\n\n  for (const p of pipelinesRaw){\n    pipelineById.set(String(p.id), p);\n\n    const pn = normStrict(p?.name ?? '');\n    if (pn){\n      if (!pipelinesByName.has(pn)) pipelinesByName.set(pn, []);\n      pipelinesByName.get(pn).push(p);\n    }\n\n    const keyMap = new Map();\n    for (const s of (p?._embedded?.statuses||[])){\n      statusByPipelineAndId.set(`${p.id}-${s.id}`, s);\n      for (const k of makeKeys(s?.name ?? '')){\n        if(!k) continue;\n        if(!keyMap.has(k)) keyMap.set(k, []);\n        keyMap.get(k).push(s);\n      }\n    }\n    statusKeysByPipelineId.set(p.id, keyMap);\n  }\n\n  return { pipelineById, pipelinesByName, statusByPipelineAndId, statusKeysByPipelineId, pipelinesRaw };\n}\n\nfunction resolveFunilEtapaToId(rawPair, flowName, indexes){\n  const { pipelineById, pipelinesByName, statusByPipelineAndId, statusKeysByPipelineId, pipelinesRaw } = indexes;\n  const parsed = splitFunilEtapa(rawPair);\n\n  if (!parsed.ok){\n    let motivo='Formato inválido.'; \n    if (parsed.reason==='semHifen')   motivo='Falta o hífen \"-\" separando FUNIL e ETAPA.';\n    if (parsed.reason==='semFunil')   motivo='Falta o nome/ID do FUNIL antes do \"-\".';\n    if (parsed.reason==='semEtapa')   motivo='Falta o nome/ID da ETAPA depois do \"-\".';\n    if (parsed.reason==='vazioDuplo') motivo='Faltam FUNIL e ETAPA.';\n    throwEr(`\"${parsed.funilRaw||''} - ${parsed.etapaRaw||''}\"`, flowName, `Detalhes:\\n- Motivo: ${motivo}`);\n  }\n\n  const { funilRaw, etapaRaw } = parsed;\n\n  // Por ID\n  if (/^\\d+$/.test(funilRaw) && /^\\d+$/.test(etapaRaw)){\n    const pipeline = pipelineById.get(funilRaw);\n    if (!pipeline){\n      throwEr(`\"${funilRaw} - ${etapaRaw}\"`, flowName,`Detalhes:\\n- Motivo: FUNIL por ID não encontrado.\\n\\nFunis disponíveis:\\n${listarFunisDisponiveis(pipelinesRaw)}`);\n    }\n    const status = statusByPipelineAndId.get(`${funilRaw}-${etapaRaw}`);\n    if (!status){\n      throwEr(`\"${funilRaw} - ${etapaRaw}\"`, flowName,`Detalhes:\\n- Funil reconhecido: \"${pipeline.name}\" (id ${pipeline.id})\\n- Motivo: ETAPA por ID não encontrada neste funil.\\n\\nEtapas disponíveis no funil \"${pipeline.name}\" (id ${pipeline.id}):\\n${listarEtapasDisponiveis(pipeline)}`);\n    }\n    return `${pipeline.id}-${status.id}`;\n  }\n\n  // Por nome\n  const funilKey = normStrict(funilRaw);\n  const etapaKeys = makeKeys(etapaRaw);\n  const candidatesPipes = pipelinesByName.get(funilKey) || [];\n  if (!candidatesPipes.length){\n    throwEr(`\"${funilRaw} - ${etapaRaw}\"`, flowName,`Detalhes:\\n- Motivo: FUNIL não localizado.\\n\\nFunis disponíveis:\\n${listarFunisDisponiveis(pipelinesRaw)}`);\n  }\n\n  let pipeline = null;\n  if (candidatesPipes.length===1){\n    pipeline = candidatesPipes[0];\n  } else {\n    const withStage = candidatesPipes.filter(p => {\n      const km = statusKeysByPipelineId.get(p.id) || new Map();\n      return etapaKeys.some(k => km.has(k));\n    });\n    if (withStage.length===1) pipeline = withStage[0];\n    else {\n      const lista = candidatesPipes.map(p=>`- ${p.name} (id: ${p.id})`).join('\\n');\n      throwEr(`\"${funilRaw} - ${etapaRaw}\"`, flowName,`Detalhes:\\n- Motivo: FUNIL ambíguo (mesmo nome em ${candidatesPipes.length} funis) e não foi possível decidir pela etapa.\\n\\nFunis candidatos:\\n${lista}`);\n    }\n  }\n\n  const km = statusKeysByPipelineId.get(pipeline.id) || new Map();\n  let candidatesStatus = [];\n  for (const k of etapaKeys){ if (km.has(k)) candidatesStatus = candidatesStatus.concat(km.get(k)); }\n  candidatesStatus = Array.from(new Map(candidatesStatus.map(s=>[String(s.id), s])).values());\n\n  if (!candidatesStatus.length){\n    throwEr(`\"${funilRaw} - ${etapaRaw}\"`, flowName,`Detalhes:\\n- Funil reconhecido: \"${pipeline.name}\" (id ${pipeline.id})\\n- Motivo: ETAPA não encontrada neste funil.\\n\\nEtapas disponíveis no funil \"${pipeline.name}\" (id ${pipeline.id}):\\n${listarEtapasDisponiveis(pipeline)}`);\n  }\n  if (candidatesStatus.length>1){\n    throwEr(`\"${funilRaw} - ${etapaRaw}\"`, flowName,`Detalhes:\\n- Motivo: múltiplas ETAPAS com o mesmo nome neste funil. Informe por ID no formato \"pipelineId-statusId\".\\n\\nOpções de etapa encontradas:\\n${candidatesStatus.map(s=>`- ${s.name} (id: ${s.id})`).join('\\n')}`);\n  }\n\n  return `${pipeline.id}-${candidatesStatus[0].id}`;\n}\n\n// ====== 1) Carrega pipelines do nó \"buscaFunisEtapas\" ======\nconst pipesItems = $(PIPES_NODE).all();\nif (!pipesItems.length) {\n  throw new Error(`confereFunisEtapas: o nó \"${PIPES_NODE}\" não retornou itens.\n📋 TUTORIAL: Conecte o nó que chama a API de pipelines do Kommo antes deste e rode novamente.`);\n}\n\n// Suporta diferentes formatos de retorno\nlet pipelinesRaw = [];\nfor (const it of pipesItems){\n  const j = it?.json || it || {};\n  if (Array.isArray(j?.pipelines)) pipelinesRaw = pipelinesRaw.concat(j.pipelines);\n  else if (j?._embedded?.pipelines) pipelinesRaw = pipelinesRaw.concat(j._embedded.pipelines);\n  else if (Array.isArray(j) && j[0]?._embedded?.pipelines) pipelinesRaw = pipelinesRaw.concat(j[0]._embedded.pipelines);\n}\npipelinesRaw = Array.from(new Map(pipelinesRaw.map(p=>[String(p.id), p])).values()); // dedup por id\n\nif (!pipelinesRaw.length){\n  throw new Error(`confereFunisEtapas: não encontrei \"_embedded.pipelines\" no output de \"${PIPES_NODE}\".`);\n}\n\nconst indexes = buildIndexes(pipelinesRaw);\n\n// ====== 2) Carrega FLOWS do \"formataConfiguracoes\" ======\nconst flowsItems = $(SOURCE_NODE).all();\nif (!flowsItems.length) {\n  throw new Error(`confereFunisEtapas: o nó \"${SOURCE_NODE}\" não retornou itens.`);\n}\n\n// ====== 3) Resolve para cada flow usando o ÚNICO conjunto de pipelines ======\nconst out = [];\n\nfor (const it of flowsItems){\n  const flow = { ...(it.json || {}) };\n  const flowName = flow.followup_flow_name ?? '(sem nome)';\n\n  const funisEtapas_id = !isEmptyListOrString(flow.funisEtapas)\n    ? (Array.isArray(flow.funisEtapas)\n        ? flow.funisEtapas.map(f => resolveFunilEtapaToId(f, flowName, indexes))\n        : [resolveFunilEtapaToId(flow.funisEtapas, flowName, indexes)]\n      )\n    : null;\n\n  const funilEtapaSemResposta_id = !isEmptyListOrString(flow.funilEtapaSemResposta)\n    ? resolveFunilEtapaToId(flow.funilEtapaSemResposta, flowName, indexes)\n    : null;\n\n  // >>> Sem tags no output <<<\n  const minimal = {\n    followup_flow_name: flow.followup_flow_name,\n    agent: flow.agent,\n    funisEtapas: flow.funisEtapas,\n    funisEtapas_id,\n    funilEtapaSemResposta: flow.funilEtapaSemResposta,\n    funilEtapaSemResposta_id\n  };\n\n  out.push({ json: minimal });\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        576
+      ],
+      "id": "5f735da1-83d9-4ce8-b735-e04e859478e2",
+      "name": "confereFunisEtapas"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('configuracoesAcessos').item.json.subdomainKommo }}.kommo.com/api/v4/leads/pipelines",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('configuracoesAcessos').item.json.tokenKommo }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        848,
+        576
+      ],
+      "id": "03b7bffe-929a-41c9-8a0e-088591f25d96",
+      "name": "buscaFunisEtapas",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const dias = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];\n\n// Hora atual com fuso São Paulo\nconst fuso = 'America/Sao_Paulo';\nconst agora = new Date();\n\n// Usa Intl.DateTimeFormat para extrair hora no fuso correto\nconst formatadorHora = new Intl.DateTimeFormat('pt-BR', {\n  timeZone: fuso,\n  hour: '2-digit',\n  minute: '2-digit',\n  second: '2-digit',\n  hour12: false\n});\n\nconst horaStr = formatadorHora.format(agora); // ex: \"18:34:22\"\nconst [hora, minuto, segundo] = horaStr.split(':').map(Number);\nconst horaDecimal = hora + minuto / 60;\n\n// Para extrair a data no fuso horário correto:\nconst formatadorData = new Intl.DateTimeFormat('pt-BR', {\n  timeZone: fuso,\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n});\n\nconst partesData = formatadorData.formatToParts(agora);\n\nlet ano, mes, dia;\nfor (const parte of partesData) {\n  if (parte.type === 'year') ano = parte.value;\n  if (parte.type === 'month') mes = parte.value;\n  if (parte.type === 'day') dia = parte.value;\n}\n\nconst dataHoraAtual = `${ano}-${mes}-${dia}T${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}:${String(segundo).padStart(2, '0')}`;\n\nconst diaSemana = dias[agora.getDay()];\nconst config = $('configuracoesHorarioComercial').first().json;\nconst intervalo = config[diaSemana]; // ex: \"7,19\"\n\nlet permitido = false;\n\nif (intervalo && intervalo !== \"0-0\") {\n  const [inicioStr, fimStr] = intervalo.split('-');\n  const inicio = parseFloat(inicioStr);\n  const fim = parseFloat(fimStr);\n\n  permitido = horaDecimal >= inicio && horaDecimal < fim;\n}\n\nreturn [\n  {\n    json: {\n      permitido: permitido,\n      dataHoraAtual: dataHoraAtual\n    }\n  }\n];\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -48
+      ],
+      "id": "2ca46159-19d6-413f-b7c7-ffec0fc433ec",
+      "name": "verificarSeHorarioPermitido"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9c26af5e-4ae2-4042-828e-7310d122ba6b",
+              "leftValue": "={{ $json.permitido }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1072,
+        -48
+      ],
+      "id": "de128521-83dc-46d1-b668-cf1a92badb03",
+      "name": "continuaPermitido"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": "={{ $('iteraIntervalos').context.done }}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1856,
+        816
+      ],
+      "id": "cdf5fe50-d3cd-4af4-a4bd-121f948d56d0",
+      "name": "iteraIntervalos"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "91b1782a-198f-45c0-bb3f-4e8832ec0c30",
+              "name": "tokenKommetrik",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "27c7c6f2-c867-4d0b-afe7-e0a9f0a07cb1",
+              "name": "subdomainKommo",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "24fe7800-f192-4ba5-bfa3-c17e248ea123",
+              "name": "tokenKommo",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "d2224d35-a3a8-48d3-ba1f-cc0be42c6448",
+              "name": "projectNameDatabase",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "e2c6b70d-e6e9-4dc6-942a-549fc13fd919",
+              "name": "serviceSecretDatabase",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        -64
+      ],
+      "id": "5ea80f06-b2a3-4beb-b69c-de4787464923",
+      "name": "configuracoesAcessos"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * formataConfiguracoes (Run Once for ALL Items)\n * - Valida o nó \"configuracoesAcessos\"\n * - Lê e valida o nó \"configuracoesFollowUp\"\n * - Gera 1 item por fluxo, SEM carregar dados de acesso no output\n * - ⚠️ Sem o campo \"extraNodes\"\n * - ⚠️ esperaSemResposta AGORA É OBRIGATÓRIO (padrão \"<número>(s|min|h)\")\n */\n\nconst NODE_ACESSOS = 'configuracoesAcessos';\nconst NODE_CONFIGS = 'configuracoesFollowUp';\n\n// ===== Helpers =====\nconst EXPECTED_ACCESS_KEYS = [\n  'subdomainKommo',\n  'projectNameDatabase',       // <- trocado para projectNameDatabase\n  'tokenKommo',\n  'serviceSecretDatabase',\n  'tokenKommetrik',\n];\n\n// ⚠️ Sem \"extraNodes\"\nconst FLOW_KEYS = [\n  'agent', 'tags_permitidas',\n  'funisEtapas', 'cadencia', 'funilEtapaSemResposta',\n  'esperaSemResposta', 'prompt',\n];\n\nfunction isString(v) { return typeof v === 'string'; }\nfunction isEmptyString(v) { return isString(v) && v.trim() === ''; }\nfunction toNullIfEmpty(v) {\n  if (v === null || v === undefined) return null;\n  if (isString(v) && v.trim() === '') return null;\n  if (Array.isArray(v) && v.length === 0) return null;\n  return v;\n}\nfunction hasHyphen(str) { return String(str).includes('-'); }\nfunction isTempoString(str) { return /^(\\d+)(min|h|s)$/.test(String(str)); }\nfunction tutorial(msg) {\n  return `${msg}\n📍 Como corrigir:\n1) Abra o nó indicado (Set) e ajuste o(s) campo(s) conforme a mensagem.\n2) 'esperaSemResposta' é obrigatório e deve seguir \"<número>min|h|s\" (ex.: \"1440min\", \"2h\", \"30s\").\n3) Salve e rode o fluxo novamente.`;\n}\nfunction getNodeItemsByName(name) {\n  try {\n    const arr = $items(name);\n    if (!Array.isArray(arr) || arr.length === 0) {\n      throw new Error(`Sem itens no nó \"${name}\".`);\n    }\n    return arr;\n  } catch (e) {\n    throw new Error(`Nó não encontrado: \"${name}\".`);\n  }\n}\n\n// ===== 1) Validação de configuracoesAcessos =====\nconst acessosItem = getNodeItemsByName(NODE_ACESSOS)[0];\nconst acessos = acessosItem?.json;\n\nif (!acessos || typeof acessos !== 'object' || Array.isArray(acessos)) {\n  throw new Error(tutorial(\n    `Estrutura inválida em \"${NODE_ACESSOS}\". Esperado: um OBJETO com os campos ${EXPECTED_ACCESS_KEYS.join(', ')}.`\n  ));\n}\n\nconst keysAcessos = Object.keys(acessos);\nconst missing = EXPECTED_ACCESS_KEYS.filter(k => !(k in acessos));\nconst extras = keysAcessos.filter(k => !EXPECTED_ACCESS_KEYS.includes(k));\nif (missing.length) {\n  throw new Error(tutorial(`Campo(s) ausente(s) em \"${NODE_ACESSOS}\": ${missing.join(', ')}.`));\n}\nif (extras.length) {\n  throw new Error(tutorial(\n    `Campo(s) não permitido(s) em \"${NODE_ACESSOS}\": ${extras.join(', ')}.\nSomente são aceitos: ${EXPECTED_ACCESS_KEYS.join(', ')}.`\n  ));\n}\nfor (const k of EXPECTED_ACCESS_KEYS) {\n  if (!isString(acessos[k])) throw new Error(tutorial(`Campo \"${k}\" em \"${NODE_ACESSOS}\" deve ser STRING.`));\n  if (isEmptyString(acessos[k])) throw new Error(tutorial(`Campo \"${k}\" em \"${NODE_ACESSOS}\" não pode estar vazio.`));\n}\nif (/^https?:\\/\\//i.test(acessos.subdomainKommo) || acessos.subdomainKommo.includes('.kommo.com')) {\n  throw new Error(tutorial(\n    `Campo \"subdomainKommo\" inválido em \"${NODE_ACESSOS}\".\nUse apenas o subdomínio (ex.: \"metriksales\"), sem \"http(s)://\" e sem \".kommo.com\".`\n  ));\n}\nif (/^https?:\\/\\//i.test(acessos.projectNameDatabase)) {\n  throw new Error(tutorial(\n    `Campo \"projectNameDatabase\" inválido em \"${NODE_ACESSOS}\".\nUse o \"project ref\" do Supabase (ex.: \"rdildqbfggihmceqwyoc\"), sem \"http(s)://\".`\n  ));\n}\n\n// ===== 2) Leitura + validação de configuracoesFollowUp (sem \"extraNodes\") =====\nconst cfgItems = getNodeItemsByName(NODE_CONFIGS);\nconst raw = cfgItems[0]?.json;\nconst cfgRoot = Array.isArray(raw) ? raw[0] : raw;\n\nif (!cfgRoot || typeof cfgRoot !== 'object' || Array.isArray(cfgRoot)) {\n  throw new Error(tutorial(\n    `Estrutura inválida em \"${NODE_CONFIGS}\".\nEsperado: um OBJETO com vários blocos nomeados (ex.: {\"meu_flow\": { ... }}).`\n  ));\n}\n\nconst out = [];\n\nfor (const [flowName, value] of Object.entries(cfgRoot)) {\n  const key = String(flowName || '').trim();\n  if (!key) throw new Error(tutorial(`Nome do bloco (chave do objeto) em \"${NODE_CONFIGS}\" não pode ser vazio.`));\n\n  const isPlainObject = value && typeof value === 'object' && !Array.isArray(value);\n  if (!isPlainObject) {\n    throw new Error(tutorial(`O conteúdo de \"${key}\" em \"${NODE_CONFIGS}\" deve ser um OBJETO.`));\n  }\n\n  // somente os campos em FLOW_KEYS são aceitos\n  for (const campo of FLOW_KEYS) {\n    if (!(campo in value)) {\n      throw new Error(tutorial(`Campo '${campo}' ausente no bloco \"${key}\" (nó \"${NODE_CONFIGS}\").`));\n    }\n  }\n  for (const campo of Object.keys(value)) {\n    if (!FLOW_KEYS.includes(campo)) {\n      throw new Error(tutorial(\n        `Campo '${campo}' não é permitido no bloco \"${key}\" (nó \"${NODE_CONFIGS}\").\nUse apenas: ${FLOW_KEYS.join(', ')}.`\n      ));\n    }\n  }\n\n  // validações de conteúdo\n  if (value.agent !== null && value.agent !== undefined && !isString(value.agent)) {\n    throw new Error(tutorial(`Campo 'agent' deve ser string (pode ser vazio \"\") no bloco \"${key}\".`));\n  }\n  const agentFinal = toNullIfEmpty(value.agent);\n\n  if (!Array.isArray(value.tags_permitidas)) {\n    throw new Error(tutorial(`Campo 'tags_permitidas' deve ser array no bloco \"${key}\".`));\n  }\n  if (value.tags_permitidas.length > 0 && !value.tags_permitidas.every(isString)) {\n    throw new Error(tutorial(`'tags_permitidas' deve conter apenas strings no bloco \"${key}\".`));\n  }\n  const tagsFinal = toNullIfEmpty(value.tags_permitidas);\n\n  if (!Array.isArray(value.funisEtapas)) {\n    throw new Error(tutorial(`Campo 'funisEtapas' deve ser array no bloco \"${key}\".`));\n  }\n  if (value.funisEtapas.length > 0 && !value.funisEtapas.every(v => isString(v) && hasHyphen(v))) {\n    throw new Error(tutorial(`'funisEtapas' deve conter strings \"Funil-Etapa\" (com hífen) no bloco \"${key}\".`));\n  }\n  const funisEtapasFinal = toNullIfEmpty(value.funisEtapas);\n\n  if (!Array.isArray(value.cadencia) || value.cadencia.length === 0) {\n    throw new Error(tutorial(`Campo 'cadencia' deve ser um array NÃO vazio no bloco \"${key}\".`));\n  }\n  if (!value.cadencia.every(v => isString(v) && isTempoString(v))) {\n    throw new Error(tutorial(`Itens de 'cadencia' inválidos no bloco \"${key}\". Use \"15min\", \"2h\" ou \"30s\".`));\n  }\n\n  let funilEtapaSemRespostaFinal = toNullIfEmpty(value.funilEtapaSemResposta);\n  if (funilEtapaSemRespostaFinal !== null) {\n    if (!isString(funilEtapaSemRespostaFinal) || !hasHyphen(funilEtapaSemRespostaFinal)) {\n      throw new Error(tutorial(\n        `'funilEtapaSemResposta' (quando preenchido) deve conter hífen (ex.: \"Funil-Etapa\" ou \"pipelineId-statusId\") no bloco \"${key}\".`\n      ));\n    }\n  }\n\n  // ⚠️ esperaSemResposta AGORA É OBRIGATÓRIA\n  if (!isString(value.esperaSemResposta) || !isTempoString(value.esperaSemResposta)) {\n    throw new Error(tutorial(\n      `Campo 'esperaSemResposta' é OBRIGATÓRIO no bloco \"${key}\" e deve usar \"<número>min|h|s\" (ex.: \"1440min\", \"2h\", \"30s\").`\n    ));\n  }\n  const esperaFinal = value.esperaSemResposta.trim();\n\n  if (value.prompt !== null && value.prompt !== undefined && !isString(value.prompt)) {\n    throw new Error(tutorial(`Campo 'prompt' deve ser string (ou vazio) no bloco \"${key}\".`));\n  }\n  const promptFinal = toNullIfEmpty(value.prompt);\n\n  // ===== Output ===== \n  out.push({\n    json: {\n      followup_flow_name: key,\n      agent: agentFinal,\n      tags_permitidas: tagsFinal,\n      funisEtapas: funisEtapasFinal,\n      cadencia: value.cadencia,\n      funilEtapaSemResposta: funilEtapaSemRespostaFinal,\n      esperaSemResposta: esperaFinal,     // sempre string válida (ex.: \"600min\")\n      prompt: promptFinal\n    },\n  });\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        576
+      ],
+      "id": "c93fdb5c-dde5-48da-a60c-a017a1cbdf70",
+      "name": "formataConfiguracoes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ====== CONFIG ======\nconst SOURCE_NODE = 'formataConfiguracoes';   // flows formatados\nconst PIPES_NODE  = 'buscaFunisEtapas';       // (não usado aqui; mantido como padrão)\nconst ACC_NODE    = 'configuracoesAcessos';   // acessos globais\n\n// n8n Code Node: juntaDados (Run Once for All Items)\n// Agrega por followup_flow_name a partir dos nós:\n// - formataConfiguracoes\n// - confereFunisEtapas\n// - agoraMenos\n// - confereTags\n// e injeta, em cada item, o objeto de configuracoesAcessos com secrets\n// ⚠️ agoraMenos é repassado **intacto**, exatamente como foi gerado no nó original.\n\nfunction tutorial(msg) {\n  return `${msg}\n💬 Para tirar dúvidas, acesse a comunidade Kommetrik no WhatsApp.`;\n}\n\n// ---------- Carrega fontes ----------\nconst formataItems = $(SOURCE_NODE).all();\nconst confereItems = $('confereFunisEtapas').all();\nconst agoraItems   = $('agoraMenos').all();\nconst acessosItems = $(ACC_NODE).all();\nconst confereTagsItems = $('confereTags').all();\n\nif (!formataItems?.length && !confereItems?.length && !agoraItems?.length) {\n  throw new Error(tutorial(\n    `Nenhuma fonte retornou dados.\n📋 TUTORIAL: Conecte os nós '${SOURCE_NODE}', 'confereFunisEtapas' e 'agoraMenos' antes deste.`\n  ));\n}\n\nif (!acessosItems?.length || !acessosItems[0]?.json || typeof acessosItems[0].json !== 'object') {\n  throw new Error(tutorial(\n    `O nó '${ACC_NODE}' não retornou um objeto válido.\n📋 TUTORIAL: Verifique o Set '${ACC_NODE}' e garanta que ele exporta exatamente os campos esperados.`\n  ));\n}\n\n// Monta objeto configuracoesAcessos com secrets\nconst rawAccess = acessosItems[0].json || {};\nconst {\n  tokenKommetrik = null,\n  tokenKommo = null,\n  serviceSecretDatabase = null,\n  ...restAccess\n} = rawAccess;\n\nconst configuracoesAcessos = {\n  ...restAccess,\n  secrets: {\n    tokenKommetrik,\n    tokenKommo,\n    serviceSecretDatabase,\n  },\n};\n\n// ---------- Indexa por followup_flow_name ----------\nconst mapFormata = new Map();\nfor (const it of formataItems || []) {\n  const j = it?.json || {};\n  if (!j || typeof j !== 'object') continue;\n  const name =\n    j.followup_flow_name ||\n    j.follow_flow_name ||\n    j.follow_flow ||\n    j.name || null;\n  if (!name) continue;\n  mapFormata.set(String(name), j);\n}\n\nconst mapConfere = new Map();\nfor (const it of confereItems || []) {\n  const j = it?.json || {};\n  if (!j || typeof j !== 'object') continue;\n  const name =\n    j.followup_flow_name ||\n    j.follow_flow_name ||\n    j.follow_flow ||\n    j.name || null;\n  if (!name) continue;\n  mapConfere.set(String(name), j);\n}\n\nconst mapAgora = new Map();\nfor (const it of agoraItems || []) {\n  const j = it?.json || {};\n  if (!j || typeof j !== 'object') continue;\n  const name =\n    j.followup_flow_name ||\n    j.follow_flow_name ||\n    j.follow_flow ||\n    j.name || null;\n  if (!name) continue;\n  mapAgora.set(String(name), j);\n}\n\nconst mapTags = new Map();\nfor (const it of confereTagsItems || []) {\n  const j = it?.json || {};\n  if (!j || typeof j !== 'object') continue;\n  const name =\n    j.followup_flow_name ||\n    j.follow_flow_name ||\n    j.follow_flow ||\n    j.name || null;\n  if (!name) continue;\n  mapTags.set(String(name), j);\n}\n\nconst allNames = new Set([\n  ...Array.from(mapFormata.keys()),\n  ...Array.from(mapConfere.keys()),\n  ...Array.from(mapAgora.keys()),\n  ...Array.from(mapTags.keys()),\n]);\n\n// ---------- Monta saída com followup_flow_index ----------\nconst out = [];\nlet loopIndex = 0;\n\nfor (const flowName of allNames) {\n  const f = mapFormata.get(flowName) || null;\n  const c = mapConfere.get(flowName) || null;\n  const a = mapAgora.get(flowName) || null;\n  const t = mapTags.get(flowName) || null;\n\n  // Agent\n  const agent =\n    (f && (f.agent ?? null)) ||\n    (c && (c.agent ?? null)) ||\n    (a && (a.agent ?? null)) ||\n    null;\n\n  // agoraMenos intacto (sem renomeação/fallback)\n  const agoraMenosIntacto = a ? a : null;\n\n  out.push({\n    json: {\n      followup_flow_index: loopIndex,\n      followup_flow_name: flowName,\n      agent,\n\n      configuracoesAcessos,\n\n      formataConfiguracoes: f,\n      confereFunisEtapas: c,\n      confereTags: t,\n      agoraMenos: agoraMenosIntacto, // exatamente como veio do nó \"agoraMenos\"\n    }\n  });\n\n  loopIndex++;\n}\n\nif (out.length === 0) {\n  throw new Error(tutorial(\n    `Não foi possível montar os dados combinados.\n📋 TUTORIAL: Verifique se ao menos um dos nós de origem retornou itens com 'followup_flow_name'.`\n  ));\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        976
+      ],
+      "id": "e39a11cb-867f-4518-be22-65a805742588",
+      "name": "juntaDados"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node: geraItensIntervalos (Run Once for All Items)\n// Expande cada intervalo do flow atual em um item separado\n\ntry {\n  // ===== CONFIG =====\n  // ===== Fonte =====\n  const loopItems = $('iteraFluxos').all();\n  if (!loopItems || loopItems.length === 0) {\n    throw new Error('Nenhum dado recebido de \"iteraFluxos\".');\n  }\n\n  // ===== Helpers =====\n  function toUTCNoMs(iso) {\n    if (typeof iso !== 'string' || !iso) return iso;\n    const d = new Date(iso);                 // respeita offset se houver\n    if (isNaN(d.getTime())) return iso;      // fallback: devolve como veio\n    return d.toISOString().replace(/\\.\\d{3}Z$/, 'Z'); // remove ms\n  }\n\nfunction labelFromKey(key, fallbackMinutes) {\n  const s = String(key || '');\n  // suporta: agoraMenos2s_0 | agoraMenos30min | agoraMenos2h_3\n  const m = s.match(/^agoraMenos(\\d+)(min|h|s)(?:_\\d+)?$/i);\n  if (m) {\n    return `${m[1]}${m[2]} atrás`;\n  }\n  // fallback (quando a chave não segue o padrão)\n  return `${fallbackMinutes}min atrás`;\n}\n\n  const out = [];\n\n  for (const it of loopItems) {\n    const root = it?.json || {};\n    const flowName =\n      root.followup_flow_name ||\n      root?.formataConfiguracoes?.followup_flow_name ||\n      root.follow_flow_name || // fallback legado, se ainda existir em algum teste\n      '';\n\n    // Bloco agoraMenos (gerado pelo nó \"agoraMenos\")\n    const ag = root.agoraMenos || {};\n    const esperaSemResposta = !!ag.esperaSemResposta;\n\n    // Listas com MESMO comprimento e mesma ordem\n    const minutosArr = Array.isArray(ag?.intervalos?.minutos) ? ag.intervalos.minutos : [];\n    const agoraObj   = (ag && typeof ag.agoraMenos === 'object') ? ag.agoraMenos : {};\n\n    const keys = Object.keys(agoraObj); // ex.: [\"agoraMenos15min\",\"agoraMenos2h\",...]\n    if (!keys.length || !minutosArr.length) continue;\n\n    const n = Math.min(keys.length, minutosArr.length);\n    const ultimoIndex = n - 1;\n\n    for (let i = 0; i < n; i++) {\n      const key = keys[i];                    // p.ex. \"agoraMenos15min\"\n      const minutes = minutosArr[i];          // p.ex. 15 (em minutos)\n      const tsUTC = toUTCNoMs(agoraObj[key]); // sempre UTC\n\n      const row = {\n        intervalo_index: i,                      // índice do intervalo atual\n        followup_flow_name: flowName,            // identificação do flow \n        agoraMenos: tsUTC,                       // timestamp UTC\n        quantoAtras: labelFromKey(key, minutes), // \"15min atrás\", \"2h atrás\", ...\n        ultimoCount: (i === ultimoIndex) && esperaSemResposta\n      };\n\n      out.push({ json: row });\n    }\n  }\n\n  if (!out.length) throw new Error('Nenhum item de intervalo foi gerado.');\n\n  return out;\n\n} catch (error) {\n  console.error('Erro em geraItensIntervalos:', error.message);\n  return [{\n    json: {\n      erro: true,\n      mensagem: error.message,\n      timestamp: new Date().toISOString(),\n      tipoErro: 'expansao_cadencias'\n    }\n  }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        656
+      ],
+      "id": "fbf98141-8d08-47db-8061-ee5a0197388d",
+      "name": "geraItensIntervalos",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('configuracoesAcessos').item.json.subdomainKommo }}.kommo.com/api/v4/leads/tags",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('configuracoesAcessos').item.json.tokenKommo }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        848,
+        768
+      ],
+      "id": "9dab7fc3-42c3-4a3f-826d-01c55a655599",
+      "name": "buscaTags",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ====== CONFIG (padrão) ======\nconst SOURCE_NODE = 'formataConfiguracoes';   // flows formatados\nconst TAGS_NODE   = 'buscaTags';              // tags do Kommo\n\n// ===== Helpers =====\nfunction normTag(s){\n  return String(s ?? '')\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '') // tira acentos\n    .toLowerCase()\n    .replace(/\\s+/g, ' ')   // colapsa espaços múltiplos\n    .trim()\n    .replace(/\\s+/g, '');   // desconsidera espaços na comparação\n}\nfunction tutorial(msg){\n  return `${msg}\n📋 TUTORIAL:\n- Confira o nó '${SOURCE_NODE}' (tags_permitidas) e o nó '${TAGS_NODE}' (lista de tags da conta).\n- Os nomes são comparados sem acentos, sem maiúsculas/minúsculas e ignorando espaços.`;\n}\n\n// ===== 1) Carrega TAGS do Kommo =====\nconst tagItems = $(TAGS_NODE).all();\nif (!tagItems.length){\n  throw new Error(tutorial(`confereTags: o nó '${TAGS_NODE}' não retornou itens.`));\n}\n\n// Flatten de todas as páginas/formatos e deduplicação por id\nlet allTags = [];\nfor (const it of tagItems){\n  const j = it?.json || it || {};\n  if (Array.isArray(j?._embedded?.tags)) allTags = allTags.concat(j._embedded.tags);\n  else if (Array.isArray(j?.tags))        allTags = allTags.concat(j.tags);\n}\nallTags = Array.from(new Map(allTags.map(t => [String(t.id), t])).values());\nif (!allTags.length){\n  throw new Error(tutorial(`confereTags: não encontrei '_embedded.tags' no output de '${TAGS_NODE}'.`));\n}\n\n// Índice por nome normalizado\nconst tagByNormName = new Map();\nfor (const t of allTags){\n  const k = normTag(t?.name ?? '');\n  if (!k) continue;\n  // se houver duplicata pelo mesmo normalizado, mantém a primeira\n  if (!tagByNormName.has(k)) tagByNormName.set(k, t);\n}\n\n// ===== 2) Carrega FLOWS do 'formataConfiguracoes' =====\nconst flowsItems = $(SOURCE_NODE).all();\nif (!flowsItems.length){\n  throw new Error(`confereTags: o nó '${SOURCE_NODE}' não retornou itens.`);\n}\n\n// ===== 3) Valida e resolve IDs de TAG por flow =====\nconst out = [];\n\nfor (const it of flowsItems){\n  const flow = { ...(it.json || {}) };\n  const flowName = flow.followup_flow_name ?? '(sem nome)';\n\n  // Se não há tags configuradas, replica nulls\n  if (!Array.isArray(flow.tags_permitidas) || flow.tags_permitidas.length === 0){\n    out.push({\n      json: {\n        followup_flow_name: flow.followup_flow_name,\n        agent: flow.agent ?? null,\n        tags_permitidas: null,\n        tags_permitidas_id: null,\n      }\n    });\n    continue;\n  }\n\n  const notFound = [];\n  const tagIds = [];\n\n  for (const rawName of flow.tags_permitidas){\n    const key = normTag(rawName);\n    const hit = tagByNormName.get(key);\n    if (!hit){\n      notFound.push(rawName);\n    } else {\n      tagIds.push(Number(hit.id));\n    }\n  }\n\n  if (notFound.length){\n    const lista = allTags\n      .slice(0, 200) // evita explosão no erro\n      .map(t => `- ${t.name} (id: ${t.id})`)\n      .join('\\n');\n    throw new Error(\n      `confereTags: tag(s) não encontrada(s) para o flow \"${flowName}\": ${notFound.join(', ')}.\n${tutorial('Verifique a grafia/acentos/espaços das tags.')}\nTags disponíveis (parcial):\n${lista}`\n    );\n  }\n\n  // Output mínimo (apenas tags e ids)\n  out.push({\n    json: {\n      followup_flow_name: flow.followup_flow_name,\n      agent: flow.agent ?? null,\n      tags_permitidas: flow.tags_permitidas,\n      tags_permitidas_id: tagIds\n    }\n  });\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        768
+      ],
+      "id": "e3a66f52-bb3a-402c-bb01-f49f8571f383",
+      "name": "confereTags"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('iteraFluxos').item.json.configuracoesAcessos.projectNameDatabase }}.supabase.co/rest/v1/followup_lead_table ",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "*"
+            },
+            {
+              "name": "last_interaction_at",
+              "value": "=lt.{{ $('iteraIntervalos').item.json.agoraMenos }}"
+            },
+            {
+              "name": "followup_count",
+              "value": "=eq.{{ $('iteraIntervalos').item.json.intervalo_index }}"
+            },
+            {
+              "name": "followup_flow_name",
+              "value": "=eq.{{ $('iteraIntervalos').item.json.followup_flow_name }}"
+            },
+            {
+              "name": "order",
+              "value": "last_interaction_at.asc,id.asc"
+            },
+            {
+              "name": "limit",
+              "value": "8"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('iteraFluxos').item.json.configuracoesAcessos.secrets.serviceSecretDatabase }}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $('iteraFluxos').item.json.configuracoesAcessos.secrets.serviceSecretDatabase }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2096,
+        864
+      ],
+      "id": "5a827285-c3d7-4523-9b85-a05dabdab79b",
+      "name": "buscaLeadsDatabase",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// geraFiltro — monta query string ?filter[id][]=...&limit=250 a partir de entity_id\n\n// Fonte\nconst items = $('buscaLeadsDatabase').all();\nif (!items || items.length === 0) {\n  throw new Error('geraFiltro: nenhum item recebido de \"buscaLeadsDatabase\".');\n}\n\n// Coleta e deduplica IDs\nconst ids = [...new Set(\n  items\n    .map(it => String(it?.json?.entity_id ?? '').trim())\n    .filter(v => v.length > 0)\n)];\n\nif (ids.length === 0) {\n  throw new Error('geraFiltro: nenhum entity_id encontrado nos itens de entrada.');\n}\n\n// Monta query string mantendo os colchetes literais e só encodando o valor\nconst query =\n  '?' +\n  ids.map(id => `filter[id][]=${encodeURIComponent(id)}`).join('&') +\n  '&limit=250';\n\n// Saída: use {{$json.filtro}} para anexar na URL do HTTP Request\nreturn [{ json: { filtro: query } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        880
+      ],
+      "id": "d49f8d42-c1c0-46a2-83cd-bb58826f752f",
+      "name": "geraFiltro",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// validaLeads — compara DB x Kommo e sempre resolve funilEtapa por NOME se possível\n// usando buscaFunisEtapas como fonte de nomes por ID.\n// Em último caso, funilEtapa vira \"pipeline_id-status_id\" (nunca null).\n\ntry {\n  // ---------- Entradas ----------\n  const dbRows   = $('buscaLeadsDatabase').all().map(it => it.json || it) || [];\n  const kommoRaw = $('filtraLeadsKommo').all().map(it => it.json || it) || [];\n  if (!dbRows.length) throw new Error('validaLeads: nenhum item em \"buscaLeadsDatabase\".');\n\n  // iteraFluxos: referências de regras do fluxo atual\n  const flowRoot   = $('iteraFluxos').first()?.json || {};\n  const refFunis   = flowRoot.confereFunisEtapas || {};\n  const refTags    = flowRoot.confereTags || {};\n\n  // ---------- Mapeia pipelines/status (buscaFunisEtapas) ----------\n  const pipesItems = $('buscaFunisEtapas').all().map(it => it.json || it) || [];\n  let pipelines = [];\n  for (const j of pipesItems) {\n    if (Array.isArray(j?.pipelines)) pipelines = pipelines.concat(j.pipelines);\n    else if (j?._embedded?.pipelines) pipelines = pipelines.concat(j._embedded.pipelines);\n    else if (Array.isArray(j) && j[0]?._embedded?.pipelines) pipelines = pipelines.concat(j[0]._embedded.pipelines);\n  }\n  // dedup por id\n  const seen = new Set(); pipelines = pipelines.filter(p => !seen.has(String(p.id)) && seen.add(String(p.id)));\n\n  const pipelineNameById = new Map();                  // \"11733016\" -> \"Celulares\"\n  const statusNameByPidSid = new Map();                // \"11733016-90241016\" -> \"Contato Inicial ...\"\n  for (const p of pipelines) {\n    pipelineNameById.set(String(p.id), String(p?.name ?? ''));\n    for (const s of (p?._embedded?.statuses || [])) {\n      statusNameByPidSid.set(`${p.id}-${s.id}`, String(s?.name ?? ''));\n    }\n  }\n\n  // ---------- Índices de referência do fluxo ----------\n  const refIds   = Array.isArray(refFunis.funisEtapas_id) ? refFunis.funisEtapas_id.map(String) : [];\n  const refTagIds   = Array.isArray(refTags.tags_permitidas_id) ? refTags.tags_permitidas_id.map(n => Number(n)) : [];\n  const refTagNames = Array.isArray(refTags.tags_permitidas) ? refTags.tags_permitidas.map(t => String(t).trim().toLowerCase()) : [];\n\n  // ---------- Indexa leads do Kommo por ID ----------\n  const kommoLeads = [];\n  for (const it of kommoRaw) {\n    const emb = it?._embedded?.leads;\n    if (Array.isArray(emb)) kommoLeads.push(...emb);\n  }\n  const kommoById = new Map(kommoLeads.map(l => [String(l.id), l]));\n\n  // ---------- Helpers ----------\n  const norm = s => String(s ?? '').trim().toLowerCase();\n  function extractTags(lead) {\n    const list = Array.isArray(lead?._embedded?.tags) ? lead._embedded.tags : [];\n    return {\n      names: list.map(t => String(t?.name ?? '')).filter(Boolean),\n      ids:   list.map(t => t?.id).filter(v => Number.isFinite(Number(v))).map(Number),\n    };\n  }\n  function tagsPermitidasFor(leadTags) {\n    if (!refTagIds.length && !refTagNames.length) return true;\n    const byId   = refTagIds.length   ? leadTags.ids.some(id => refTagIds.includes(id)) : false;\n    const byName = refTagNames.length ? leadTags.names.map(norm).some(n => refTagNames.includes(n)) : false;\n    return byId || byName;\n  }\n\n  // ---------- Saída ----------\n  const out = [];\n  for (const row of dbRows) {\n    const rowId = String(row?.entity_id ?? '').trim();\n    const kLead = kommoById.get(rowId) || null;\n\n    let funilEtapa_id = null;\n    let funilEtapa    = null;\n    let tags = [], tags_id = [];\n\n    if (kLead) {\n      // IDs\n      const pid = String(kLead.pipeline_id);\n      const sid = String(kLead.status_id);\n      funilEtapa_id = `${pid}-${sid}`;\n\n      // Nomes por buscaFunisEtapas (preferencial), senão cai para IDs\n      const pipeName = pipelineNameById.get(pid) || null;\n      const statName = statusNameByPidSid.get(funilEtapa_id) || null;\n      funilEtapa = (pipeName || statName)\n        ? `${pipeName || pid}-${statName || sid}`\n        : `${pid}-${sid}`;\n\n      // Tags do Kommo\n      const tg = extractTags(kLead);\n      tags = tg.names;\n      tags_id = tg.ids;\n    }\n\n    const leadExiste = !!kLead;\n    const funilEtapaPermitido =\n      leadExiste ? (refIds.length ? refIds.includes(funilEtapa_id) : true) : false;\n    const tagsPermitidas = leadExiste ? tagsPermitidasFor({ names: tags, ids: tags_id }) : false;\n\n    out.push({\n      json: {\n        validacao: { leadExiste, funilEtapaPermitido, tagsPermitidas },\n        funilEtapa,          // nunca null; pelo menos \"pid-sid\"\n        funilEtapa_id,       // se não achou lead, fica null\n        tags,\n        tags_id,\n        databaseRow: row,\n        kommoLead: kLead\n      }\n    });\n  }\n\n  return out;\n\n} catch (err) {\n  throw err; // erro deve parar o fluxo\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        880
+      ],
+      "id": "23207923-f3a0-4339-8340-ed1a2509f2a6",
+      "name": "validaLeads",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://{{$('iteraFluxos').first().json.configuracoesAcessos.projectNameDatabase}}.supabase.co/rest/v1/followup_lead_table",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "entity_id",
+              "value": "=eq.{{ $('iteraLeads').item.json.kommoLead.id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('iteraFluxos').first().json.configuracoesAcessos.secrets.serviceSecretDatabase }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('iteraFluxos').first().json.configuracoesAcessos.secrets.serviceSecretDatabase }}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4848,
+        960
+      ],
+      "id": "71cdcad0-1d3a-4ddd-81d8-1dfd2b5a5f2f",
+      "name": "deletaLinhaDatabase",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "aa810aeb-9a61-492a-8413-dd4e925541b8",
+              "leftValue": "={{ $('iteraLeads').item.json.validacao.funilEtapaPermitido }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3024,
+        1472
+      ],
+      "id": "4b0afd76-5304-4d66-8545-f9b08ce15b80",
+      "name": "seFunilEtapaProibido",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://{{ $('iteraFluxos').first().json.configuracoesAcessos.projectNameDatabase}}.supabase.co/rest/v1/followup_lead_table?entity_id=eq.{{ $('iteraLeads').first().json.kommoLead.id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('iteraFluxos').first().json.configuracoesAcessos.secrets.serviceSecretDatabase}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('iteraFluxos').first().json.configuracoesAcessos.secrets.serviceSecretDatabase}}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "followup_count",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.followup_count + 1}}"
+            },
+            {
+              "name": "last_interaction_at",
+              "value": "={{ $now }}"
+            },
+            {
+              "name": "followup_flow_name",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.followup_flow_name }}"
+            },
+            {
+              "name": "agent",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.agent }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6176,
+        1856
+      ],
+      "id": "62c2007c-0d48-415a-8986-2553692c9104",
+      "name": "atualizaCount"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5cdee380-2d78-4df1-8b55-b0f4e73e4f23",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2256,
+        864
+      ],
+      "id": "7721ff94-68d6-4c42-ac03-311bed27e64e",
+      "name": "seVazio"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://{{ $('iteraFluxos').first().json.configuracoesAcessos.subdomainKommo }}.kommo.com/api/v4/leads/{{ $('iteraLeads').first().json.databaseRow.entity_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('iteraFluxos').first().json.configuracoesAcessos.secrets.tokenKommo }}"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "status_id",
+              "value": "={{ Number(String($('iteraFluxos').first().json.confereFunisEtapas.funilEtapaSemResposta_id || '').split('-')[1] || '') }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4480,
+        1504
+      ],
+      "id": "f9f933ea-acd4-4bc5-bc87-d7e5dcbc26f9",
+      "name": "moveFinal"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f41df0f7-1385-4b0f-a3e7-485f4e6cd5e8",
+              "leftValue": "={{ $('iteraIntervalos').item.json.intervalo_index + 1}}",
+              "rightValue": "={{ $('iteraFluxos').item.json.agoraMenos.intervalos.total }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3024,
+        1936
+      ],
+      "id": "5aa74209-5dee-4c9e-9688-9008855dde24",
+      "name": "seCadenciaCompleta"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "50c67833-6a1f-41c1-8c8c-bbd520ea7bb1",
+              "leftValue": "={{ $('iteraFluxos').first().json.confereFunisEtapas.funilEtapaSemResposta }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3664,
+        1760
+      ],
+      "id": "c6c4806a-00e6-46c8-88bb-3e86f165c74f",
+      "name": "seNaoMoveEtapa"
+    },
+    {
+      "parameters": {
+        "content": "# ACESSOS",
+        "height": 80,
+        "width": 496,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        -528
+      ],
+      "id": "74416a8c-dae8-4bc4-934e-2f18916b6f50",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# JANELA DE CONTATO",
+        "height": 80,
+        "width": 1184
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        48,
+        -528
+      ],
+      "id": "8ef2dfbd-b8c0-43a8-82df-be7653a8f5b7",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## REGRAS: configuracoesAcessos\n- Nó deve existir e conter **um único objeto** com **exatamente** as chaves:\n  - `subdomainKommo`,\n  - `subdomainDatabase`,\n  - `tokenKommo`, \n  - `serviceSecretDatabase`, \n  - `tokenKommetrik`.\n\n OBS: `subdomainKommo`: apenas o subdomínio (ex.: `metriksales`), **sem** `http(s)://` e **sem** `.kommo.com`.  \n\n`subdomainDatabase`: **sem** `http(s)://`.",
+        "height": 832,
+        "width": 496,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        -432
+      ],
+      "id": "17d4188c-70f3-4d83-acdc-5fded6355a44",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## REGRAS: configuracoesFollowUp\n- **Nó `configuracoesFollowUp`**: cada **chave** é o `followup_flow_name` (não vazio) e o **valor** é **objeto**.\n\n- **Campos permitidos por fluxo (somente estes)**: `agent`, `tags_permitidas`, `funisEtapas`, `cadencia`, `funilEtapaSemResposta`, `esperaSemResposta`, `prompt`.  \n  ➜ Qualquer outro campo é **rejeitado**.\n\n- **`agent`**: nome do agente que gerou o lead.\n\n- **`tags_permitidas`**: **array** de strings. Exemplo:`[ \"TAG1\", \"TAG2\", \"TAG3\"]`.\n\n- **`funisEtapas`**: **array**; define as etapas permitidas. Cada item deve conter **hífen** (formatos: `\"Funil-Etapa\"` ou `\"pipelineId-statusId\"`).\n\n- **`cadencia`**: **array não vazio**; cada item deve acompanhar unidade de medida (s, min ou h)` (ex.: `30s`, `15min`, `2h`). **Sem espaços.**\n\n- **`funilEtapaSemResposta`**: **opcional**; quando informado, deve ser string com **hífen** (mesmo formato de `funisEtapas`). Define a etapa para qual o lead será enviado encerrada a cadência.\n\n- **`esperaSemResposta`**: **obrigatório**; string acompanhada de unidade de medida (s, min ou h) (ex.: `1440min`, `2h`, `30s`).\n\n- **`prompt`**: string (pode ser vazia).",
+        "height": 832,
+        "width": 544,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        -432
+      ],
+      "id": "bb26b861-1a87-4fb5-8996-990d6d1e6065",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "# FLUXOS DE FOLLOWUP",
+        "height": 80,
+        "width": 544,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        -528
+      ],
+      "id": "3f51dfb1-752c-485a-9693-aecdd5f9384a",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## O que este fluxo faz:\n-> Valida formato dos dados.\n-> Confere funis e etapas no Kommo e extrai IDs de interesse.\n-> Confere tags no Kommo e extrai IDs de interesse.\n-> Calcula `agoraMenos` para cada intervalo **(data e hora atual - intervalo )**.",
+        "height": 624,
+        "width": 1184,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        48,
+        512
+      ],
+      "id": "eaf9f44c-269d-4d33-a74d-5c93f465a6fb",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "# PROCESSA CONFIGURAÇÕES",
+        "height": 80,
+        "width": 1184,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        48,
+        416
+      ],
+      "id": "0400cc04-bfd3-4eda-87f6-0b5d59bf1c04",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "# ITERA FLUXOS",
+        "height": 80,
+        "width": 1312,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        416
+      ],
+      "id": "d81a919d-57db-45c8-b8f5-3841bd3eefc8",
+      "name": "Sticky Note13"
+    },
+    {
+      "parameters": {
+        "content": "# ITERA INTERVALOS",
+        "height": 80,
+        "width": 1104,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        608
+      ],
+      "id": "dd45ba26-e4cc-4ba2-834e-5c089ae4ceb7",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "content": "-> Cada fluxo configurado corresponde a uma execução no loop **iteraFluxos**\n-> Usar $('iteraFluxos').first().json para referenciar as chaves: `agoraMenos (configurações)`, `confereTags`, `confereFunisEtapas`, `formataConfiguracoes`, `configuracoesAcessos`, `agent`, `followup_flow_name`, `followup_flow_index`",
+        "height": 80,
+        "width": 1312,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        512
+      ],
+      "id": "7e5fb522-20e2-4a96-b03b-6f24d6c2bf41",
+      "name": "Sticky Note15"
+    },
+    {
+      "parameters": {
+        "content": "-> Cada intervalo configurado no fluxo dentro de  **iteraFluxos** corresponde a uma execução em **iteraIntervalos**\n-> Usar $('iteraIntervalos').first().json para referenciar as chaves: `agoraMenos`, `quantoAtras`, e `ultimoCount`",
+        "height": 80,
+        "width": 1104,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        704
+      ],
+      "id": "a6b6dbae-d32d-4c10-bf1d-86d11375dfeb",
+      "name": "Sticky Note16"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('iteraFluxos').first().json.configuracoesAcessos.subdomainKommo }}.kommo.com/api/v4/leads{{ $json.filtro }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('iteraFluxos').first().json.configuracoesAcessos.secrets.tokenKommo }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2608,
+        880
+      ],
+      "id": "5ac836e1-0820-464a-be77-509abe1a04ab",
+      "name": "filtraLeadsKommo",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "content": "# ITERA LEADS",
+        "height": 80,
+        "width": 1312,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2960,
+        800
+      ],
+      "id": "af376705-9afa-46ce-a0db-b59b22040b25",
+      "name": "Sticky Note17"
+    },
+    {
+      "parameters": {
+        "content": "-> Cada lead puxado da base de dados corresponde a uma execução em **iteraLeads**\n-> Use $('iteraLeads').first().json para referenciar as chaves: `validacao`, `funilEtapa`, e `funilEtapa_id`, `tags` , `databaseRow` e `kommoLead` ",
+        "height": 80,
+        "width": 1312,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2960,
+        896
+      ],
+      "id": "09806de2-58fa-46f2-ae7f-3e40261aac82",
+      "name": "Sticky Note18"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5152,
+        2000
+      ],
+      "id": "576055b3-0293-433a-a7ae-aaa5cbfede01",
+      "name": "Mensagem"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5808,
+        2176
+      ],
+      "id": "2098cd2e-c92d-4670-8476-5963cad0ef19",
+      "name": "Wait2",
+      "webhookId": "e2cab5b9-d40a-4caf-973d-ea0aa49e0819"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1e66db0-00dc-481d-951c-1fde558e268e",
+              "name": "text",
+              "value": "={{ $('AGENTE FOLLOWUP').item.json.output.split('\\n') }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e1e97fc9-e975-4efd-9599-e21326fffeb0",
+      "name": "Divide as mensagens",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4528,
+        1952
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "text",
+        "options": {}
+      },
+      "id": "cf12f09c-083d-4374-94e8-5226ab3c691e",
+      "name": "Separa as mensagens",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        4736,
+        1952
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "662330b7-0e11-42ca-ad13-f9666ebf9299",
+      "name": "Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        4960,
+        1872
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "830fc02a-8b1e-4413-a44b-108a99ba0ef6",
+              "leftValue": "={{ $json.execution.is_success }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5808,
+        1984
+      ],
+      "id": "890ada14-b32d-43ce-aa11-d6a00a827c8a",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Mensagem Não Enviada"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        6000,
+        1968
+      ],
+      "id": "389130b2-6c6e-4eee-9a78-e659a9f298be",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "699a472e-2084-4dc6-a9b7-7dbccf5d6da6",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5360,
+        2000
+      ],
+      "id": "490b15c9-1f24-424d-bb82-1836d4366d4f",
+      "name": "seNaoVazio"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini-2025-04-14"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3568,
+        2160
+      ],
+      "id": "2fbdfcbe-0c9b-4a27-83b9-c381e1f9a836",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "chat_supercelulares_julio",
+          "mode": "list",
+          "cachedResultName": "chat_supercelulares_julio"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{ $('iteraLeads').first().json.databaseRow.entity_id }}"
+            }
+          ]
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "id",
+              "direction": "DESC"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3312,
+        1952
+      ],
+      "id": "74cd4e43-8027-42cf-b906-d20f9b71957e",
+      "name": "puxaChat",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code node (Run Once for All Items)\n// Lê diretamente dos nós: \"puxaChat\" (mensagens) e \"iteraFluxosJúlio2\" (nome do agente).\n// Saída: um único item com campo `markdown`.\n\nconst chatRows = $('puxaChat').all().map(i => i.json);\n\n// nome do agente (fallback: \"Agent\")\nlet agentName = ($('iteraFluxos').first()?.json?.agent ?? '').toString().trim();\nif (!agentName) agentName = 'Agent';\n\n// normaliza mensagens e ordena cronologicamente\nconst msgs = chatRows\n  .map(r => {\n    const msg = r.message ?? {};\n    const content =\n      typeof msg.content === 'string'\n        ? msg.content.trim()\n        : (msg.content != null ? String(msg.content).trim() : '');\n    return {\n      id: r.id ?? 0,\n      created_at: r.created_at ?? null,\n      type: (msg.type ?? 'human').toLowerCase(),\n      content,\n    };\n  })\n  .filter(m => m.content !== '')\n  .sort((a, b) => {\n    // se tiver created_at, usa; senão, usa id\n    if (a.created_at && b.created_at) {\n      return new Date(a.created_at) - new Date(b.created_at);\n    }\n    return (a.id ?? 0) - (b.id ?? 0);\n  });\n\n// monta markdown\nconst header = '# HISTÓRICO DA CONVERSA';\nconst lines = msgs.map(m => `${m.type === 'ai' ? agentName : 'Human'}: ${m.content}`);\nconst markdown = [header, ...lines].join('\\n');\n\nreturn [{ json: { markdown } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3504,
+        1952
+      ],
+      "id": "58c7737f-d09b-4d56-882c-cf0c88b5d76c",
+      "name": "formataChat"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code node (Run Once for All Items)\n// Entrada: itens com { output: \"texto...\" }\n// Saída: para cada item, um objeto no formato de mensagem do agente (type: \"ai\")\n\nconst items = $input.all();\n\nreturn items.map(({ json }) => {\n  const content = (json?.output ?? '').toString().trim();\n\n  return {\n    json: {\n      type: 'ai',\n      content, // usa o texto vindo do campo \"output\"\n      tool_calls: [],\n      additional_kwargs: {},\n      response_metadata: {},\n      invalid_tool_calls: [],\n    },\n  };\n});\n\n/*\n  Se quiser forçar um texto fixo (ex.: com \"(TESTE ATIVADO)\"),\n  troque a linha `content` por:\n  const content = \"Oi! Só passando para lembrar que estou aqui para ajudar com qualquer dúvida sobre o celular que você gostou. Me avise se quiser mais informações ou condições especiais! (TESTE ATIVADO):\";\n*/\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4080,
+        1952
+      ],
+      "id": "c26566cb-5191-4698-9dae-9813fc77d6f4",
+      "name": "formataMensagemChat"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "chat_supercelulares_julio",
+          "mode": "list",
+          "cachedResultName": "chat_supercelulares_julio"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "message": "={{ $json.toJsonString() }}",
+            "session_id": "={{ $('iteraLeads').first().json.databaseRow.entity_id }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4288,
+        1952
+      ],
+      "id": "a957564d-a024-43c4-bf6f-e02d22c119c9",
+      "name": "salvaMensagemChat",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('formataChat').first().json.markdown }}",
+        "options": {
+          "systemMessage": "=count = {{ $('iteraLeads').first().json.databaseRow.followup_count }}\n\n# PROMPT \n{{ $('iteraFluxos').first().json.formataConfiguracoes.prompt }}\n\n# REGRAS DE CONDUTA\nVocê é o Julio, um agente de follow-up. Antes de escrever, consulte o HISTÓRICO DA CONVERSA (última interação, produto/assunto, preferências, respostas anteriores). Seu objetivo é enviar UMA única mensagem curta, natural e útil que avance a conversa.\n\nRegras essenciais:\n- Nunca repita uma mensagem anterior; varie conteúdo, estrutura e abertura.\n- Se houver nome do lead na memória, use o primeiro nome; se não houver, não invente nem force cumprimento nominal.\n- Não use títulos/cabeçalhos (ex.: “MENSAGEM DE FOLLOWUP”) nem meta-comentários; nem campos a serem preenchidos (como [nome], escreva apenas a mensagem final pronta para envio.\n- Adapte o tom ao contexto: cordial, profissional e direto; inclua um motivo claro para o contato e uma pergunta fácil de responder.\n- Personalize com os dados disponíveis (produto, etapa, prazo, preferências). Se algo for incerto, não exprima.\n- Evite pressão, jargões, links desnecessários e promessas não verificadas.\n- 1–3 frases (≈ até 450 caracteres). Sem assinatura.\n\nSaída:\nResponda SOMENTE com a mensagem pronta para envio, em pt-BR, sem aspas e sem explicações.\n\n\n\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        3728,
+        1952
+      ],
+      "id": "7fa7e232-15bd-4857-9581-1446c26d1325",
+      "name": "AGENTE FOLLOWUP"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        160
+      ],
+      "id": "b909681f-6255-4445-8623-995ed1a2c256",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "agoraMenos": {
+      "main": [
+        [
+          {
+            "node": "juntaDados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "configuracoesHorarioComercial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "configuracoesHorarioComercial": {
+      "main": [
+        [
+          {
+            "node": "verificarSeHorarioPermitido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "seLeadNaoExiste": {
+      "main": [
+        [
+          {
+            "node": "deletaLinhaDatabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "seFunilEtapaProibido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia mensagem na Kommo": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "iteraLeads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "seLeadTag": {
+      "main": [
+        [
+          {
+            "node": "deletaLinhaDatabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "seCadenciaCompleta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "configuracoesFollowUp": {
+      "main": [
+        [
+          {
+            "node": "formataConfiguracoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "iteraLeads": {
+      "main": [
+        [
+          {
+            "node": "iteraIntervalos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "seLeadNaoExiste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "iteraFluxos": {
+      "main": [
+        [],
+        [
+          {
+            "node": "geraItensIntervalos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "confereFunisEtapas": {
+      "main": [
+        [
+          {
+            "node": "buscaTags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscaFunisEtapas": {
+      "main": [
+        [
+          {
+            "node": "confereFunisEtapas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verificarSeHorarioPermitido": {
+      "main": [
+        [
+          {
+            "node": "continuaPermitido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "continuaPermitido": {
+      "main": [
+        [
+          {
+            "node": "configuracoesAcessos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "iteraIntervalos": {
+      "main": [
+        [
+          {
+            "node": "iteraFluxos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "buscaLeadsDatabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "configuracoesAcessos": {
+      "main": [
+        [
+          {
+            "node": "configuracoesFollowUp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formataConfiguracoes": {
+      "main": [
+        [
+          {
+            "node": "buscaFunisEtapas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "juntaDados": {
+      "main": [
+        [
+          {
+            "node": "iteraFluxos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "geraItensIntervalos": {
+      "main": [
+        [
+          {
+            "node": "iteraIntervalos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscaTags": {
+      "main": [
+        [
+          {
+            "node": "confereTags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "confereTags": {
+      "main": [
+        [
+          {
+            "node": "agoraMenos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscaLeadsDatabase": {
+      "main": [
+        [
+          {
+            "node": "seVazio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "geraFiltro": {
+      "main": [
+        [
+          {
+            "node": "filtraLeadsKommo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validaLeads": {
+      "main": [
+        [
+          {
+            "node": "iteraLeads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deletaLinhaDatabase": {
+      "main": [
+        [
+          {
+            "node": "iteraLeads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "seFunilEtapaProibido": {
+      "main": [
+        [
+          {
+            "node": "deletaLinhaDatabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "seLeadTag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "atualizaCount": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "seVazio": {
+      "main": [
+        [
+          {
+            "node": "iteraIntervalos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "geraFiltro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "moveFinal": {
+      "main": [
+        [
+          {
+            "node": "deletaLinhaDatabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "seCadenciaCompleta": {
+      "main": [
+        [
+          {
+            "node": "seNaoMoveEtapa",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "puxaChat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "seNaoMoveEtapa": {
+      "main": [
+        [
+          {
+            "node": "deletaLinhaDatabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "moveFinal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filtraLeadsKommo": {
+      "main": [
+        [
+          {
+            "node": "validaLeads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem": {
+      "main": [
+        [
+          {
+            "node": "seNaoVazio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Divide as mensagens": {
+      "main": [
+        [
+          {
+            "node": "Separa as mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separa as mensagens": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop": {
+      "main": [
+        [
+          {
+            "node": "atualizaCount",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "seNaoVazio": {
+      "main": [
+        [
+          {
+            "node": "Envia mensagem na Kommo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AGENTE FOLLOWUP",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "puxaChat": {
+      "main": [
+        [
+          {
+            "node": "formataChat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formataChat": {
+      "main": [
+        [
+          {
+            "node": "AGENTE FOLLOWUP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formataMensagemChat": {
+      "main": [
+        [
+          {
+            "node": "salvaMensagemChat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "salvaMensagemChat": {
+      "main": [
+        [
+          {
+            "node": "Divide as mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENTE FOLLOWUP": {
+      "main": [
+        [
+          {
+            "node": "formataMensagemChat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "configuracoesAcessos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4884d0fe-1184-4b80-b522-a813574b1bc9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "zjGv6htT7SnrQCCN",
+  "tags": []
+}

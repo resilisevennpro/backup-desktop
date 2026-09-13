@@ -1,0 +1,558 @@
+# 📘 PROJECT MASTER BLUEPRINT: SEVENN CLINIC 360
+
+**Versão:** 3.0 (Final Scope)
+**Tipo:** SaaS Multi-tenant (B2B) para Clínicas de Estética e Odontologia.
+**Objetivo:** Transformar a gestão clínica em uma "Máquina de Prosperidade", unindo CRM de Vendas, IA Híbrida e Inteligência Financeira Real (Lucro Líquido).
+
+---
+
+## 1. STACK TECNOLÓGICA & INFRAESTRUTURA
+
+### 1.1 Frontend (Aplicação)
+* **Core:** Vite + React JS + TypeScript.
+* **UI System:** Tailwind CSS + ShadcnUI.
+* **State Management:** TanStack Query (Server State) + Zustand (Client State).
+* **Visualização de Dados:** Recharts (Gráficos Financeiros/BI).
+* **Interatividade:** @dnd-kit/core (Kanban Drag & Drop).
+* **Ícones:** Lucide React.
+
+### 1.2 Backend & Dados (Serverless)
+* **Plataforma:** Supabase.
+* **Database:** PostgreSQL.
+* **Auth:** Supabase Auth (Magic Link + Email/Senha).
+* **Storage:** Supabase Storage (Fotos Antes/Depois, Exames).
+* **Realtime:** Supabase Realtime (Chat e Pipeline).
+
+### 1.3 Inteligência & Conectividade
+* **Orquestrador:** n8n (Self-hosted).
+* **LLM:** OpenAI GPT-4o-mini (Custo-benefício para Chat).
+* **WhatsApp:** Evolution API (Instâncias Docker isoladas por Clinic).
+* **Social:** Meta Graph API (Instagram Direct/Messenger).
+
+## 1.4 Design System (Identity)
+
+* **Conceito Visual:** Emerald Precision™ — Premium Health Tech focado em precisão clínica, controle e sofisticação.
+* **Temas:** 
+  * Light Mode (Executive Clean) – fundo claro, superfícies suaves e alto contraste informacional.
+  * Dark Mode (Obsidian Premium) – fundo Rich Black (#060606) com cards Charcoal e detalhes em verde.
+* **Primary Color:** Emerald Core (`#59A52C`) com Emerald Glow (`#6FCA3A`) para hovers e microinterações.
+* **Base Institucional:** Emerald Deep (`#0E3D2E`) aplicado em sidebar e áreas premium.
+* **Gradientes:** Usar gradiente Emerald apenas em CTAs, sidebar e estados ativos (nunca em cards comuns).
+* **Tipografia:** 
+  * Primária: Manrope (UI, textos, tabelas).
+  * Secundária (assinatura): Space Grotesk (títulos e KPIs principais).
+* **Superfícies:** Cards com bordas sutis, radius 14px e sombras leves para sensação de profundidade.
+* **Interações:** Microinterações suaves (hover, click, scroll) com transições elegantes e feedback visual imediato.
+
+### 1.5 Mapa de Navegação e Rotas
+A navegação foi reestruturada para suportar múltiplos funis de venda e gestão clínica, abandonando o modelo monolítico de CRM.
+
+* **Sidebar Inteligente (Menu Expansível):**
+  * O item "CRM & Leads" agora se expande para revelar os **3 Pilares de Receita**:
+    * **1. Oportunidades** (`/crm-oportunidades`): Pipeline de Vendas Principal (Novos Leads).
+    * **2. Gestão de Pacientes** (`/crm-pacientes`): Pipeline de Ciclo de Vida (Pós-Venda e Tratamento).
+    * **3. Nutrição** (`/crm-nutricao`): Pipeline de Reaquecimento (Leads Frios e Recorrência).
+* **Lógica de Roteamento:**
+  * A rota antiga `/crm` redireciona automaticamente para `/crm-oportunidades`.
+  * Cada rota carrega dinamicamente o `pipeline_id` correspondente, isolando os dados de leads e estágios.
+
+---
+
+## 2. MODELO DE NEGÓCIO (PLG & FEATURE GATING)
+
+O sistema deve bloquear/liberar recursos via código baseado no plano da clínica (`clinics.plan_tier`).
+
+| Feature | START (C) | GOLD (B) | BLACK (A) |
+| :--- | :--- | :--- | :--- |
+| **Canais** | 1 WhatsApp | WhatsApp + Instagram | Múltiplos WhatsApps |
+| **Atendimento** | Humano (Manual) | Agente IA (Secretária) | Agente IA Avançado |
+| **Financeiro** | Básico (Extrato) | Automático (Via Funil) | BI Real (Lucro Líquido + ROI) |
+| **Marketing** | 🔒 Bloqueado | 🔒 Bloqueado | Remarketing em Massa + Ads |
+| **Gestão** | Solo | Clínica | Multi-unidades |
+
+---
+
+## 3. ARQUITETURA DE DADOS & SEGURANÇA (SCHEMA)
+
+**Regra de Ouro:** Toda tabela deve ter `clinic_id`. Toda query deve filtrar por `clinic_id`.
+**Segurança:** Row Level Security (RLS) habilitado em todas as tabelas.
+
+### Tabelas Principais (Schema V1)
+
+1.  **`clinics`**
+    * `id` (UUID, PK), `name`, `plan_tier` ('start', 'gold', 'black'), `status`, `created_at`.
+2.  **`profiles`** (Extensão de auth.users)
+    * `id` (FK auth.users), `clinic_id` (FK clinics), `role` ('owner', 'manager', 'staff'), `full_name`, `avatar_url`.
+3.  **`leads`**
+    * `id`, `clinic_id`, `name`, `phone`, `status` (active, archived), `sevenn_score` (0-100), `pipeline_stage_id`.
+    * **Novos Campos:** `closed_at` (Timestamp), `sales_cycle_days` (Decimal), `stage_history` (JSONB Array), `custom_id` (Numeric String - ex: "00142").
+4.  **`pipeline_stages`**
+    * `id`, `clinic_id`, `pipeline_id` (vendas_principal, gestao_pacientes, nutricao), `name`, `order_index`, `color`.
+    * **Nota:** A coluna `pipeline_id` é vital para o isolamento dos funis na query `fetchBoardData`.
+5.  **`appointments`**
+    * `id`, `clinic_id`, `lead_id`, `professional_id`, `service_id`, `start_time`, `end_time`, `status` (scheduled, confirmed, completed, no-show).
+6.  **`services`**
+    * `id`, `clinic_id`, `name`, `price`, `duration`, `material_cost` (CMV).
+    * **Novos Campos:** `target_sales_cycle_days` (Int - SLA de Vendas).
+7.  **`professionals`**
+    * `id`, `clinic_id`, `name`, `commission_rate` (Decimal), `color_hex`.
+8.  **`financial_transactions`**
+    * `id`, `clinic_id`, `amount`, `type` (income, expense), `category`, `status` (paid, pending), `appointment_id`.
+9.  **`messages`**
+    * `id`, `clinic_id`, `lead_id`, `content`, `sender` (user/lead/ai), `channel` (whatsapp/instagram).
+
+---
+
+## 4. MÓDULO CRM & VENDAS (MOTOR DE RECEITA)
+
+* **Kanban Dinâmico:** Drag & drop entre colunas. Ao mover para "Venda Realizada", abrir modal de lançamento financeiro.
+* **Sevenn Score:** Algoritmo de temperatura do lead.
+    * +20: Novo Lead.
+    * +10: Resposta do Cliente.
+    * +20: Clique em Proposta.
+    * -10: Inativo > 72h.
+* **Chat Multicanal:** Interface unificada (WhatsApp + Insta).
+    * **Botão de Pânico:** "Pausar IA" (passa para humano).
+    * **Notas Internas:** Chat invisível para a equipe dentro do lead.
+### 4.1 Arquitetura de Pipelines (Multi-Funil)
+O sistema não opera mais com um único Kanban. A operação é dividida em 3 contextos distintos para evitar poluição visual e cognitiva.
+
+1.  **Pipeline de Oportunidades (Vendas):**
+    *   **Foco:** Conversão de novos leads em pacientes pagantes.
+    *   **Estágios Típicos:** Novo Lead, Qualificado, Agendou Avaliação, Compareceu, Negociação, Venda Realizada.
+2.  **Pipeline de Gestão de Pacientes (Ciclo de Vida):**
+    *   **Foco:** Entrega do serviço e fidelização. O paciente entra aqui automaticamente após "Venda Realizada".
+    *   **Estágios Típicos:** Em Tratamento, Aguardando Retorno, Finalizado, Alta.
+    *   **Transição de Nomenclatura:** Reforçar o termo **"Procedimento"** ao invés de "Tratamento" para procedimentos estéticos pontuais.
+3.  **Pipeline de Nutrição (Resgate):**
+    *   **Foco:** Reaquecimento de base morta ou ociosa.
+    *   **Estágios Típicos:** Lead Frio, Tentativa de Contato 1/2/3, Reaquecido.
+
+### 4.2 Lógica de IDs Estruturados (Human-Readable)
+Abandonamos a exposição de UUIDs na interface. Para facilitar a comunicação interna da clínica ("Olha o lead 42"), adotamos IDs numéricos sequenciais.
+
+*   **Formato:** Série numérica simples (ex: `001`, `002`, `1042`).
+*   **Implementação:**
+    *   Mantemos o UUID (`id`) como Chave Primária para integridade referencial no banco.
+    *   Adicionamos coluna `custom_id` (Serial) na tabela `leads`, gerada automaticamente por Trigger ou Sequence no Postgres.
+    *   **Busca:** O campo de busca global deve aceitar tanto nome quanto este ID numérico.
+
+### 4.3 Inteligência de Ciclo de Venda & SLA
+*   **SLA Dinâmico:** Badge na ficha do lead compara dias em aberto vs meta do serviço (`target_sales_cycle_days`).
+*   **Alerta Visual:** Badge fica Âmbar/Laranja se exceder o SLA.
+*   **Cálculo Automático:** Ao fechar venda, sistema grava `closed_at` e `sales_cycle_days`.
+
+### 4.4 Inteligência de Retorno (LTV) - Etapa 017
+Este é um fluxo preditivo para garantir a recorrência (LTV).
+
+*   **Gatilho:** Quando um procedimento é finalizado (Status `completed` em `appointments`), o sistema verifica a periodicidade daquele serviço (ex: Botox = 4 a 6 meses).
+*   **Ação:** Cria automaticamente um card no **Pipeline de Nutrição** ou **Gestão** (configurável) com data de "Follow-up" agendada para X meses no futuro.
+*   **Tag:** O lead recebe a tag automática `Oportunidade Retorno`.
+
+---
+
+## 5. MÓDULO IA & AUTOMAÇÃO (O CÉREBRO)
+
+* **Agente Secretária:** Qualifica leads, consulta disponibilidade em `appointments` e oferece horários.
+* **Confirmação Inteligente:** Disparo WhatsApp 24h antes. Se cliente confirma, altera status para `confirmed`.
+* **NPS Smart Delay:** Disparo 24h após status `completed`.
+    * Nota 9-10: Envia link Google Maps.
+    * Nota 0-6: Alerta Gerente (Ticket de Suporte).
+
+---
+
+## 6. MÓDULO FINANCEIRO & BI ESTRATÉGICO
+
+* **Lucro Líquido Real:** KPI principal.
+    * Fórmula: `Faturamento - (Taxas Cartão + Comissões + Custo Materiais/CMV)`.
+* **Simulador de Preço:** Interface "E se?" para testar impacto de novos preços na margem.
+* **Ranking de Lucratividade:** Ordenar serviços não por volume, mas por margem de contribuição.
+* **Projeção (Run Rate):** Estimativa de fechamento do mês baseada na média diária.
+* **Performance Comercial (Novo):**
+    * **Gráfico de Velocidade:** Ciclo de Venda por Procedimento.
+    * **Marketing Intelligence:** Comparativo "Ciclo de Venda por Canal" e Simulador de ROI.
+
+### 6.1 Inteligência Híbrida de Comissões (Hybrid Intelligence)
+A lógica tradicional de "Faturamento X Porcentagem" falha em clínicas reais devido a taxas de cartão e custos de material. Implementamos um cálculo linha-a-linha (Row-Level Calculation) no `fetchFinanceData`:
+
+*   **Base de Cálculo Dinâmica:**
+    *   `Valor Bruto`
+    *   (-) `Taxa Do Cartão` (Se configurado no profissional `descontar_taxas = true`).
+        *   *Diferencial:* O sistema identifica se foi Crédito 1x, 2x-4x ou 12x e aplica a taxa exata da maquininha cadastrada.
+    *   (-) `Custo de Material` (Se configurado `descontar_material = true`).
+    *   (=) `Base de Comissão`.
+*   **Resultado:** O valor da comissão é calculado sobre essa base limpa, protegendo a margem da clínica. O Dashboard exibe o **Lucro Líquido Real**, já descontando essas saídas invisíveis.
+
+---
+
+## 7. MÓDULO CLÍNICO & PACIENTES
+
+* **Super Modal (Perfil 360):**
+    * **Timeline:** Histórico cronológico (Msgs, Compras, Faltas).
+    * **Galeria:** Fotos Antes/Depois (Supabase Storage).
+    * **Resumo IA:** Briefing de 3 pontos gerado por IA antes da consulta.
+    * **Galeria:** Fotos Antes/Depois (Supabase Storage).
+    * **Resumo IA:** Briefing de 3 pontos gerado por IA antes da consulta.
+* **LTV & Demografia:** Dashboard com idade, gênero e valor total gasto pelo paciente (Lifetime Value).
+* **KPI de Velocidade:** Indicador "Ciclo Médio de Venda" na lista de pacientes, mostrando a agilidade de fechamento da carteira.
+
+---
+
+## 8. MÓDULO SUPER ADMIN (HOLDING)
+
+* **Visão de Deus:** Acesso apenas para equipe Resili Sevenn.
+* **Dashboard Valuation:** MRR Total, Churn Rate.
+* **Gestão de Clinics:** Criar clínica, Bloquear inadimplente, Mudar Plano (Start/Gold/Black).
+* **Impersonation:** Botão "Logar como Cliente" para suporte técnico.
+
+---
+
+## 9. CONTROLE DE ACESSOS INTERNOS (RBAC)
+
+Este módulo blinda a aplicação, definindo **quem vê o quê**. A segurança é aplicada em duas camadas: Interface (UX) e Banco de Dados (Segurança Real).
+
+### 9.1. Estrutura de Dados (Roles)
+A tabela `profiles` (vinculada ao `auth.users`) possui a coluna obrigatória `role`:
+* **Enum:** `'owner'`, `'manager'`, `'staff'`.
+* **Padrão:** Novos convites de e-mail devem definir o role no momento da criação. O primeiro usuário (criador da conta) é sempre `'owner'`.
+
+### 9.2. Regras de Interface (Frontend Logic)
+O Frontend deve esconder visualmente elementos que o usuário não pode acessar.
+
+* **Menu Lateral (Sidebar):**
+    * **Financeiro:** Renderizar APENAS SE `role === 'owner' OR 'manager'`.
+    * **Marketing / Configurações:** Renderizar APENAS SE `role === 'owner'`.
+    * **Staff (Secretária):** Vê apenas *Agenda*, *Chat*, *Pacientes* e *Kanban*.
+* **Botões de Ação (Critical Actions):**
+    * **Botão `Deletar Lead`:** Renderizar APENAS SE `role === 'owner'`. (Evita que funcionário apague leads por erro ou má fé).
+    * **Botão `Exportar Relatório Completo`:** Renderizar APENAS SE `role === 'owner'`.
+* **Mascaramento de Dados:**
+    * No "Super Modal" do Lead, o campo `Total Gasto (LTV)` deve aparecer como `R$ ****` se o usuário for `'staff'`.
+
+### 9.3. Regras de Segurança (Backend / Supabase RLS)
+A segurança real acontece no banco. Mesmo que um usuário "staff" tente chamar a API manualmente ou inspecionar o código, o banco deve rejeitar a leitura.
+
+**Políticas de RLS (Row Level Security) Obrigatórias:**
+
+1.  **Tabela `financial_transactions` (Financeiro):**
+    * **Política:** `DENY ALL` para role `'staff'`.
+    * **Regra SQL (Exemplo):**
+        ```sql
+        create policy "Staff cannot see finances"
+        on financial_transactions
+        for select
+        using (
+          (select role from profiles where id = auth.uid()) in ('owner', 'manager')
+        );
+        ```
+
+2.  **Tabela `marketing_expenses` (Marketing):**
+    * **Política:** Visível apenas para `'owner'`.
+
+3.  **Tabela `leads` (Deleção):**
+    * **Política:** `DELETE` permitido apenas para `'owner'`.
+    * **Regra SQL (Exemplo):**
+        ```sql
+        create policy "Only Owner can delete leads"
+        on leads
+        for delete
+        using (
+          (select role from profiles where id = auth.uid()) = 'owner'
+        );
+        ```
+
+**Resumo da Blindagem:**
+Isso garante que, mesmo que a secretária seja "hacker" e tente chamar a API direto via Postman ou Console do Navegador, o Supabase retorna um erro de permissão (403 Forbidden), protegendo os dados financeiros da clínica.
+
+---
+
+
+## 10. ROADMAP TÉCNICO DE IMPLEMENTAÇÃO (DETALHADO)
+
+### ✅ FASE 1: FUNDAÇÃO & SEGURANÇA Dias 01 a 04 (CONCLUÍDO/REVISÃO)
+**Status:** 95% Concluído (Baseado no estado atual do Supabase).
+* **Backend (Supabase):**
+    * [x] Configurar projeto e variáveis de ambiente (`.env`).
+    * [x] Criar tabelas core (`clinics`, `profiles`).
+    * [x] Implementar **RLS (Row Level Security)** base: `auth.uid() -> profile.id -> clinic_id`.
+* **Frontend (Vite+React):**
+    * [x] Instalar ShadcnUI, Tailwind, Lucide React.
+    * [x] Criar Layout Base (Sidebar, Header, ThemeProvider).
+    * [x] Implementar Contexto de Auth (`AuthProvider`).
+
+---
+
+### 🔜 FASE 2: CRM CORE & MOTOR DE VENDAS (DIAS 5-10)
+**Foco:** O usuário precisa ver leads e movê-los no Kanban.
+* **Backend (Supabase):**
+    * [ ] Criar tabelas: `leads`, `pipeline_stages`.
+    * [ ] **Database Trigger:** Criar função SQL `update_sevenn_score()` que recalcula a pontuação (+20, -10) sempre que a tabela `messages` ou `leads` for atualizada.
+    * [ ] **Realtime:** Habilitar *Replication* na tabela `leads` para o Kanban atualizar sozinho.
+* **Frontend (Components):**
+    * [ ] **`KanbanBoard.tsx`**: Implementar `@dnd-kit/core` para arrastar cards.
+    * [ ] **`LeadCard.tsx`**: Componente visual exibindo Nome, Status e o gráfico circular do **Sevenn Score**.
+    * [ ] **`NewLeadModal.tsx`**: Formulário com validação Zod para criar leads manualmente.
+    * [ ] **Lógica de Negócio**: Ao soltar o card na coluna "Venda Realizada", disparar gatilho que abre o modal de `FinancialTransaction`.
+
+---
+
+### ⏳ FASE 3: AGENDA & OPERAÇÃO CLÍNICA (DIAS 11-17)
+**Foco:** O calendário precisa ser multi-profissional e inteligente.
+* **Backend (Supabase):**
+    * [ ] Criar tabelas: `professionals`, `services`, `appointments`.
+    * [ ] **Constraint SQL:** Criar função para impedir *overlapping* (dois agendamentos no mesmo horário para o mesmo profissional).
+* **Frontend (Components):**
+    * [ ] **`CalendarView.tsx`**: Grid semanal/diário filtrável por `professional_id`.
+    * [ ] **`ServiceSelector.tsx`**: Dropdown que puxa a duração do serviço e calcula o horário de fim automaticamente.
+    * [ ] **`ProfessionalSettings.tsx`**: Tela para definir cor do médico e % de comissão.
+
+---
+
+### ⏳ FASE 4: IA, CHAT & AUTOMATION (DIAS 18-26)
+**Foco:** Conectar o "cérebro" e a "boca" do sistema.
+* **Infraestrutura (Docker/n8n):**
+    * [ ] Subir container da **Evolution API** (Isolado por Clinic).
+    * [ ] Configurar Webhooks no n8n: `on_message_received` -> OpenAI -> `send_message`.
+* **Backend (Supabase):**
+    * [ ] Criar tabela `messages` e `whatsapp_instances`.
+    * [ ] Criar Edge Function `send-whatsapp`: Proxy seguro para chamar a API da Evolution sem expor tokens no frontend.
+* **Frontend (Components):**
+    * [ ] **`ChatInterface.tsx`**: Layout estilo WhatsApp Web (Lista à esquerda, Chat à direita).
+    * [ ] **`MessageBubble.tsx`**: Diferenciar visualmente mensagens de HUMANO vs. IA.
+    * [ ] **`PanicButton.tsx`**: Switch "Pausar IA" que atualiza o status do lead para `ai_paused = true`.
+
+---
+
+### ⏳ FASE 5: BI FINANCEIRO & LUCRO REAL (DIAS 27-35)
+**Foco:** Cálculos matemáticos precisos no Frontend.
+* **Backend (Supabase):**
+    * [ ] Criar tabelas `financial_transactions` e `material_costs`.
+    * [ ] **View SQL** `monthly_profit_report`: Uma view materializada para agilizar o carregamento de gráficos pesados.
+* **Frontend (Components):**
+    * [ ] **`FinancialDashboard.tsx`**: Implementar gráficos `Recharts` (Barra, Linha, Pizza).
+    * [ ] **Lógica de Cálculo**: Criar hook `useProfitCalculator` que recebe faturamento bruto e subtrai (Taxa Cartão + Comissões + Materiais).
+    * [ ] **`CommissionReport.tsx`**: Tabela geradora de PDF com o valor a pagar para cada médico.
+
+---
+
+### ⏳ FASE 6: SUPER ADMIN & REFINAMENTO (DIAS 36-42)
+**Foco:** Ferramentas para você (Dono do SaaS) e UX.
+* **Backend:**
+    * [ ] Criar políticas RLS especiais para o role `super_admin` acessar dados globais (apenas leitura de métricas).
+* **Frontend:**
+    * [ ] **`FeatureGate.tsx`**: Componente Wrapper que bloqueia renderização de filhos se `clinic.plan` < Requisito (PLG).
+    * [ ] **`ImpersonationBar.tsx`**: Barra no topo indicando "Você está acessando como [Nome da Clínica]" com botão de sair.
+    * [ ] **Otimização:** Implementar *Virtualization* nas listas de leads e mensagens para performance.
+
+
+
+-----------------
+
+
+11. Fluxos de Automação (n8n)
+Estes são os workflows que vou criar no n8n.
+Entrada de Mensagem (Webhook Evolution):
+Recebe Msg -> Verifica clinic_id -> Verifica se ai_active é true -> Envia para OpenAI -> Devolve Resposta.
+Agendamento via IA:
+IA detecta intenção de agendar -> Chama Tool (Function Calling) -> Consulta Slots Livres no Supabase -> Retorna horários -> Cliente confirma -> Grava em appointments.
+Sync Google Agenda:
+Novo agendamento no Supabase -> Cria evento no Google Calendar do profissional.
+Coleta de Custos de Ads:
+Cron (Todo dia 00:01) -> Lê API Facebook Ads -> Salva em marketing_expenses.
+
+-----------------
+
+
+🎨 DESIGN SYSTEM: GUIA DEFINITIVO DE IMPLEMENTAÇÃO
+Sevenn Clinic AI — Design System “Emerald Precision™”
+1️⃣ CONCEITO VISUAL
+
+Nome do conceito: Emerald Precision™
+Posicionamento: Premium Health Tech / Executive SaaS
+Sensação desejada:
+
+Precisão clínica, controle absoluto, tecnologia sofisticada e estética silenciosa.
+
+O design deve evitar aparência genérica de SaaS e reforçar autoridade, exclusividade e valor percebido alto.
+
+2️⃣ ESTRUTURA DE TEMAS (OBRIGATÓRIO)
+
+O sistema possui dois temas oficiais, com alternância pelo usuário:
+
+☀️ Light Mode (Padrão): Executive Clean
+
+🌙 Dark Mode (Secundário): Obsidian Premium
+
+Ambos seguem o mesmo Design System, mudando apenas superfícies, contraste e profundidade.
+
+3️⃣ PALETA DE CORES — DEFINITIVA
+🟢 CORES DE MARCA (Brand Core)
+Uso	Cor	Hex
+Emerald Deep (Base institucional)	Sidebar, fundos premium	#0E3D2E
+Emerald Core (Ação)	CTA principal, ações positivas	#59A52C
+Emerald Glow (Luz/hover)	Hover, foco, microinterações	#6FCA3A
+Emerald Stroke	Bordas, detalhes	#437D21
+
+📌 Regra:
+
+Verde é usado para ação, status positivo e foco — nunca como decoração.
+
+⚫ NEUTROS PREMIUM
+Nome	Hex	Uso
+Obsidian Black	#060606	Fundo Dark
+Charcoal Soft	#141414	Superfícies Dark
+Slate Dark	#1F1F1F	Cards Dark
+Cloud White	#F8FAFC	Fundo Light
+Mist Gray	#E5E7EB	Divisões e bordas
+4️⃣ GRADIENTES (ASSINATURA VISUAL)
+🎯 Gradiente Principal (Marca)
+linear-gradient(135deg, #0E3D2E 0%, #59A52C 60%, #6FCA3A 100%)
+
+
+Usar em:
+
+Sidebar
+
+Botões CTA primários
+
+Estados ativos importantes
+
+Não usar em:
+
+Cards comuns
+
+Tabelas
+
+Gráficos base
+
+🎯 Gradiente de Superfície Ativa (Sutil)
+linear-gradient(180deg, rgba(111,202,58,0.18), rgba(111,202,58,0.02))
+
+
+Uso leve para:
+
+Destaque de KPIs
+
+Estados de seleção
+
+Áreas de foco
+
+5️⃣ TIPOGRAFIA (ASSINATURA AUTORAL)
+🔤 Fonte Primária (90% do sistema)
+
+Manrope
+
+Corpo de texto
+
+Labels
+
+Inputs
+
+Tabelas
+
+CRM, Agenda, Financeiro
+
+Pesos permitidos:
+
+Regular (400)
+
+Medium (500)
+
+Semibold (600 – uso restrito)
+
+🔤 Fonte Secundária (Assinatura Visual – 10%)
+
+Space Grotesk
+
+Uso restrito e estratégico:
+
+Títulos de páginas
+
+Headline do dashboard
+
+KPIs principais (valores grandes)
+
+🚫 Nunca usar Space Grotesk em parágrafos longos.
+
+📐 Escala Tipográfica
+
+Body: 14–15px (Manrope 400)
+
+Label: 12–13px (Manrope 500)
+
+Section Title: 18–20px (Space Grotesk 500)
+
+KPI Principal: 28–36px (Space Grotesk 600)
+
+6️⃣ SUPERFÍCIES, CARDS E ELEVAÇÃO
+Cards (Light)
+
+Radius: 14px
+
+Border: 1px solid rgba(0,0,0,0.06)
+
+Shadow:
+
+0 8px 24px rgba(0,0,0,0.06)
+
+Cards (Dark)
+
+Radius: 14px
+
+Border: 1px solid rgba(255,255,255,0.06)
+
+Shadow:
+
+0 12px 32px rgba(0,0,0,0.6)
+
+
+📌 Cards nunca devem parecer “chapados”.
+
+7️⃣ INTERAÇÕES & MOTION (PREMIUM FEEL)
+Hover
+
+Elevação: translateY(-2px)
+
+Transição: 200ms ease-out
+
+Leve alteração de border ou glow
+
+Click
+
+Scale: 0.98
+
+Feedback imediato
+
+Sticky Headers
+backdrop-filter: blur(12px);
+background: rgba(255,255,255,0.85);
+
+
+(no dark: rgba(6,6,6,0.85))
+
+8️⃣ GRÁFICOS (EXECUTIVE BI)
+
+Linha fina
+
+Gradiente quase invisível
+
+Gridlines em rgba(0,0,0,0.04)
+
+Valor sempre mais destacado que o gráfico
+
+Evitar visual “cartoon”
+
+9️⃣ SIDEBAR (PADRÃO DEFINITIVO)
+
+Fundo: Emerald Deep (#0E3D2E) com gradiente sutil
+
+Texto: branco suave
+
+Item ativo:
+
+Barra lateral em Emerald Glow
+
+Fundo com leve gradiente
+
+Ícones minimalistas (Lucide, stroke padrão)
+

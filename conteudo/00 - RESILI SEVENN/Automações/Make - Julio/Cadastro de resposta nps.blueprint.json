@@ -1,0 +1,350 @@
+{
+    "name": "Cadastro de resposta nps",
+    "flow": [
+        {
+            "id": 1,
+            "module": "gateway:CustomWebHook",
+            "version": 1,
+            "parameters": {
+                "hook": 3340379,
+                "maxResults": 1
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": 0,
+                    "y": 0
+                },
+                "restore": {
+                    "parameters": {
+                        "hook": {
+                            "data": {
+                                "editable": "true"
+                            },
+                            "label": "Cadastro de resposta prova de avaliação"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "hook",
+                        "type": "hook:gateway-webhook",
+                        "label": "Webhook",
+                        "required": true
+                    },
+                    {
+                        "name": "maxResults",
+                        "type": "number",
+                        "label": "Maximum number of results"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 8,
+            "module": "builtin:BasicFeeder",
+            "version": 1,
+            "parameters": {},
+            "mapper": {
+                "array": "{{1.respondent.raw_answers}}"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 300,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "array": {
+                            "mode": "edit"
+                        }
+                    }
+                },
+                "expect": [
+                    {
+                        "mode": "edit",
+                        "name": "array",
+                        "spec": [],
+                        "type": "array",
+                        "label": "Array"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 9,
+            "module": "util:TextAggregator",
+            "version": 1,
+            "parameters": {
+                "feeder": 8,
+                "rowSeparator": ""
+            },
+            "mapper": {
+                "value": "{{upper(8.question.question_title)}}\n{{8.answer}}\n\n"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 600,
+                    "y": 0
+                },
+                "restore": {
+                    "extra": {
+                        "feeder": {
+                            "label": "Iterator [8]"
+                        }
+                    },
+                    "parameters": {
+                        "rowSeparator": {
+                            "label": "Empty"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "rowSeparator",
+                        "type": "select",
+                        "label": "Row separator",
+                        "validate": {
+                            "enum": [
+                                "\n",
+                                "\t",
+                                "other"
+                            ]
+                        }
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "value",
+                        "type": "text",
+                        "label": "Text"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 10,
+            "module": "clickup:editATaskAdvanced",
+            "version": 2,
+            "parameters": {
+                "__IMTCONN__": 11169766
+            },
+            "mapper": {
+                "status": "em análise",
+                "content": "{{9.text}}",
+                "task_id": "{{1.respondent.respondent_utms.utm_content}}",
+                "archived": false,
+                "due_date": "{{addDays(now; 1)}}",
+                "assignees": {},
+                "notify_all": false,
+                "start_date": "{{now}}",
+                "due_date_time": true,
+                "start_date_time": true
+            },
+            "metadata": {
+                "designer": {
+                    "x": 900,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "archived": {
+                            "mode": "chose"
+                        },
+                        "priority": {
+                            "mode": "chose",
+                            "label": "Empty"
+                        },
+                        "assignees": {
+                            "nested": {
+                                "add": {
+                                    "mode": "chose"
+                                },
+                                "rem": {
+                                    "mode": "chose"
+                                }
+                            }
+                        },
+                        "notify_all": {
+                            "mode": "chose"
+                        },
+                        "contentType": {
+                            "label": "Plain Text"
+                        },
+                        "due_date_time": {
+                            "mode": "chose"
+                        },
+                        "start_date_time": {
+                            "mode": "chose"
+                        },
+                        "time_estimate_in": {
+                            "label": "Empty"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "clickup2"
+                            },
+                            "label": "My ClickUp connection (Rafão)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:clickup2",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "task_id",
+                        "type": "text",
+                        "label": "Task ID",
+                        "required": true
+                    },
+                    {
+                        "name": "parent",
+                        "type": "text",
+                        "label": "Parent Task ID"
+                    },
+                    {
+                        "name": "name",
+                        "type": "text",
+                        "label": "Task Name"
+                    },
+                    {
+                        "name": "contentType",
+                        "type": "select",
+                        "label": "Content Type",
+                        "validate": {
+                            "enum": [
+                                "markdown"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "content",
+                        "type": "text",
+                        "label": "Content"
+                    },
+                    {
+                        "name": "assignees",
+                        "spec": [
+                            {
+                                "name": "add",
+                                "spec": {
+                                    "name": "value",
+                                    "type": "number",
+                                    "label": "User ID"
+                                },
+                                "type": "array",
+                                "label": "Add"
+                            },
+                            {
+                                "name": "rem",
+                                "spec": {
+                                    "name": "value",
+                                    "type": "number",
+                                    "label": "User ID"
+                                },
+                                "type": "array",
+                                "label": "Remove"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Assignees"
+                    },
+                    {
+                        "name": "status",
+                        "type": "text",
+                        "label": "Status"
+                    },
+                    {
+                        "name": "priority",
+                        "type": "select",
+                        "label": "Priority",
+                        "validate": {
+                            "enum": [
+                                "urgent",
+                                "high",
+                                "normal",
+                                "low"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "due_date",
+                        "type": "date",
+                        "label": "Due Date"
+                    },
+                    {
+                        "name": "due_date_time",
+                        "type": "boolean",
+                        "label": "Due Date Time",
+                        "required": true
+                    },
+                    {
+                        "name": "time_estimate_in",
+                        "type": "select",
+                        "label": "Estimated Time in",
+                        "validate": {
+                            "enum": [
+                                "m",
+                                "h",
+                                "d"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "type": "date",
+                        "label": "Start Date"
+                    },
+                    {
+                        "name": "start_date_time",
+                        "type": "boolean",
+                        "label": "Start Date Time",
+                        "required": true
+                    },
+                    {
+                        "name": "notify_all",
+                        "type": "boolean",
+                        "label": "Notify All",
+                        "required": true
+                    },
+                    {
+                        "name": "archived",
+                        "type": "boolean",
+                        "label": "Archived",
+                        "required": true
+                    }
+                ]
+            }
+        }
+    ],
+    "metadata": {
+        "instant": true,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "eu2.make.com",
+        "notes": []
+    }
+}

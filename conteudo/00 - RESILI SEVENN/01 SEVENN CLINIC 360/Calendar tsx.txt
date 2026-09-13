@@ -1,0 +1,1802 @@
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
+import { Calendar as BigCalendar, dateFnsLocalizer, Views } from "react-big-calendar";
+import { toast } from "sonner";
+import type { View } from "react-big-calendar";
+import { format, parse, startOfWeek, getDay, isSameDay, addDays, isToday, startOfDay, endOfDay, isWithinInterval, addMinutes, startOfMonth, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale/pt-BR";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, CalendarPlus, ChevronLeft, ChevronRight, Filter, MessageCircle, FileText, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import "../styles/calendar-custom.css";
+import { AddAppointmentModal } from "@/components/calendar/AddAppointmentModal";
+import { BlockTimeModal } from "@/components/calendar/BlockTimeModal";
+import { useCrmStore } from "@/store/useCrmStore";
+import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
+import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
+import { ChevronDown, Lock, List, Calendar as CalendarIcon, DollarSign, Clock, Info, CheckCircle2, AlertTriangle, Trash2, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useUIStore } from "@/store/useUIStore";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
+const DragAndDropCalendar = withDragAndDrop(BigCalendar);
+
+// Setup date-fns localizer
+const locales = {
+    'pt-BR': ptBR,
+};
+
+const localizer = dateFnsLocalizer({
+    format,
+    parse,
+    startOfWeek,
+    getDay,
+    locales,
+});
+
+interface Appointment {
+    id: string;
+    title: string;
+    start: Date;
+    end: Date;
+    resourceId?: string;
+    status: string;
+    color?: string;
+    procedureName?: string;
+    procedureId?: string;
+    professionalName?: string;
+    professionalId?: string;
+    notes?: string;
+    originalIds?: string[];
+    leadId?: string;
+}
+
+const LIST_VIEW = 'list';
+
+const CalendarPage = () => {
+    const { clinic, user, profile } = useAuth();
+    const navigate = useNavigate();
+    const { moveLead } = useCrmStore();
+    const { setHeaderContent, resetHeader } = useUIStore();
+
+    // Core State
+    const [view, setView] = useState<View>(Views.WEEK);
+    const [date, setDate] = useState(new Date());
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [events, setEvents] = useState<Appointment[]>([]);
+    const [listAppointments, setListAppointments] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [periodSummary, setPeriodSummary] = useState({ total: 0, confirmed: 0, finished: 0, pending: 0 });
+
+    // Modals & Menu State
+    const [showActionMenu, setShowActionMenu] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+    const [manageBlockModalOpen, setManageBlockModalOpen] = useState(false);
+    const [waitingListOpen, setWaitingListOpen] = useState(false);
+    const [isAppointmentDetailsOpen, setIsAppointmentDetailsOpen] = useState(false);
+
+    const [dropConfirmOpen, setDropConfirmOpen] = useState(false);
+
+    // Automation Modal State
+    const [finishConfirmationOpen, setFinishConfirmationOpen] = useState(false);
+    const [pendingFinishId, setPendingFinishId] = useState<string | null>(null);
+
+    // Selection State
+    const [selectedSlot, setSelectedSlot] = useState<any>(null);
+    const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+    const [editingAppointment, setEditingAppointment] = useState<any>(null);
+    const [selectedBlockEvent, setSelectedBlockEvent] = useState<any>(null);
+    const [editingBlock, setEditingBlock] = useState<any>(null);
+    const [dropDetails, setDropDetails] = useState<any>(null);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [eventToDelete, setEventToDelete] = useState<any>(null);
+    const [initialModalData, setInitialModalData] = useState<any>(null);
+
+    // State for Filter Data (Real)
+    const [professionalsList, setProfessionalsList] = useState<any[]>([]);
+    const [proceduresList, setProceduresList] = useState<any[]>([]);
+
+    // Filter Selection State
+    const [selectedProfessionalIds, setSelectedProfessionalIds] = useState<string[]>([]);
+    const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
+    const [showFilterMenu, setShowFilterMenu] = useState(false);
+
+    const location = useLocation();
+
+    // Initial Fetch Setup & Location Sate
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchAppointments();
+            fetchFiltersData();
+        } else {
+            setLoading(false);
+        }
+
+        const state = location.state as any;
+
+        // LEGACY: Old navigation method (keeping for potential backward compat)
+        if (state && state.openAddModal) {
+            const { leadId, leadName, professionalId, procedureName, procedureId } = state;
+            setInitialModalData({
+                leadId,
+                title: leadName,
+                professionalId,
+                procedureName,
+                procedureId,
+                start: new Date()
+            });
+            setIsModalOpen(true);
+            window.history.replaceState({}, document.title);
+        }
+
+        // NEW: Action-based navigation from Lead Details
+        if (state && state.action === 'new_appointment' && state.leadId) {
+            console.log("🚀 CRM Navigation: New Appointment for Lead", state.leadId);
+
+            setInitialModalData({
+                leadId: state.leadId
+            });
+
+            setIsModalOpen(true);
+
+            // Clean state to prevent reopening on refresh
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [clinic?.id, location.state, navigate]);
+
+    // Effect to open appointment details if requested
+    useEffect(() => {
+        if (location.state && (location.state as any).openAppointmentId && events.length > 0) {
+            const { openAppointmentId } = location.state as any;
+            const targetEvent = events.find(e => e.id === openAppointmentId);
+            if (targetEvent) {
+                setSelectedAppointment(targetEvent);
+                setIsAppointmentDetailsOpen(true);
+                // Clean state to avoid reopening on re-renders
+                window.history.replaceState({}, document.title);
+            }
+        }
+    }, [events, location.state]);
+
+    const fetchFiltersData = async () => {
+        if (!clinic?.id) {
+            console.error('❌ fetchFiltersData: clinic.id is undefined');
+            return;
+        }
+
+        console.log('🔄 Carregando filtros para clinic_id:', clinic.id);
+
+        // Fetch Professionals
+        const { data: pros, error: prosError } = await supabase
+            .from('professionals')
+            .select('*')
+            .eq('clinic_id', clinic.id);
+
+        if (prosError) {
+            console.error('❌ Erro ao carregar profissionais:', prosError);
+        } else {
+            console.log('✅ Profissionais carregados:', pros?.length || 0);
+            if (pros) setProfessionalsList(pros);
+        }
+
+        // Fetch Services (Procedures)
+        const { data: servs, error: servsError } = await supabase
+            .from('services')
+            .select('*')
+            .eq('clinic_id', clinic.id);
+
+        if (servsError) {
+            console.error('❌ Erro ao carregar serviços:', servsError);
+        } else {
+            console.log('✅ Serviços carregados:', servs?.length || 0);
+            if (servs) setProceduresList(servs);
+        }
+    };
+
+    const updateAppointmentStatus = async (id: string, newStatus: string) => {
+        // Intercept "Concluído" for Automation
+        if (newStatus === 'Concluído') {
+            setPendingFinishId(id);
+            setFinishConfirmationOpen(true);
+            return;
+        }
+
+        await executeStatusUpdate(id, newStatus);
+    };
+
+    const executeStatusUpdate = async (id: string, newStatus: string, quiet = false) => {
+        // Enforce Allowed Values (Sanity Check)
+        const allowedStatuses = ['Pendente', 'Confirmado', 'Chegou', 'Em Atendimento', 'Concluído', 'Cancelado', 'Faltou'];
+        if (!allowedStatuses.includes(newStatus)) {
+            const map: any = { 'CONFIRMADO': 'Confirmado', 'PENDENTE': 'Pendente', 'CHEGOU': 'Chegou' };
+            if (map[newStatus]) newStatus = map[newStatus];
+        }
+
+        try {
+            // Optimistic Update
+            setEvents(prev => prev.map(ev => ev.id === id ? { ...ev, status: newStatus } : ev));
+            setListAppointments(prev => prev.map(app => app.id === id ? { ...app, status: newStatus } : app));
+            if (selectedAppointment && selectedAppointment.id === id) {
+                setSelectedAppointment({ ...selectedAppointment, status: newStatus });
+            }
+
+            const { error } = await supabase
+                .from('appointments')
+                .update({ status: newStatus })
+                .eq('id', id);
+
+            if (error) {
+                console.error("Error updating status:", error);
+                // Revert on error
+                fetchAppointments();
+                toast.error(`Erro ao atualizar: ${error.message}`);
+            } else if (!quiet) {
+                toast.success("Status Atualizado!");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Erro inesperado ao atualizar status.");
+        }
+    };
+
+    const handleConfirmAutomation = async (type: 'automation' | 'simple') => {
+        if (!pendingFinishId) return;
+
+        if (type === 'simple') {
+            await executeStatusUpdate(pendingFinishId, 'Concluído');
+            setFinishConfirmationOpen(false);
+            setPendingFinishId(null);
+            return;
+        }
+
+        // Full Automation
+        const event = events.find(e => e.id === pendingFinishId);
+        if (!event) {
+            toast.error("Agendamento não encontrado.");
+            return;
+        }
+
+        try {
+            toast.loading("Processando automação...");
+
+            // 1. CRM - Move para Venda Realizada e atualiza Stage (moveLead robusto agora localiza o Stage ID)
+            if (event.leadId) {
+                await moveLead(event.leadId, 'Venda Realizada', { quiet: true });
+            }
+
+            // 2. Financeiro (Se ainda não criado pelo moveLead, mas o moveLead agora já cria se houver valor)
+            // Para evitar duplicidade, vamos deixar o moveLead cuidar do financeiro se houver estimated_value.
+            // Aqui na Agenda, se tivermos um preço específico do agendamento que difere do estimado, podemos manter.
+            // Mas o prompt focou na transição do Lead.
+
+            // 3. Update Status do Agendamento
+            await executeStatusUpdate(pendingFinishId, 'Concluído', true);
+
+            toast.dismiss();
+            toast.success(`Venda registrada por ${user?.user_metadata?.name || user?.email || 'Usuário'}!`);
+
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro na automação.");
+        } finally {
+            setFinishConfirmationOpen(false);
+            setPendingFinishId(null);
+        }
+    };
+
+    const fetchAppointments = async () => {
+        if (!clinic?.id) {
+            console.error('❌ fetchAppointments: clinic.id is undefined');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            console.log('🔄 Carregando agendamentos para clinic_id:', clinic.id);
+
+            const { data, error } = await supabase
+                .from('appointments')
+                .select(`
+                    id,
+                    start_time,
+                    end_time,
+                    status,
+                    notes,
+                    lead_id,
+                    professional_id,
+                    procedure_id,
+                    leads!lead_id (id, name, procedure, budget, total_ltv, status),
+                    professionals!professional_id (id, name, color),
+                    services!procedure_id (*)
+                `)
+                .eq('clinic_id', clinic.id);
+
+            if (error) throw error;
+
+            console.log('✅ Conexão com Procedure_ID estabelecida com sucesso');
+
+            let formattedEvents: Appointment[] = [];
+
+            if (data) {
+                formattedEvents = data.map(app => {
+                    // Tratamento robusto de nulos para relacionamentos
+                    const professional = Array.isArray(app.professionals) ? app.professionals[0] : app.professionals;
+                    const lead = Array.isArray(app.leads) ? app.leads[0] : app.leads;
+                    const service = Array.isArray(app.services) ? app.services[0] : app.services;
+
+                    return {
+                        id: app.id,
+                        title: `${lead?.name || 'Paciente'}`,
+                        leadId: lead?.id || app.lead_id,
+                        leadStatus: lead?.status || 'Novo',
+                        start: new Date(app.start_time),
+                        end: new Date(app.end_time),
+                        status: app.status,
+                        professionalId: professional?.id || app.professional_id,
+                        professionalName: professional?.name || 'Profissional',
+                        procedureId: app.procedure_id,
+                        procedureName: service?.name || (lead as any)?.procedure || '',
+                        procedurePrice: service?.base_price || 0,
+                        leadBudget: lead?.budget || 0,
+                        leadTotalLtv: lead?.total_ltv || 0,
+                        color: professional?.color || '#3b82f6',
+                        notes: app.notes || ''
+                    };
+                });
+            }
+
+            // Sync List View
+            const listData = formattedEvents.map(ev => ({
+                id: ev.id,
+                time: format(ev.start, 'HH:mm'),
+                patient: ev.title,
+                procedure: (ev as any).procedureName || 'Consulta',
+                professional: (ev as any).professionalName || 'Profissional',
+                status: ev.status,
+                date: ev.start,
+                color: ev.color,
+                leadId: ev.leadId,
+                leadStatus: (ev as any).leadStatus
+            }));
+            setListAppointments(listData);
+
+            setEvents(formattedEvents);
+            console.log('✅ Agendamentos carregados com sucesso:', formattedEvents.length);
+            console.log('📋 Agendamentos formatados:', formattedEvents);
+        } catch (error) {
+            console.error("❌ Erro ao buscar agendamentos reais:", error);
+            toast.error("Erro ao carregar agendamentos");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleNavigate = (newDate: Date) => setDate(newDate);
+    const handleViewChange = (newView: View) => setView(newView);
+
+    // =============================================================================
+    // NAVIGATION HANDLERS (useCallback for stable refs)
+    // =============================================================================
+    const handlePrevPeriod = useCallback(() => {
+        setDate(prev => {
+            const newDate = new Date(prev);
+            if (view === Views.MONTH) {
+                newDate.setMonth(prev.getMonth() - 1);
+            } else if (view === Views.WEEK) {
+                newDate.setDate(prev.getDate() - 7);
+            } else {
+                newDate.setDate(prev.getDate() - 1);
+            }
+            return newDate;
+        });
+    }, [view]);
+
+    const handleNextPeriod = useCallback(() => {
+        setDate(prev => {
+            const newDate = new Date(prev);
+            if (view === Views.MONTH) {
+                newDate.setMonth(prev.getMonth() + 1);
+            } else if (view === Views.WEEK) {
+                newDate.setDate(prev.getDate() + 7);
+            } else {
+                newDate.setDate(prev.getDate() + 1);
+            }
+            return newDate;
+        });
+    }, [view]);
+
+    const handleGoToToday = useCallback(() => {
+        setDate(new Date());
+    }, []);
+
+    const toggleFilterMenu = useCallback(() => {
+        setShowFilterMenu(prev => !prev);
+    }, []);
+
+    const handleNewAppointment = useCallback(() => {
+        setShowActionMenu(prev => !prev);
+    }, []);
+
+    const eventStyleGetter = (event: Appointment) => {
+        const style: any = {
+            backgroundColor: event.color || '#3b82f6',
+            borderRadius: '4px',
+            opacity: 1,
+            color: 'white',
+            border: '0px',
+            display: 'block'
+        };
+
+        if (event.status === 'Cancelado') {
+            style.backgroundColor = '#fee2e2';
+            style.color = '#b91c1c';
+            style.textDecoration = 'line-through';
+            style.opacity = 0.7;
+        }
+
+        return { style };
+    };
+
+    // Filter Logic
+    const filteredEvents = useMemo(() => {
+        return events.filter(e => {
+            const matchesProfessional = selectedProfessionalIds.length === 0 || selectedProfessionalIds.includes((e as any).professionalId);
+            // Match procedure likely by name if we don't have ID in event, or match by ID if added later. 
+            // Current map uses Service Name. Let's filter by name assuming lists are synced or IDs if needed.
+            // Simplified: Filter by ID if we had it, but for now lets try to match via name or update fetch to include service_id
+            // Better: Let's assume selection uses ID, but check against event.procedureName?? No, let's just filter by text if IDs missing or update fetch.
+            // UPDATE: fetchAppointments doesn't put service_id in event top level. Ideally should.
+            // For now, let's allow all procedures if logic is complex, OR fix the matching.
+            // Fix: let's match by procedure NAME for now since `proceduresList` has names.
+
+            const matchesProcedure = selectedProcedureIds.length === 0 ||
+                selectedProcedureIds.some(id => {
+                    const proc = proceduresList.find(p => p.id === id);
+                    return proc && proc.name === (e as any).procedureName;
+                });
+
+            return matchesProfessional && matchesProcedure;
+        });
+    }, [events, selectedProfessionalIds, selectedProcedureIds, proceduresList]);
+
+    // Update List View Filter
+    const filteredListEvents = useMemo(() => {
+        if (!listAppointments) return [];
+        return listAppointments.filter(e => {
+            const matchesDate = !e.date || isSameDay(new Date(e.date), date);
+            const matchesProfessional = selectedProfessionalIds.length === 0 || selectedProfessionalIds.some(id => {
+                const p = professionalsList.find(p => p.id === id);
+                return p && p.name === e.professional;
+            });
+            const matchesProcedure = selectedProcedureIds.length === 0 || selectedProcedureIds.some(id => {
+                const proc = proceduresList.find(p => p.id === id);
+                return proc && proc.name === e.procedure;
+            });
+            const isNotBlocked = e.status !== 'blocked';
+            return matchesProfessional && matchesProcedure && matchesDate && isNotBlocked;
+        });
+    }, [listAppointments, selectedProfessionalIds, selectedProcedureIds, professionalsList, proceduresList, date]);
+
+    // Calculate Dynamic Period Summary
+    useEffect(() => {
+        let start = startOfDay(date);
+        let end = endOfDay(date);
+
+        if (view === Views.WEEK) {
+            start = startOfWeek(date, { locale: ptBR });
+            end = endOfDay(addDays(start, 6));
+        } else if (view === Views.MONTH) {
+            start = startOfMonth(date); // Need to import startOfMonth
+            end = endOfMonth(date);     // Need to import endOfMonth
+        }
+
+        const eventsInView = filteredEvents.filter(ev =>
+            isWithinInterval(ev.start, { start, end }) || isWithinInterval(ev.end, { start, end })
+        );
+
+        const summary = {
+            total: eventsInView.length,
+            confirmed: eventsInView.filter(e => e.status === 'Confirmado').length,
+            finished: eventsInView.filter(e => e.status === 'Concluído').length,
+            pending: eventsInView.filter(e => e.status === 'Pendente').length
+        };
+        setPeriodSummary(summary);
+
+    }, [filteredEvents, view, date]);
+
+    // =============================================================================
+    // DYNAMIC HEADER EFFECT (with setTimeout to break sync cycle)
+    // =============================================================================
+    useEffect(() => {
+        if (!clinic?.id || !profile?.id) return;
+
+        const currentMonthYear = format(date, "MMMM yyyy", { locale: ptBR });
+
+        const timeoutId = setTimeout(() => {
+            setHeaderContent(
+                <div className="flex items-center justify-between w-full h-full relative">
+                    {/* Bloco 1: Esquerda - Apenas Título + Divisor */}
+                    <div className="flex items-center gap-6 pl-4">
+                        {/* Identidade da Página */}
+                        <div className="flex flex-col">
+                            <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                Agendamentos
+                            </h1>
+                            <span className="text-xs text-muted-foreground font-normal leading-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                                Calendário
+                            </span>
+                        </div>
+
+                        {/* Divisor Vertical */}
+                        <div className="h-8 w-px bg-slate-200" />
+                    </div>
+
+                    {/* Bloco 2: Centro - Resumo "Pílula" Completo (KPIs) */}
+                    <div className="absolute left-1/2 -translate-x-1/2 hidden lg:flex items-center gap-3 bg-slate-50/50 border border-slate-200/60 px-4 py-1.5 rounded-full shadow-sm backdrop-blur-sm">
+                        {/* Pacientes */}
+                        <div className="flex items-center gap-1.5 text-[12px] tracking-[0.1em] uppercase">
+                            <span className="font-extrabold text-slate-900" style={{ fontFamily: 'Manrope, sans-serif' }}>{periodSummary.total}</span>
+                            <span className="font-semibold text-slate-500">PACIENTE{periodSummary.total !== 1 ? 'S' : ''}</span>
+                        </div>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        {/* Confirmados */}
+                        <div className="flex items-center gap-1.5 text-[12px] tracking-[0.1em] uppercase">
+                            <span className="font-extrabold text-indigo-600" style={{ fontFamily: 'Manrope, sans-serif' }}>{periodSummary.confirmed}</span>
+                            <span className="font-semibold text-slate-500">CONFIRMADO{periodSummary.confirmed !== 1 ? 'S' : ''}</span>
+                        </div>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        {/* Concluídos - SEMPRE VISÍVEL */}
+                        <div className="flex items-center gap-1.5 text-[12px] tracking-[0.1em] uppercase">
+                            <span className="font-extrabold text-emerald-600" style={{ fontFamily: 'Manrope, sans-serif' }}>{periodSummary.finished}</span>
+                            <span className="font-semibold text-slate-500">CONCLUÍDO{periodSummary.finished !== 1 ? 'S' : ''}</span>
+                        </div>
+                        {periodSummary.pending > 0 && (
+                            <>
+                                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                {/* Pendentes */}
+                                <div className="flex items-center gap-1.5 text-[12px] tracking-[0.1em] uppercase">
+                                    <span className="font-extrabold text-amber-500" style={{ fontFamily: 'Manrope, sans-serif' }}>{periodSummary.pending}</span>
+                                    <span className="font-semibold text-slate-500">PENDENTE{periodSummary.pending !== 1 ? 'S' : ''}</span>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Bloco 3: Direita - Filtrar + Novo Agendamento */}
+                    <div className="flex items-center gap-2 pr-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                                "h-9 px-3 text-xs font-semibold gap-2 transition-all shadow-sm",
+                                selectedProfessionalIds.length > 0
+                                    ? 'bg-slate-800 text-white border-slate-800 hover:bg-slate-900 hover:text-white'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            )}
+                            onClick={toggleFilterMenu}
+                        >
+                            <Filter className="h-3.5 w-3.5" />
+                            Filtrar
+                        </Button>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-2 h-9 px-4 text-xs font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={handleNewAppointment}
+                        >
+                            <CalendarPlus className="h-3.5 w-3.5" />
+                            Novo Agendamento
+                        </Button>
+                    </div>
+                </div>
+            );
+        }, 0);
+
+        return () => {
+            clearTimeout(timeoutId);
+            resetHeader();
+        };
+    }, [
+        clinic?.id,
+        profile?.id,
+        periodSummary.total,
+        periodSummary.confirmed,
+        periodSummary.finished,
+        periodSummary.pending,
+        selectedProfessionalIds.length
+    ]); // Only primitive dependencies
+
+
+    // Custom Event Component
+    const EventComponent = ({ event }: any) => {
+        const isBlocked = event.status === 'blocked';
+        const isCancelled = event.status === 'Cancelado';
+        const isHighValue = (event.procedurePrice || 0) > 3000;
+
+        if (isBlocked) {
+            const displayProfessionals = event.groupedProfessionals || [
+                { id: event.professionalId, name: event.professionalName, color: event.color }
+            ];
+            return (
+                <div
+                    className="flex flex-col h-full w-full overflow-hidden p-1 leading-none justify-start pt-1.5 hover:brightness-90 transition-all cursor-pointer relative group"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBlockEvent(event);
+                        setManageBlockModalOpen(true);
+                    }}
+                >
+                    <div className="font-bold font-manrope text-[10px] truncate flex items-center gap-1 z-10 mb-1.5">
+                        <Lock className="w-3 h-3 text-slate-500 inline flex-shrink-0" />
+                        <span className="truncate">{event.title}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 z-10 w-full">
+                        {displayProfessionals.map((prof: any) => (
+                            <div
+                                key={prof.id}
+                                className="text-[9px] font-bold bg-white/95 px-2 py-1 rounded shadow-sm border border-slate-200/50 truncate"
+                                style={{ color: prof.color || '#475569' }}
+                            >
+                                {prof.name}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="absolute inset-0 border-2 border-transparent group-hover:border-slate-400/30 rounded transition-colors pointer-events-none" />
+                </div>
+            );
+        }
+
+        // Standard Appointment
+        return (
+            <div
+                className={cn(
+                    "flex flex-col h-full w-full overflow-hidden p-1 leading-none hover:brightness-95 transition-all cursor-pointer relative group border-l-2",
+                    isCancelled ? "bg-red-50 border-red-500" : "border-transparent hover:border-white/50",
+                    isHighValue && !isCancelled ? "border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.3)]" : ""
+                )}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedAppointment(event);
+                    setIsAppointmentDetailsOpen(true);
+                }}
+            >
+                {/* Header: Patient Name & Status Badge if Critical */}
+                <div className="flex flex-col gap-0.5 font-manrope relative z-10">
+                    <div className="flex justify-between items-start gap-1">
+                        <span className={cn("font-bold text-[10px] truncate leading-tight", isCancelled ? "text-red-700" : "")}>
+                            {event.title}
+                        </span>
+                        {isCancelled && <span className="bg-red-100 text-red-600 text-[8px] font-extrabold px-1 rounded">CANCELADO</span>}
+                    </div>
+
+                    {/* Procedure Name */}
+                    {event.procedureName && (
+                        <span className={cn("text-[9px] truncate leading-tight mt-0.5", isCancelled ? "text-red-500" : "opacity-90")}>
+                            {event.procedureName}
+                        </span>
+                    )}
+
+                    {/* Professional Name (New Requirement) */}
+                    <span className={cn("text-[8px] truncate leading-tight mt-0.5 font-medium", isCancelled ? "text-red-400" : "opacity-75")}>
+                        {event.professionalName}
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
+
+
+
+    const onEventDrop = (data: any) => {
+        const { event, start, end } = data;
+        setDropDetails({ event, start, end });
+        setDropConfirmOpen(true);
+    };
+
+    const handleConfirmDrop = () => {
+        if (!dropDetails) return;
+        const { event, start, end } = dropDetails;
+
+        const potentialCollision = events.some(ev =>
+            ev.id !== event.id &&
+            ev.professionalId === event.professionalId &&
+            ev.status === 'blocked' &&
+            (start < ev.end && end > ev.start)
+        );
+
+        if (potentialCollision) {
+            toast.error("Não é possível mover para um horário bloqueado.");
+            setDropConfirmOpen(false);
+            return;
+        }
+
+        const idsToUpdate = event.originalIds || [event.id];
+        setEvents(prev => prev.map(ev =>
+            idsToUpdate.includes(ev.id) ? { ...ev, start, end } : ev
+        ));
+        setDropConfirmOpen(false);
+    };
+
+    const onEventResize = (data: any) => {
+        const { event, start, end } = data;
+        const potentialCollision = events.some(ev =>
+            ev.id !== event.id &&
+            ev.professionalId === event.professionalId &&
+            ev.status === 'blocked' &&
+            (start < ev.end && end > ev.start)
+        );
+
+        if (potentialCollision) {
+            toast.error("Conflito com horário bloqueado.");
+            return;
+        }
+
+        setEvents(prev => prev.map(ev => ev.id === event.id ? { ...ev, start, end } : ev));
+    };
+
+    const handleBlockedSlot = () => {
+        setSelectedSlot({ start: new Date(), end: addMinutes(new Date(), 60) });
+        setIsBlockModalOpen(true);
+        setShowActionMenu(false);
+    };
+
+    const handleDeleteEvent = async (id: string) => {
+        try {
+            setEvents(prev => prev.filter(e => e.id !== id));
+            const { error } = await supabase.from('appointments').delete().eq('id', id);
+            if (error) {
+                console.error("Error deleting:", error);
+                fetchAppointments();
+                toast.error("Erro ao excluir.");
+            } else {
+                toast.success("Excluído com sucesso.");
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleWaitingListChat = (patientName: string, time: string) => {
+        const message = `Olá ${patientName}, uma vaga acabou de surgir para hoje às ${time || 'breve'}. Como você estava na nossa lista de prioridade, gostaria de aproveitar?`;
+        toast.info("Abrindo WhatsApp...");
+        console.log(`📲 (Simulação) Abrindo WhatsApp com mensagem:\n\n"${message}"`);
+        // window.open(...) could go here
+    };
+
+    const getWeekDays = () => {
+        const start = startOfWeek(date, { locale: ptBR });
+        return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    };
+
+    const hasActiveFilters = selectedProfessionalIds.length > 0 || selectedProcedureIds.length > 0;
+
+    const getStatusBadge = (status: string) => {
+        const configs = {
+            confirmed: { label: 'Confirmado', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+            Confirmado: { label: 'Confirmado', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+            arrived: { label: 'Chegou', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+            Chegou: { label: 'Chegou', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+            finished: { label: 'Concluído', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+            Concluído: { label: 'Concluído', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+            pending: { label: 'Pendente', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+            Pendente: { label: 'Pendente', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+            cancelled: { label: 'Cancelado', className: 'bg-red-50 text-red-700 border-red-200' },
+            Cancelado: { label: 'Cancelado', className: 'bg-red-50 text-red-700 border-red-200' },
+            Faltou: { label: 'Faltou', className: 'bg-rose-50 text-rose-700 border-rose-200' },
+            return: { label: 'Retorno', className: 'bg-[#f5e6d3] text-[#8b6f47] border-[#d4a574]' }
+        };
+        const config = configs[status as keyof typeof configs] || configs.pending;
+        return (
+            <Badge variant="outline" className={`${config.className} text-[10px] font-bold px-3 py-1`}>
+                {config.label}
+            </Badge>
+        );
+    };
+
+
+    // =============================================================================
+    // LOADING GUARD
+    // =============================================================================
+    if (!clinic?.id || !profile?.id) {
+        return (
+            <div className="h-full w-full flex items-center justify-center">
+                <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-full flex flex-col bg-slate-50 font-manrope">
+            {/* TooltipProvider for Filter Menu */}
+            <TooltipProvider>
+                {/* Filter Menu Overlay - Appears below header */}
+                {showFilterMenu && (
+                    <>
+                        <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setShowFilterMenu(false)}
+                        />
+                        <div className="absolute right-4 top-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-3 animate-in fade-in zoom-in-95 duration-200">
+                            {/* Profissionais */}
+                            <div className="px-4 py-2">
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Profissionais</p>
+                                    {selectedProfessionalIds.length > 0 && (
+                                        <button
+                                            className="text-[10px] text-red-500 hover:underline font-semibold"
+                                            onClick={() => setSelectedProfessionalIds([])}
+                                        >
+                                            LIMPAR
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                    <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedProfessionalIds.length === 0}
+                                            onChange={() => setSelectedProfessionalIds([])}
+                                            className="w-4 h-4 rounded border-slate-300 text-slate-600 focus:ring-slate-500"
+                                        />
+                                        <span className="text-sm font-semibold text-slate-700">Todos</span>
+                                    </label>
+                                    {professionalsList.filter(p => p.id !== 'all').map(pro => (
+                                        <label
+                                            key={pro.id}
+                                            className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedProfessionalIds.includes(pro.id)}
+                                                onChange={() => {
+                                                    if (selectedProfessionalIds.includes(pro.id)) {
+                                                        setSelectedProfessionalIds(prev => prev.filter(id => id !== pro.id));
+                                                    } else {
+                                                        setSelectedProfessionalIds(prev => [...prev, pro.id]);
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                            />
+                                            <div
+                                                className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm"
+                                                style={{ backgroundColor: pro.calendar_color }}
+                                            />
+                                            <span className="text-sm text-slate-700">
+                                                {pro.name}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="border-t border-slate-100 my-2" />
+
+                            {/* Procedimentos */}
+                            <div className="px-4 py-2">
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Procedimentos</p>
+                                    {selectedProcedureIds.length > 0 && (
+                                        <button
+                                            className="text-[10px] text-red-500 hover:underline font-semibold"
+                                            onClick={() => setSelectedProcedureIds([])}
+                                        >
+                                            LIMPAR
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                    <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedProcedureIds.length === 0}
+                                            onChange={() => setSelectedProcedureIds([])}
+                                            className="w-4 h-4 rounded border-slate-300 text-slate-600 focus:ring-slate-500"
+                                        />
+                                        <span className="text-sm font-semibold text-slate-700">Todos</span>
+                                    </label>
+                                    {proceduresList.filter(p => p.id !== 'all').map(proc => (
+                                        <label
+                                            key={proc.id}
+                                            className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedProcedureIds.includes(proc.id)}
+                                                onChange={() => {
+                                                    if (selectedProcedureIds.includes(proc.id)) {
+                                                        setSelectedProcedureIds(prev => prev.filter(id => id !== proc.id));
+                                                    } else {
+                                                        setSelectedProcedureIds(prev => [...prev, proc.id]);
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                            />
+                                            <span className="text-sm text-slate-700">{proc.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Top Bar: Navegação | Date Strip | View Toggle */}
+                <div className="bg-white border-b border-slate-200 px-6 py-1.5 relative">
+                    <div className="flex items-center justify-between">
+                        {/* Esquerda: Navegação Temporal */}
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={handlePrevPeriod}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-3 text-xs font-semibold"
+                                    onClick={handleGoToToday}
+                                >
+                                    Hoje
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={handleNextPeriod}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <h2 className="text-lg font-semibold text-slate-900 capitalize tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                {format(date, "MMMM yyyy", { locale: ptBR })}
+                            </h2>
+                        </div>
+
+                        {/* Centro: Date Strip - RIGOROSAMENTE CENTRALIZADO */}
+                        {(view === Views.WEEK || view === Views.DAY || view === LIST_VIEW) && (
+                            <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 z-30 pointer-events-auto">
+                                {getWeekDays().map((day, idx) => {
+                                    const isDayToday = isSameDay(day, new Date());
+                                    const isSelected = isSameDay(day, date);
+                                    return (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setDate(day)}
+                                            className={`relative z-50 flex flex-col items-center justify-center w-11 h-11 rounded-lg transition-all cursor-pointer ${isSelected
+                                                ? 'bg-slate-800 text-white font-semibold shadow-md'
+                                                : isDayToday
+                                                    ? 'bg-transparent text-emerald-600 font-bold border border-emerald-100'
+                                                    : 'bg-white text-slate-400 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            <span className="text-[8px] uppercase font-medium" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                                                {format(day, 'EEE', { locale: ptBR })}
+                                            </span>
+                                            <span className="text-sm font-bold mt-0.5" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                                                {format(day, 'd')}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Direita: View Toggle */}
+                        <div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-7 px-3 text-xs font-semibold tracking-wide transition-all ${view === Views.DAY
+                                    ? 'bg-slate-800 text-white hover:text-white hover:bg-emerald-700 shadow-sm'
+                                    : 'bg-transparent hover:bg-slate-200/50 text-slate-700'
+                                    }`}
+                                onClick={() => setView(Views.DAY)}
+                                style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                            >
+                                Dia
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-7 px-3 text-xs font-semibold tracking-wide transition-all ${view === Views.WEEK
+                                    ? 'bg-slate-800 text-white hover:text-white hover:bg-emerald-700 shadow-sm'
+                                    : 'bg-transparent hover:bg-slate-200/50 text-slate-700'
+                                    }`}
+                                onClick={() => setView(Views.WEEK)}
+                                style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                            >
+                                Semana
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-7 px-3 text-xs font-semibold tracking-wide transition-all ${view === Views.MONTH
+                                    ? 'bg-slate-800 text-white hover:text-white hover:bg-emerald-700 shadow-sm'
+                                    : 'bg-transparent hover:bg-slate-200/50 text-slate-700'
+                                    }`}
+                                onClick={() => setView(Views.MONTH)}
+                                style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                            >
+                                Mês
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-7 px-3 text-xs font-semibold tracking-wide transition-all ${view === LIST_VIEW
+                                    ? 'bg-slate-800 text-white hover:text-white hover:bg-emerald-700 shadow-sm'
+                                    : 'bg-transparent hover:bg-slate-200/50 text-slate-700'
+                                    }`}
+                                onClick={() => setView(LIST_VIEW)}
+                                style={{ fontFamily: 'Space Grotesk, sans-serif' }}
+                            >
+                                Lista
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Action Menu Dropdown for Novo Agendamento (moved from body) */}
+                {showActionMenu && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowActionMenu(false)} />
+                        <div className="absolute top-16 right-4 w-56 bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                            <button
+                                className="w-full text-left px-4 py-3 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 transition-colors flex items-center gap-3 border-b border-slate-100"
+                                onClick={() => {
+                                    setSelectedSlot({ start: new Date(), end: new Date() });
+                                    setIsModalOpen(true);
+                                    setShowActionMenu(false);
+                                }}
+                            >
+                                <div className="p-1.5 bg-emerald-100 rounded-md text-emerald-600">
+                                    <CalendarIcon className="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-sm">Agendar Paciente</p>
+                                    <p className="text-[10px] text-slate-500">Consulta ou Procedimento</p>
+                                </div>
+                            </button>
+                            <button
+                                className="w-full text-left px-4 py-3 hover:bg-slate-50 text-slate-700 hover:text-slate-900 transition-colors flex items-center gap-3 border-b border-slate-100"
+                                onClick={handleBlockedSlot}
+                            >
+                                <div className="p-1.5 bg-slate-200 rounded-md text-slate-600">
+                                    <Lock className="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-sm">Bloquear Horário</p>
+                                    <p className="text-[10px] text-slate-500">Almoço, Reunião, Folga</p>
+                                </div>
+                            </button>
+                            <button
+                                className="w-full text-left px-4 py-3 hover:bg-amber-50 text-slate-700 hover:text-amber-700 transition-colors flex items-center gap-3"
+                                onClick={() => {
+                                    setWaitingListOpen(true);
+                                    setShowActionMenu(false);
+                                }}
+                            >
+                                <div className="p-1.5 bg-amber-100 rounded-md text-amber-600">
+                                    <List className="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-sm">Lista de Espera</p>
+                                    <p className="text-[10px] text-slate-500">0 pacientes na fila</p>
+                                </div>
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {waitingListOpen && (
+                    <>
+                        <div className="fixed inset-0 bg-black/20 z-[60]" onClick={() => setWaitingListOpen(false)} />
+                        <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-[70] border-l border-slate-200 p-6 flex flex-col animate-in slide-in-from-right duration-300">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                        Lista de Espera
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Info className="w-4 h-4 text-slate-400 hover:text-emerald-600 transition-colors" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" className="w-80 p-4 text-xs space-y-2 text-slate-600">
+                                                <p><span className="font-bold text-amber-500">●</span> A bolinha laranja indica pacientes com Prioridade Alta (Sevenn Score {'>'} 80).</p>
+                                                <p><span className="font-bold">Botão Alocar:</span> Insere o paciente na agenda com dados pré-preenchidos.</p>
+                                                <p><span className="font-bold">Ícone Chat:</span> Abre conversa com mensagem pronta para oferecer desistência.</p>
+                                                <p className="border-t border-slate-100 pt-2 italic opacity-80">A lista é ordenada pelos leads mais quentes!</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </h3>
+                                    <p className="text-xs text-slate-500">Pacientes aguardando vaga</p>
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => setWaitingListOpen(false)}>
+                                    <X className="h-5 w-5" />
+                                </Button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto space-y-3 flex items-center justify-center text-slate-400 text-sm">
+                                Lista de espera vazia no momento (Placeholder)
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Content Area - Calendar Grid or List View */}
+                <div className="flex-1 p-4 overflow-hidden">
+                    <div className="h-full bg-white rounded-xl border border-slate-200 shadow-xl relative flex flex-col">
+                        {loading ? (
+                            <div className="h-full flex items-center justify-center">
+                                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                            </div>
+                        ) : view === LIST_VIEW ? (
+                            <div className="h-full overflow-auto p-6">
+                                {/* LIST VIEW - Tabela com Mock Data */}
+                                <table className="w-full">
+                                    <thead className="sticky top-0 bg-white z-10 border-b-2 border-slate-200">
+                                        <tr>
+                                            <th className="text-left py-3 px-4 text-xs font-bold font-manrope uppercase tracking-wider text-slate-500">Horário</th>
+                                            <th className="text-left py-3 px-4 text-xs font-bold font-manrope uppercase tracking-wider text-slate-500">Paciente</th>
+                                            <th className="text-left py-3 px-4 text-xs font-bold font-manrope uppercase tracking-wider text-slate-500">Procedimento</th>
+                                            <th className="text-left py-3 px-4 text-xs font-bold font-manrope uppercase tracking-wider text-slate-500">Profissional</th>
+                                            <th className="text-left py-3 px-4 text-xs font-bold font-manrope uppercase tracking-wider text-slate-500">Status</th>
+                                            <th className="text-left py-3 px-4 text-xs font-bold font-manrope uppercase tracking-wider text-slate-500">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filteredListEvents.map((appointment) => (
+                                            <tr key={appointment.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="py-4 px-4">
+                                                    <span className="text-sm font-semibold text-slate-700">
+                                                        {appointment.time}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 px-4">
+                                                    {appointment.leadId && appointment.leadStatus ? (
+                                                        <Link
+                                                            to={`/crm/${appointment.leadStatus}/${appointment.leadId}`}
+                                                            className="flex flex-col group"
+                                                            onClick={(e) => {
+                                                                // Se for concluído, link normal ou lógica específica
+                                                                if (appointment.status === 'Concluído') {
+                                                                    // Mantendo lógica antiga de abrir outra aba para pacientes?
+                                                                    // O usuário pediu "botão direito abrir em outra guia".
+                                                                    // Vamos deixar o Link apontar para o lead. Se quiser lógica antiga:
+                                                                    // e.preventDefault(); window.open(...)
+                                                                    // Mas o Link já serve pra isso.
+                                                                    // Lógica original: Abria /pacientes.
+                                                                    // Vamos AJUSTAR o 'to' caso seja concluído, ou manter padrao CRM.
+                                                                    // O pedido é "clicar com botão direito".
+                                                                    // Vou priorizar a navegação padrao do CRM.
+                                                                    // MAS, se o clique for ESQUERDO e NÃO for Concluído, abrimos o MODAL.
+                                                                    if (appointment.status !== 'Concluído') {
+                                                                        e.preventDefault(); // Impede navegação SPA
+                                                                        const fullEvent = events.find(ev => ev.id === appointment.id);
+                                                                        if (fullEvent) {
+                                                                            setSelectedAppointment(fullEvent);
+                                                                            setIsAppointmentDetailsOpen(true);
+                                                                        }
+                                                                    }
+                                                                    // Se for Concluído, deixa navegar normal (SPA) ou nova aba se usuario quiser.
+                                                                }
+                                                            }}
+                                                        >
+                                                            <span className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                                                {appointment.patient}
+                                                            </span>
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="text-sm font-semibold text-slate-900 text-opacity-50 cursor-not-allowed">
+                                                            {appointment.patient}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-4">
+                                                    <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 text-xs">
+                                                        {appointment.procedure}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-4 px-4">
+                                                    <span className="text-sm text-slate-600">{appointment.professional}</span>
+                                                </td>
+                                                <td className="py-4 px-4" onClick={(e) => e.stopPropagation()}>
+                                                    <Select
+                                                        value={appointment.status}
+                                                        onValueChange={(val) => updateAppointmentStatus(appointment.id, val)}
+                                                    >
+                                                        <SelectTrigger className={cn(
+                                                            "w-[140px] h-8 text-[11px] font-bold border-0 rounded-md shadow-sm transition-all uppercase tracking-wide",
+                                                            appointment.status === 'Confirmado' ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' :
+                                                                appointment.status === 'Chegou' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' :
+                                                                    appointment.status === 'Em Atendimento' ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' :
+                                                                        appointment.status === 'Concluído' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' :
+                                                                            appointment.status === 'Cancelado' || appointment.status === 'Faltou' ? 'bg-red-100 text-red-700 hover:bg-red-200' :
+                                                                                'bg-amber-100 text-amber-700 hover:bg-amber-200' // Pendente default
+                                                        )}>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Pendente" className="text-amber-700 focus:bg-amber-50 focus:text-amber-800">Pendente</SelectItem>
+                                                            <SelectItem value="Confirmado" className="text-sky-700 focus:bg-sky-50 focus:text-sky-800">Confirmado</SelectItem>
+                                                            <SelectItem value="Chegou" className="text-blue-700 focus:bg-blue-50 focus:text-blue-800">Chegou</SelectItem>
+                                                            <SelectItem value="Em Atendimento" className="text-purple-700 focus:bg-purple-50 focus:text-purple-800">Em Atendimento</SelectItem>
+                                                            <SelectItem value="Concluído" className="text-emerald-700 focus:bg-emerald-50 focus:text-emerald-800">Concluído</SelectItem>
+                                                            <SelectItem value="Cancelado" className="text-red-700 focus:bg-red-50 focus:text-red-800">Cancelado</SelectItem>
+                                                            <SelectItem value="Faltou" className="text-rose-700 focus:bg-rose-50 focus:text-rose-800">Faltou</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td className="py-4 px-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
+                                                                    asChild
+                                                                >
+                                                                    {appointment.leadId && appointment.leadStatus ? (
+                                                                        <Link
+                                                                            to={`/crm/${appointment.leadStatus}/${appointment.leadId}?tab=chat`}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <MessageCircle className="h-4 w-4" />
+                                                                        </Link>
+                                                                    ) : (
+                                                                        <span className="cursor-not-allowed opacity-50">
+                                                                            <MessageCircle className="h-4 w-4" />
+                                                                        </span>
+                                                                    )}
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="bg-slate-800 text-white">
+                                                                <p className="text-xs">Ir para Conversa</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                                                                    asChild
+                                                                >
+                                                                    {appointment.leadId && appointment.leadStatus ? (
+                                                                        <Link
+                                                                            to={`/crm/${appointment.leadStatus}/${appointment.leadId}?tab=prontuario`}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <FileText className="h-4 w-4" />
+                                                                        </Link>
+                                                                    ) : (
+                                                                        <span className="cursor-not-allowed opacity-50">
+                                                                            <FileText className="h-4 w-4" />
+                                                                        </span>
+                                                                    )}
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="bg-slate-800 text-white">
+                                                                <p className="text-xs">Ver Prontuário</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="h-full p-4 flex flex-col">
+                                {/* CALENDAR GRID VIEW */}
+                                <DragAndDropCalendar
+                                    localizer={localizer}
+                                    events={filteredEvents}
+                                    startAccessor="start"
+                                    endAccessor="end"
+                                    style={{ height: 'calc(100% - 20px)' }} // Space for legend
+                                    view={view}
+                                    date={date}
+                                    onNavigate={handleNavigate}
+                                    onView={handleViewChange}
+                                    culture="pt-BR"
+                                    eventPropGetter={eventStyleGetter}
+                                    components={{
+                                        event: EventComponent,
+                                    }}
+                                    messages={{
+                                        next: "Próximo",
+                                        previous: "Anterior",
+                                        today: "Hoje",
+                                        month: "Mês",
+                                        week: "Semana",
+                                        day: "Dia",
+                                        agenda: "Agenda"
+                                    }}
+                                    selectable
+                                    onSelectSlot={(slotInfo) => {
+                                        setSelectedSlot(slotInfo);
+                                        // Reset editing block just in case
+                                        setEditingBlock(null);
+                                        setIsModalOpen(true);
+                                    }}
+                                    onEventDrop={onEventDrop}
+                                    onEventResize={onEventResize}
+                                    resizable
+                                    className="custom-calendar flex-1"
+                                    toolbar={false}
+                                    min={new Date(2024, 0, 1, 7, 0, 0)}
+                                    max={new Date(2024, 0, 1, 22, 0, 0)}
+                                    step={60}
+                                    timeslots={1}
+                                    popup={false} // Tooltips instead of popups
+                                />
+
+                                {/* Legend - Lower z-index than tooltips */}
+                                <div className="mt-2 flex items-center justify-center gap-4 text-[10px] text-slate-500 font-medium font-manrope border-t border-slate-100 pt-2 relative z-0">
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm" /> Consulta
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-purple-500 shadow-sm" /> Procedimento
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-[#d4a574] shadow-sm" /> Retorno
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-sm bg-slate-300 diagonal-stripes" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 4px)' }} /> Bloqueio
+                                    </div>
+                                </div>
+
+
+                                {/* Current Time Indicator - Red Line */}
+                                {(view === Views.WEEK || view === Views.DAY) && isSameDay(date, currentTime) && (
+                                    <div
+                                        className="absolute left-0 right-0 h-[1px] bg-rose-500 pointer-events-none z-[50]"
+                                        style={{
+                                            top: `${((currentTime.getHours() * 60 + currentTime.getMinutes()) / 1440) * 100}%`
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {isModalOpen && (
+                    <AddAppointmentModal
+                        isOpen={isModalOpen}
+                        onClose={() => {
+                            setIsModalOpen(false);
+                            setInitialModalData(null);
+                        }}
+                        slotInfo={selectedSlot || (initialModalData ? { start: initialModalData.start, end: addMinutes(initialModalData.start, 60) } : null)}
+                        onSuccess={() => {
+                            fetchAppointments();
+                            setIsModalOpen(false);
+                            setInitialModalData(null);
+                        }}
+                        professionals={professionalsList} // Use list from Calendar state if consistent
+                        initialData={initialModalData}
+                    />
+                )}
+
+                <BlockTimeModal
+                    isOpen={isBlockModalOpen}
+                    onClose={() => {
+                        setIsBlockModalOpen(false);
+                        setEditingBlock(null); // Clear editing state on close
+                    }}
+                    slotInfo={selectedSlot}
+                    onSuccess={fetchAppointments}
+                    professionals={professionalsList.filter(p => p.id !== 'all')}
+                    onLocalSave={(newBlocks) => {
+                        const mapped = newBlocks.map(b => ({
+                            id: b.id,
+                            title: b.title,
+                            start: new Date(b.start_time),
+                            end: new Date(b.end_time),
+                            status: b.status,
+                            professionalId: b.professional_id,
+                            professionalName: b.professionals?.name || 'Profissional',
+                            color: b.professionals?.calendar_color || '#64748b',
+                            notes: b.notes
+                        }));
+
+                        setEvents(prev => {
+                            let filtered = prev;
+                            if (editingBlock) {
+                                console.log("BlockTimeModal InitialData:", editingBlock); // Log initialData when editingBlock is present
+                                const idsToRemove = editingBlock.originalIds || [editingBlock.id];
+                                filtered = prev.filter(e => !idsToRemove.includes(e.id));
+                            }
+                            return [...filtered, ...mapped];
+                        });
+                        setEditingBlock(null);
+                    }}
+                    initialData={editingBlock} // Pass editing data
+                />
+
+                {/* Manage Block Modal */}
+                {selectedBlockEvent && (
+                    <Dialog open={manageBlockModalOpen} onOpenChange={setManageBlockModalOpen}>
+                        <DialogContent className="sm:max-w-[400px] font-manrope">
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    <Lock className="w-5 h-5 text-slate-600" />
+                                    Gerenciar Bloqueio
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+                                    <div>
+                                        <p className="text-xs text-slate-500 font-semibold uppercase">Horário</p>
+                                        <p className="text-sm font-bold text-slate-800">
+                                            {format(selectedBlockEvent.start, 'dd/MM/yyyy HH:mm')} - {format(selectedBlockEvent.end, 'HH:mm')}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500 font-semibold uppercase">
+                                            {selectedBlockEvent.groupedProfessionals && selectedBlockEvent.groupedProfessionals.length > 1 ? 'Profissionais' : 'Profissional'}
+                                        </p>
+                                        {selectedBlockEvent.groupedProfessionals && selectedBlockEvent.groupedProfessionals.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                {selectedBlockEvent.groupedProfessionals.map((prof: any) => (
+                                                    <span
+                                                        key={prof.id}
+                                                        className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 border border-slate-200"
+                                                        style={{ color: prof.color }}
+                                                    >
+                                                        {prof.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm font-bold text-slate-800">{selectedBlockEvent.professionalName}</p>
+                                        )}
+                                    </div>
+                                    {selectedBlockEvent.notes && (
+                                        <div>
+                                            <p className="text-xs text-slate-500 font-semibold uppercase">Motivo</p>
+                                            <p className="text-sm text-slate-600">{selectedBlockEvent.notes}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <DialogFooter className="gap-2 sm:justify-between">
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setManageBlockModalOpen(false)}
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                        onClick={() => {
+                                            // Edit Logic
+                                            setEditingBlock(selectedBlockEvent);
+                                            // Set slot info to match event times so modal initializes correctly (though initialData will override fields)
+                                            setSelectedSlot({ start: selectedBlockEvent.start, end: selectedBlockEvent.end });
+                                            setManageBlockModalOpen(false);
+                                            setIsBlockModalOpen(true);
+                                        }}
+                                    >
+                                        Editar
+                                    </Button>
+                                </div>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => {
+                                        setEventToDelete(selectedBlockEvent);
+                                        setIsDeleteConfirmOpen(true);
+                                        setManageBlockModalOpen(false);
+                                    }}
+                                    className="bg-rose-600 hover:bg-rose-700"
+                                >
+                                    Excluir
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                )}
+
+
+
+                {/* Appointment Details Modal */}
+                {selectedAppointment && (
+                    <Dialog open={isAppointmentDetailsOpen} onOpenChange={setIsAppointmentDetailsOpen}>
+                        <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl font-manrope">
+                            {(() => {
+                                if (!selectedAppointment) return null; // Guard Clause
+                                return (
+                                    <div className="bg-white">
+                                        {/* Header Stripe */}
+                                        {/* Header Stripe Dynamic Color */}
+                                        <div
+                                            className="h-2 w-full"
+                                            style={{ backgroundColor: selectedAppointment.color || '#3b82f6' }}
+                                        />
+
+                                        <div className="p-6">
+                                            <div className="flex items-start justify-between mb-5">
+                                                <div className="flex-1 pr-3">
+                                                    <h4 className="font-bold text-slate-900 text-xl tracking-tight leading-tight mb-1">{selectedAppointment.title}</h4>
+                                                    <div className="flex flex-col gap-1.5 mt-2">
+                                                        <p className="text-sm text-slate-500 flex items-center gap-2 font-medium capitalize">
+                                                            <span className="w-2 h-2 rounded-full bg-blue-500 shadow-sm shadow-blue-200" />
+                                                            {selectedAppointment.procedureName || 'Consulta'}
+                                                        </p>
+                                                        <p className="text-sm text-slate-600 font-semibold flex items-center gap-2 bg-slate-50 w-fit px-2 py-1 rounded-md border border-slate-100">
+                                                            <span className="text-lg">👨‍⚕️</span>
+                                                            {selectedAppointment.professionalName}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-full px-2.5 py-0.5">
+                                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Score</span>
+                                                        <span className="text-xs font-black text-slate-600">85</span>
+                                                    </div>
+                                                    {/* Status Dropdown */}
+                                                    <Select
+                                                        value={selectedAppointment.status}
+                                                        onValueChange={(val) => updateAppointmentStatus(selectedAppointment.id, val)}
+                                                    >
+                                                        <SelectTrigger className={cn(
+                                                            "w-[140px] h-7 text-[10px] font-bold border-0 rounded-md shadow-sm transition-all uppercase tracking-wide",
+                                                            selectedAppointment.status === 'Confirmado' ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' :
+                                                                selectedAppointment.status === 'Chegou' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' :
+                                                                    selectedAppointment.status === 'Em Atendimento' ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' :
+                                                                        selectedAppointment.status === 'Concluído' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' :
+                                                                            selectedAppointment.status === 'Cancelado' || selectedAppointment.status === 'Faltou' ? 'bg-red-100 text-red-700 hover:bg-red-200' :
+                                                                                'bg-amber-100 text-amber-700 hover:bg-amber-200' // Pendente default
+                                                        )}>
+                                                            <SelectValue placeholder="Status" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Pendente" className="text-amber-700 focus:bg-amber-50 focus:text-amber-800">Pendente</SelectItem>
+                                                            <SelectItem value="Confirmado" className="text-sky-700 focus:bg-sky-50 focus:text-sky-800">Confirmado</SelectItem>
+                                                            <SelectItem value="Chegou" className="text-blue-700 focus:bg-blue-50 focus:text-blue-800">Chegou</SelectItem>
+                                                            <SelectItem value="Em Atendimento" className="text-purple-700 focus:bg-purple-50 focus:text-purple-800">Em Atendimento</SelectItem>
+                                                            <SelectItem value="Concluído" className="text-emerald-700 focus:bg-emerald-50 focus:text-emerald-800">Concluído</SelectItem>
+                                                            <SelectItem value="Cancelado" className="text-red-700 focus:bg-red-50 focus:text-red-800">Cancelado</SelectItem>
+                                                            <SelectItem value="Faltou" className="text-rose-700 focus:bg-rose-50 focus:text-rose-800">Faltou</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col justify-center gap-1 group hover:border-blue-200 transition-colors">
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest group-hover:text-blue-500 transition-colors">Horário</span>
+                                                    <div className="flex items-center gap-2 text-slate-800">
+                                                        <Clock className="w-4 h-4 text-blue-500" />
+                                                        <div className="flex flex-col leading-none">
+                                                            <span className="text-xs font-medium text-slate-500 uppercase">{format(selectedAppointment.start, "EEE, dd/MM", { locale: ptBR })}</span>
+                                                            <span className="text-sm font-bold">{format(selectedAppointment.start, 'HH:mm')} - {format(selectedAppointment.end, 'HH:mm')}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col justify-center gap-1 group hover:border-emerald-200 transition-colors">
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest group-hover:text-emerald-500 transition-colors">Valor</span>
+                                                    <div className="flex items-center gap-2 text-slate-800">
+                                                        <div className="flex flex-col leading-none">
+                                                            <span className="text-sm font-bold flex items-center gap-1 text-emerald-600">
+                                                                <span className="text-md">R$</span> <span className="text-slate-900">
+                                                                    {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(selectedAppointment.leadBudget || 0)}
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col gap-3">
+                                                <div className="flex flex-row gap-2">
+                                                    <Button
+                                                        className="w-1/2 text-sm h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                                        onClick={() => {
+                                                            updateAppointmentStatus(selectedAppointment.id, 'Chegou');
+                                                            setIsAppointmentDetailsOpen(false);
+                                                        }}
+                                                    >
+                                                        Check-in
+                                                    </Button>
+
+                                                    <Button
+                                                        className="w-1/2 text-sm h-11 bg-slate-800 hover:bg-slate-900 text-white font-bold"
+                                                        onClick={() => {
+                                                            updateAppointmentStatus(selectedAppointment.id, 'Em Atendimento');
+                                                            setIsAppointmentDetailsOpen(false);
+                                                        }}
+                                                    >
+                                                        Iniciar Consulta
+                                                    </Button>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="h-10 text-xs border-slate-200 hover:bg-slate-50 font-bold text-slate-600 rounded-xl"
+                                                        onClick={() => {
+                                                            setSelectedSlot({ start: selectedAppointment.start, end: selectedAppointment.end });
+                                                            setInitialModalData(selectedAppointment);
+                                                            setIsAppointmentDetailsOpen(false);
+                                                            setIsModalOpen(true);
+                                                        }}
+                                                    >
+                                                        Editar
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="h-10 text-xs border-rose-100 text-rose-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 font-bold rounded-xl"
+                                                        onClick={() => {
+                                                            setEventToDelete(selectedAppointment);
+                                                            setIsDeleteConfirmOpen(true);
+                                                            setIsAppointmentDetailsOpen(false);
+                                                        }}
+                                                    >
+                                                        Excluir
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </DialogContent>
+                    </Dialog>
+                )}
+
+                {/* Drop Confirmation Modal */}
+                <Dialog open={dropConfirmOpen} onOpenChange={setDropConfirmOpen}>
+                    <DialogContent className="font-manrope">
+                        <DialogHeader>
+                            <DialogTitle>Confirmar Alteração de Horário</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            {dropDetails && (
+                                <p className="text-sm text-slate-600">
+                                    Deseja mover <b>{dropDetails.event.title}</b> para o dia <b>{format(dropDetails.start, 'dd/MM')}</b> às <b>{format(dropDetails.start, 'HH:mm')}</b>?
+                                </p>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setDropConfirmOpen(false)}>Cancelar</Button>
+                            <Button onClick={handleConfirmDrop} className="bg-emerald-600 hover:bg-emerald-700 text-white">Confirmar</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Automation Confirmation Modal */}
+                <Dialog open={finishConfirmationOpen} onOpenChange={setFinishConfirmationOpen}>
+                    <DialogContent className="sm:max-w-md font-manrope">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                                Concluir Atendimento
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4 space-y-3">
+                            <p className="text-sm text-slate-600">
+                                Deseja automatizar o pós-atendimento ou apenas marcar como concluído?
+                            </p>
+
+                            <div className="flex flex-col gap-2 mt-4">
+                                <Button
+                                    className="w-full justify-start gap-3 h-auto py-3 bg-slate-800 hover:bg-slate-900 text-white"
+                                    onClick={() => handleConfirmAutomation('automation')}
+                                >
+                                    <div className="bg-white/10 p-2 rounded-lg">
+                                        <DollarSign className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div className="flex flex-col items-start">
+                                        <span className="font-bold text-sm">Confirmar com Automação</span>
+                                        <span className="text-[10px] text-slate-300 font-normal">Gera Financeiro e Move Lead para Venda</span>
+                                    </div>
+                                </Button>
+
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-start gap-3 h-auto py-3 bg-slate-50 hover:bg-slate-100 border-slate-200"
+                                    onClick={() => handleConfirmAutomation('simple')}
+                                >
+                                    <div className="bg-slate-200 p-2 rounded-lg">
+                                        <CheckCircle2 className="w-5 h-5 text-slate-500" />
+                                    </div>
+                                    <div className="flex flex-col items-start">
+                                        <span className="font-bold text-sm text-slate-700">Apenas Concluir</span>
+                                        <span className="text-[10px] text-slate-500 font-normal">Muda status sem gerar financeiro</span>
+                                    </div>
+                                </Button>
+                            </div>
+                        </div>
+                        <DialogFooter className="sm:justify-between gap-2 mt-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setFinishConfirmationOpen(false);
+                                    setPendingFinishId(null);
+                                }}
+                                className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            >
+                                Cancelar
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+                {/* Delete Confirmation Modal (Sophisticated) */}
+                <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                    <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden border-0 shadow-2xl rounded-2xl font-manrope">
+                        <div className="bg-white">
+                            <div className="h-1.5 bg-rose-500 w-full" />
+                            <div className="p-6">
+                                <div className="flex flex-col items-center text-center space-y-4">
+                                    <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-2">
+                                        <AlertTriangle className="w-8 h-8 text-rose-500" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <DialogTitle className="text-xl font-bold text-slate-900">Confirmar Exclusão</DialogTitle>
+                                        <p className="text-sm text-slate-500 leading-relaxed px-4">
+                                            Tem certeza que deseja excluir o agendamento de <span className="font-bold text-slate-700">"{eventToDelete?.title}"</span>? Esta ação não poderá ser desfeita.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3 mt-8">
+                                    <Button
+                                        className="h-12 bg-rose-600 hover:bg-rose-700 text-white font-bold flex items-center justify-center gap-2 rounded-xl shadow-lg shadow-rose-200"
+                                        onClick={async () => {
+                                            if (eventToDelete) {
+                                                await handleDeleteEvent(eventToDelete.id);
+                                                setIsDeleteConfirmOpen(false);
+                                                setEventToDelete(null);
+                                                if (selectedAppointment?.id === eventToDelete.id) setSelectedAppointment(null);
+                                                if (selectedBlockEvent?.id === eventToDelete.id) setSelectedBlockEvent(null);
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Sim, Excluir Agora
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        className="h-12 text-slate-500 hover:text-slate-700 font-bold rounded-xl"
+                                        onClick={() => {
+                                            setIsDeleteConfirmOpen(false);
+                                            setEventToDelete(null);
+                                        }}
+                                    >
+                                        Cancelar
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </TooltipProvider >
+        </div >
+    );
+}
+
+export default CalendarPage;

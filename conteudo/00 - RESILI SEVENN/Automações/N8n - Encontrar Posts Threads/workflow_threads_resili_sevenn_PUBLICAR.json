@@ -1,0 +1,207 @@
+{
+  "name": "Resili Sevenn - Postagem Automática Threads",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 12,16 * * *"
+            }
+          ]
+        }
+      },
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "Roda às 12h e 16h UTC = 9h e 13h horário de Brasília"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "1797bff08cc84f118e28436ea6ca99e0",
+          "mode": "id"
+        },
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "json",
+        "filterJson": "={{ JSON.stringify({\"and\": [{\"property\": \"Status\", \"select\": {\"equals\": \"Aprovado\"}}, {\"property\": \"Data de publicação\", \"date\": {\"on_or_before\": new Date().toISOString().split('T')[0]}}]}) }}",
+        "options": {
+          "sort": {
+            "sortValue": [
+              {
+                "key": "Data de publicação",
+                "direction": "ascending"
+              }
+            ]
+          }
+        }
+      },
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "name": "Buscar Post Aprovado",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [460, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "notion_resili_sevenn",
+          "name": "Notion Resili Sevenn"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.threads.net/v1.0/YOUR_THREADS_USER_ID/threads",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\"media_type\": \"TEXT\", \"text\": $('Buscar Post Aprovado').item.json.properties['Texto do post'].rich_text.map(function(t){ return t.plain_text; }).join('')}) }}",
+        "options": {}
+      },
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "name": "Criar Container Threads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "threads_api_token",
+          "name": "Threads API Token"
+        }
+      },
+      "notes": "ATENÇÃO: substitua YOUR_THREADS_USER_ID pelo seu ID de usuário do Threads"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.threads.net/v1.0/YOUR_THREADS_USER_ID/threads_publish",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\"creation_id\": $json.id}) }}",
+        "options": {}
+      },
+      "id": "550e8400-e29b-41d4-a716-446655440004",
+      "name": "Publicar no Threads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "threads_api_token",
+          "name": "Threads API Token"
+        }
+      },
+      "notes": "ATENÇÃO: substitua YOUR_THREADS_USER_ID pelo seu ID de usuário do Threads"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $('Buscar Post Aprovado').item.json.id }}",
+          "mode": "id"
+        },
+        "propertiesJson": "={{ JSON.stringify({\"Status\": {\"select\": {\"name\": \"Publicado\"}}}) }}"
+      },
+      "id": "550e8400-e29b-41d4-a716-446655440005",
+      "name": "Atualizar Status para Publicado",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [1120, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "notion_resili_sevenn",
+          "name": "Notion Resili Sevenn"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## INSTRUÇÕES DE CONFIGURAÇÃO\n\n**1. Threads User ID**\nNos nós 'Criar Container Threads' e 'Publicar no Threads', substitua **YOUR_THREADS_USER_ID** pelo seu ID real.\n\nPara encontrar seu ID, faça uma requisição GET para:\n`https://graph.threads.net/v1.0/me?fields=id`\nusando seu token.\n\n**2. Horários**\nO cron roda às **12h e 16h UTC**, equivalente a **9h e 13h de Brasília (UTC-3)**.\n\n**3. Lógica de segurança**\nSe o Notion não retornar nenhum post (nenhum aprovado com data ≤ hoje), o workflow encerra automaticamente sem executar os demais nós.",
+        "height": 280,
+        "width": 380,
+        "color": 5
+      },
+      "id": "550e8400-e29b-41d4-a716-446655440006",
+      "name": "Instruções",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 500]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Buscar Post Aprovado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Post Aprovado": {
+      "main": [
+        [
+          {
+            "node": "Criar Container Threads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Container Threads": {
+      "main": [
+        [
+          {
+            "node": "Publicar no Threads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publicar no Threads": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Status para Publicado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": ""
+  },
+  "pinData": {},
+  "tags": [
+    {"name": "Resili Sevenn"},
+    {"name": "Threads"},
+    {"name": "Conteúdo"}
+  ]
+}

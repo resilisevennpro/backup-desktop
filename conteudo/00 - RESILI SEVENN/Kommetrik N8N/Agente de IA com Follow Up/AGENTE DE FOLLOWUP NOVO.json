@@ -1,0 +1,426 @@
+{
+  "name": "AGENTE DE FOLLOWUP",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "af6c270f-81c8-46c2-b4bf-23265981f4af",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -160,
+        -144
+      ],
+      "id": "cdad0974-a774-46a0-9fb2-c6659d8d540d",
+      "name": "Webhook",
+      "webhookId": "af6c270f-81c8-46c2-b4bf-23265981f4af"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "255f7f52-1921-4658-b86a-3c82f9c145e8",
+              "name": "kommo_token",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5c619255-c227-4eb7-bc13-02b2acd1d6f0",
+      "name": "CONFIGURAÇÃO IA",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        96,
+        -144
+      ],
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "=chat_agente",
+          "mode": "name"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{ String($json._embedded.contacts[0].id) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        512,
+        -144
+      ],
+      "id": "55ba48cf-5cdb-4eb0-a911-4487ecdc7edd",
+      "name": "Select rows from a table",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n — Code node (JS)\n// Entrada: itens com { id, session_id, message:{ type, content } }\n// Saída: [{ memoria: \"...\" }] (um por session_id)\n\nfunction normalizeText(v) {\n  if (v === null || v === undefined) return '';\n  if (typeof v === 'string') return v;\n  if (typeof v === 'number' || typeof v === 'boolean') return String(v);\n  try { return JSON.stringify(v); } catch { return String(v); }\n}\n\nfunction roleLabel(type) {\n  const t = String(type || '').toLowerCase();\n  if (t === 'ai' || t === 'assistant') return 'AGENTE';\n  if (t === 'human' || t === 'user') return 'CLIENTE';\n  return 'DESCONHECIDO';\n}\n\nconst items = $input.all();\n\n// Agrupa por session_id (se não existir, cai em \"default\")\nconst bySession = new Map();\nfor (const it of items) {\n  const j = it.json ?? {};\n  const sid = normalizeText(j.session_id) || 'default';\n  if (!bySession.has(sid)) bySession.set(sid, []);\n  bySession.get(sid).push(j);\n}\n\n// Ordena por id (ou mantém ordem original) e monta a memória\nconst out = [];\nfor (const [sid, arr] of bySession.entries()) {\n  arr.sort((a, b) => {\n    const ai = Number(a?.id); const bi = Number(b?.id);\n    if (Number.isFinite(ai) && Number.isFinite(bi)) return ai - bi;\n    return 0;\n  });\n\n  const linhas = [];\n  for (const row of arr) {\n    const msg = row?.message ?? {};\n    const label = roleLabel(msg.type);\n    const content = normalizeText(msg.content).trim();\n\n    // Se quiser incluir mensagens vazias, remova este if\n    if (!content) continue;\n\n    linhas.push(`# ${label}`);\n    linhas.push(`- ${content}`);\n  }\n\n  out.push({\n    json: {\n      memoria: linhas.join('\\n'),\n    },\n  });\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -144
+      ],
+      "id": "05b815f2-5a41-4829-82c4-e28ec31e6cb4",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# MEMÓRIA DO AGENTE\n{{ $json.memoria }}\n\n\n# CRIE UMA MENSAGEM DE FOLLOWUP PARA ESTE CLIENTE",
+        "options": {
+          "systemMessage": "ESCREVA APENAS UMA MENSAGEM DE FOLLOWUP"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        928,
+        -144
+      ],
+      "id": "703c91ac-f5ab-49c0-ac96-aa78363fca9e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "url": "=https://metriksales.kommo.com/api/v4/leads/{{ $('Webhook').first().json.body[\"leads[add][0][id]\"] }}?with=contacts\t",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.kommo_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        304,
+        -144
+      ],
+      "id": "4dbdc62b-4387-491f-b9f9-92083dd07284",
+      "name": "BUSCA LEAD"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        64
+      ],
+      "id": "db33d8da-0717-4bd1-b3bd-3814eb425e1b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "iXk9MZnyRpUWEA06",
+          "name": "metrik2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n — Code node (JS)\n// Entrada: [{ output: \"...\" }]\n// Saída: [{ message: { ... } }] no formato EXATO pedido\n\nconst items = $input.all();\n\nreturn items.map(item => {\n  const text = (item.json?.output ?? '').toString();\n\n  return {\n    json: {\n      message: {\n        type: \"ai\",\n        content: text,\n        tool_calls: [],\n        additional_kwargs: {},\n        response_metadata: {},\n        invalid_tool_calls: []\n      }\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -144
+      ],
+      "id": "25bed0ca-f3a4-49e8-b182-36235b74cf17",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "=chat_agente",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('BUSCA LEAD').first().json._embedded.contacts[0].id }}",
+            "message": "={{ $json.message }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1488,
+        -144
+      ],
+      "id": "93efec4d-6897-4853-93ac-b9fd0906f0f7",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://metriksales.kommo.com/api/v4/leads/{{ $('Webhook').first().json.body[\"leads[add][0][id]\"] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('CONFIGURAÇÃO IA').first().json.kommo_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"custom_fields_values\": [\n    {\n      \"field_id\": 1117779,\n      \"values\": [\n        {\n          \"value\": \"{{ $('AI Agent').first().json.output }}\"\n        }\n      ]\n    }\n  ]\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1696,
+        -144
+      ],
+      "id": "f191f04e-0d40-4e8a-a1d9-9b2d41ddad04",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.metriksales.com",
+            "user-agent": "amoCRM-Webhooks/3.0",
+            "content-length": "192",
+            "accept-encoding": "gzip",
+            "content-type": "application/x-www-form-urlencoded",
+            "x-amocrm-requestid": "6a47a20c-ded7-427a-be10-ebe5fa272d75",
+            "x-forwarded-for": "169.150.216.79",
+            "x-forwarded-host": "webhook.metriksales.com",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "258a4072ba1e",
+            "x-real-ip": "169.150.216.79"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "leads[add][0][id]": "25131041",
+            "leads[add][0][status_id]": "97522896",
+            "leads[add][0][pipeline_id]": "12628488",
+            "account[id]": "33123327",
+            "account[subdomain]": "metriksales"
+          },
+          "webhookUrl": "https://webhook.metriksales.com/webhook/af6c270f-81c8-46c2-b4bf-23265981f4af",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "CONFIGURAÇÃO IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONFIGURAÇÃO IA": {
+      "main": [
+        [
+          {
+            "node": "BUSCA LEAD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select rows from a table": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA LEAD": {
+      "main": [
+        [
+          {
+            "node": "Select rows from a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0178682a-6e9c-4c3a-821a-4e2767a5c6f1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "T0uKc2eITfPcfPTg",
+  "tags": []
+}

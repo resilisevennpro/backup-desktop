@@ -1,0 +1,225 @@
+Crie um site one page moderno, responsivo e profissional para a agência Resili Sevenn Marketing.
+ O site deve ter rolagem suave, menu fixo no topo e navegação por âncoras (ao clicar no menu, deve rolar até a seção correspondente sem carregar nova página).
+🎨 Identidade Visual
+Paleta de cores:
+
+
+Fundo escuro: #000201, #010e0f
+
+
+Tons de verde para degradês e destaques: #6ea119, #3e6812, #1a4f1b, #194110, #316e13
+
+
+Estilo: minimalista, tecnológico, elegante.
+
+
+Tipografia: títulos fortes e modernos, textos legíveis.
+
+
+Animações: entrada suave em todos os blocos (fade-in, slide ou zoom leve). A primeira headline do Hero deve ter uma animação de destaque.
+
+
+
+
+🧩 Estrutura do Site (One Page)
+1. Header (fixo no topo)
+Logo da Resili Sevenn à esquerda.
+
+
+Menu à direita: Início | Serviços | Quem Somos | Cases | Contato
+
+
+Estilo: fundo escuro, efeito sticky e sombra leve ao rolar
+
+
+2. Hero Section
+Fundo escuro com degradê em tons de verde.
+Headline média e em destaque:
+“Mais clientes, menos complicação. 
+Sua empresa vendendo todos os dias com tráfego pago, posicionamento de valor e automação inteligente.”
+Subheadline menor:
+“Criamos máquinas de vendas digitais completas para empresas e negócios que querem escalar sem depender de indicações.”
+Botões CTA:
+Primário (verde degrade, sólido):  “Conheça nossos serviços”
+
+3. Seção de Autoridade
+
+
+Layout: Uma grade com 3 colunas ( cada card com icone que faça sentido pro contexto):.
+
+Headline: “Resultados que Falam por Si”
+Subheadline: “Números reais de uma agência que entrega o que promete”
+Caixa 01: “+3 anos de Experiência”
+Caixa 02“+550 mil gerenciado em anúncios”
+Caixa 03“+1.200 leads e oportunidades geradas”
+Texto abaixo com selo: “+ de 25 empresas atendidas em 20 nichos”.
+
+
+4. Seção Clientes
+Headline média: Clientes que confiam na nossa expertise
+texto como subheadline menor: Empresas de diferentes nichos que ja transformaram seus resultados
+Carrossel automático (esquerda para direita) com 9 logomarcas (imagens) de clientes atendidos. O carrossel deverá estar em movimento de looping continuo com 2 segundos de pausa no scroll.
+Abaixo deverá ter 3 boxes separadas lado a lado com ícone + texto:
+
+“Ícone Global e texto Brasil Atendemos empresas em todo território nacional”
+“Ícone Global e texto Portugal Expandindo negócios no mercado europeu”
+“Ícone Global e texto Canadá Conquistando o mercado norte-americano”
+Mais outro boxe com Headline “Presença Internacional” e texto “Nossa experiência transcende fronteiras. Atendemos clientes em três países, adaptando estratégias para cada mercado específico.”
+
+
+5. Seção Serviços
+
+Headline: “Serviços Completos de Marketing Digital”
+Subheadline: “Soluções integradas para transformar sua presença digital em resultados nas próximas semanas”
+Grid com 5 boxes lado a lado (3 na primeira linha e 2 na segunda linha logo abaixo)
+Boxe 01: “Gestão de Tráfego Pago” - Campanhas otimizadas no Google Ads e Meta Ads com foco em conversão e ROI máximo.
+Bullet points:
+Google Ads
+Meta Ads
+Otimização de ROI
+Análise de Performance
+
+
+Boxe 02 : “CRM & Automação” - Sistemas inteligentes para capturar, nutrir e converter leads automaticamente.
+Bullet points:
+Funis de Vendas
+Workflows Automáticos
+Email-Marketing
+
+Boxe 3: “Atendimento Inteligente via IA” - Chatbots e assistentes virtuais que qualificam leads 24/7 e agendam reuniões.
+Bullet points:
+Chatbots IA
+Qualificação Automática
+Agendamentos
+Atendimento 24/7
+
+Boxe 4: “Social Media” - Estratégia de Conteúdo e Gestão completa das redes sociais para engajamento
+Bullet points:
+Criação de Conteúdo
+Gestão de Redes
+Planejamento Editoria
+Análise de Resultados
+
+Card 5: “Criação de Sites” - Websites otimizados para conversão com design moderno e alta performance
+Bullet points:
+Design Responsivo
+SEO Otimizado
+Alta conversão
+Performance
+
+Cada card: ícone minimalista + título + breve descrição.
+Logo abaixo:
+Titulo: Quer criar uma máquina de vendas e se destacar dos concorrentes?
+Descrição: - Combinamos todos ou mais de um serviço em estratégias integradas para maximizar seus resultados
+Botão abaixo de cada card: “Solicitar Orçamento”.
+
+
+6. Seção Cases & Resultados
+Layout: Grade com 4 colunas.
+Título da Seção: "Cases de Sucesso que Comprovam Nossos Resultados".
+Subtítulo: "Veja como transformamos desafios em oportunidades de crescimento".
+Elementos (cada case em um card separado):
+Card 1:
+Nicho: "Clínica Médica ".
+Resultado: “+180 leads/mês".
+Texto pequeno: Crescimento recorrente através de funis de vendas automatizados 
+Card 2:
+Nicho: "Stúdio Tattoo".
+Resultado: "+ 9x retorno sobre investimento".
+Texto pequeno: Estratégia de comunicação direcionada para o público correto
+Card 3:
+Nicho: "Loja de Roupas".
+Resultado: "60% crescimento no faturamento nos primeiros meses".
+Texto pequeno: Expansão da base de clientes em outros estados 
+Card 4:
+Nicho: "Clínica Estética".
+Resultado: "+400 alunos".
+Texto pequeno: Geração constante de pacientes através de anúncios de captação
+Boxe com titulo e breve descrição: 
+Quer resultados como esses? Solicite uma análise gratuita do seu negócio e descubra o potencial de crescimento
+
+7. Seção Quem Somos
+Headline: "Quem Somos".
+Descrição: "Uma agência especializada em criar máquinas de vendas digitais".
+Layout: Três colunas, boxes com ícones:
+Missão: Transformar pequenos e médios negócios em máquinas de vendas digitais através de estratégias data-driven e automação inteligente.
+Visão: Ser referência em marketing digital, ajudando empresários a alcançar liberdade financeira através da escalabilidade digital.
+Visão: Nosso compromisso é com resultados mensuráveis. Cada estratégia é pensada para gerar ROI positivo e crescimento sustentável. 
+
+Imagem de “Nossa equipe” (construir estrutura para suportar imagem posteriormente).
+
+
+Ao lado da imagem os Diferenciais com Título:  “Porque escolher a Resili Sevenn?”
+Lista de Itens (usar ícones para cada):
+Equipe Especializada: Profissionais certificados em Google Ads, Meta Ads, e com formação nas principais academia de estudos do mercado.
+Metodologia Própria: Desenvolvemos processos únicos que combinam automação, personalização e otimização contínua.
+Expertise Comprovada: +3 anos atendendo diferentes nichos com estratégias adaptadas para cada mercado.
+Logo abaixo, boxe com Nosso compromisso: Cada projeto é tratado como único. Analisamos profundamente seu mercado, concorrência e oportunidades para criar estratégias que realmente funcionam e geram resultados sustentáveis a longo prazo.
+
+8. Seção Chamada Final
+Headline média central:
+
+ “Está pronto para acelerar as vendas do seu negócio?”
+
+
+Subheadline:
+
+ “Entre em contato hoje e veja como podemos construir sua máquina de vendas digital.”
+
+
+Botão grande e centralizado: “Agendar reunião gratuita”.
+
+3 informações pequeno e centralizado lado a lado com bullet poins ecrtio: Respondemos no mesmo dia - Consultoria sem Compromisso - Estratégia personalizada
+
+9.Seção FAQ (Perguntas Frequentes)
+Adicionar seção de FAQ em acordeão (accordion) logo antes do footer.
+Perguntas e respostas curtas:
+
+
+O que a Resili Sevenn faz exatamente?
+
+
+ Ajudamos empresas a atrair clientes todos os dias com tráfego pago, automação e estratégias digitais.
+
+
+
+Atendem apenas negócios locais?
+
+
+ Não, trabalhamos com empresas de diferentes nichos, tanto no Brasil quanto no Exterior.
+
+
+
+Qual o prazo médio para ver resultados?
+
+
+ Depende do segmento, mas nossos clientes geralmente têm resultados já nos primeiros 20 a 40 dias.
+
+
+
+Posso contratar apenas gestão de tráfego?
+
+
+ Sim, mas recomendamos combinar com CRM e automação para maximizar resultados.
+
+
+
+Como funciona o suporte?
+
+
+ Oferecemos acompanhamento direto e suporte via WhatsApp, além de relatórios semanais e mensais.
+
+10. Seção Footer
+Menu rápido com links.
+
+
+Informações de contato: WhatsApp, telefone, email.
+
+
+Endereço (opcional).
+
+
+Ícones social  (Instagram).
+Fundo escuro, texto claro, discreto.
+Seção Inferior do Rodapé:
+Texto de direitos autorais: "© 2024 Resili Sevenn. Todos os direitos reservados."

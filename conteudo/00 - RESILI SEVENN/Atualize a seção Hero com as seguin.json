@@ -1,0 +1,77 @@
+Objetivo: corrigir o efeito do título na seção Hero.
+
+Conteúdo
+
+Linha 1 (dinâmica, com efeito): frases em ordem e loop:
+
+“Mais clientes, menos complicação.”
+
+“Tráfego pago que vira resultado”
+
+“Automação que trabalha por você”
+Depois retorna à frase 1 e repete.
+
+Linha 2 (fixa, sem efeito):
+“Sua empresa vendendo todos os dias com anúncios online, posicionamento de valor e automação inteligente.”
+
+Regras de animação (apenas Linha 1)
+
+Modo: palavra-por-palavra (word-by-word).
+
+Entrada: fade in apenas (opacidade 0 → 1). Sem translate/deslocamento.
+
+Saída: fade out apenas (opacidade 1 → 0). Sem translate/deslocamento.
+
+Stagger entre palavras: 0.08s (cada palavra começa o fade 0.08s depois da anterior).
+
+Duração por palavra: entrada ~0.45s, saída ~0.35s.
+
+Hold (pausa visível): 2500ms após a frase inteira terminar a entrada.
+
+Loop correto: montar frase → animar entrada (1x) → hold(2500ms) → animar saída (1x) → desmontar frase → próxima frase.
+
+Proibição explícita:
+
+Não aplicar loop, repeat, yoyo, infinite ou equivalentes nos spans de palavra.
+
+Não reiniciar a animação da mesma frase durante o hold.
+
+Não usar keyframes/CSS que reiniciem sozinhos em cada span.
+
+Orquestração técnica (obrigatória):
+
+O loop existe somente no nível do container da frase. As palavras são animadas uma única vez por montagem.
+
+Se usar uma lib de animação, use staggerChildren no container sem repeat nos children.
+
+AnimatePresence (ou equivalente) deve montar/desmontar a frase como um bloco; as palavras são filhos passivos.
+
+Acessibilidade: respeitar prefers-reduced-motion (mostrar apenas a frase 1, sem animação).
+
+Responsividade e tipografia (independentes por breakpoint)
+
+Preciso ajustar tamanhos diferentes no mobile e desktop sem que um ajuste afete o outro.
+
+Aplicar classes utilitárias responsivas separadas:
+
+Linha 1 (título dinâmico): text-3xl md:text-6xl font-bold tracking-tight
+
+Linha 2 (subtítulo fixo): mt-3 text-base md:text-2xl
+
+Descrição (“Criamos máquinas de vendas…”): mt-6 text-sm md:text-lg
+
+Não herdar tokens globais que sincronizem mobile e desktop. Desativar “sync styles across breakpoints” se existir.
+
+Reservar altura para evitar pulo: min-h-[3.5rem] md:min-h-[5rem] no contêiner da Linha 1.
+
+Critérios de aceite (teste visual)
+
+Cada frase aparece exatamente 1 vez, segura 2,5s, some, e troca — sem repetições múltiplas.
+
+Animação só em opacidade (fade), sem deslocamento.
+
+Subtítulo sempre fixo, sem efeito.
+
+No mobile, título/subtítulo maiores que a descrição; no desktop posso alterar tamanhos sem impactar mobile.
+
+Sem flicker, sem “reinício” durante o hold.

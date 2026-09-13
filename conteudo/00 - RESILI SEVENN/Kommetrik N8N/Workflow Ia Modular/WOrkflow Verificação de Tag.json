@@ -1,0 +1,1038 @@
+{
+  "name": "[IA_MODULAR][METRIK][VERIFICA_TAG]",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "738b6b88-ef02-4bf1-b35c-dca10ec120fa",
+        "options": {}
+      },
+      "id": "7d4291e3-fc81-4613-8298-74f0ca554d04",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -8064,
+        848
+      ],
+      "webhookId": "738b6b88-ef02-4bf1-b35c-dca10ec120fa"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "99d34289-0c8a-4f47-8d6e-3900b3250db0",
+              "leftValue": "={{ $('Webhook').first().json.body['message[add][0][text]'].toLowerCase() }}",
+              "rightValue": "olá, quero arroz!",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -7392,
+        4256
+      ],
+      "id": "3537036c-ba14-467f-9984-3986ad79cf2a",
+      "name": "IF FRASE",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook').first().json.body['message[add][0][text]'].toLowerCase() }}",
+                    "rightValue": "olá, quero paz!",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "24f5902c-7026-476c-847f-22037d2efbd5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "olá, quero paz!"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9dc83c28-38e0-4663-a966-bdbae5d6c34d",
+                    "leftValue": "={{ $('Webhook').first().json.body['message[add][0][text]'].toLowerCase() }}",
+                    "rightValue": "olá, quero coco!",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "olá, quero coco!"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7b7a57e5-ff30-4efc-abf2-18ad569bd65b",
+                    "leftValue": "={{ $('Webhook').first().json.body['message[add][0][text]'].toLowerCase() }}",
+                    "rightValue": "olá, quero bebe!",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "olá, quero bebe!"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -7632,
+        4224
+      ],
+      "id": "b3fe5a08-4c30-4c2b-89aa-b6121607a54a",
+      "name": "Switch2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 1 - CREDENCIAIS, DADOS, STATUS, E PROMPT AGENTE\nO nó `Status Fluxo` controla se está em fase de testes ou não. Se tiver, o fluxo irá permitir ser executado somente contatos que possuem o id no campo `contatos_permitidos`\n\nO campo `contatos_permitidos` deverá conter os ids dos contatos separados por vírgula",
+        "height": 514,
+        "width": 899,
+        "color": 5
+      },
+      "id": "b40bfd36-74e8-4e9e-a25d-fca5fa834988",
+      "name": "Sticky Note6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -8128,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "255f7f52-1921-4658-b86a-3c82f9c145e8",
+              "name": "kommo_token",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "a7e819f1-2d34-4998-8f41-69c4f8cd8be8",
+              "name": "Tags Permitidas",
+              "value": "=IA TESTE COMUNIDADE",
+              "type": "string"
+            },
+            {
+              "id": "f28085d3-5125-4d06-a0c3-d3e64c3db3dc",
+              "name": "Status (1 para ativo/0 para inativo)",
+              "value": "1",
+              "type": "string"
+            },
+            {
+              "id": "66b96889-cb74-47a8-af5a-1d5f1161aa7e",
+              "name": "URL Kommetrik",
+              "value": "https://ia.kommetrik.com.br/api/executions",
+              "type": "string"
+            },
+            {
+              "id": "6ed345d1-5fb3-4d18-9a85-12ba10decfef",
+              "name": "Token Kommetrik",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "29428715-a388-47bf-9c78-9ea10bfbab3f",
+      "name": "CONFIGURAÇÃO IA",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -7856,
+        848
+      ],
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE\n  public.messages (\n    id serial NOT NULL,\n    contact_id character varying(255) NOT NULL,\n    message text NOT NULL\n  );\n\nALTER TABLE\n  public.messages\nADD\n  CONSTRAINT messages_pkey PRIMARY KEY (id)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -8016,
+        480
+      ],
+      "id": "187e6ede-7925-4dbe-a5b6-b89d853a5938",
+      "name": "Cria Tabela",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "481c6f80-64a0-47fd-b1bb-3f1140e91751",
+              "leftValue": "={{ $('Webhook').item.json.body['message[add][0][text]'].toLowerCase() }}",
+              "rightValue": "reset",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -7408,
+        832
+      ],
+      "id": "9c559d75-0ef8-4165-95b9-06ff4ec10709",
+      "name": "SE RESET"
+    },
+    {
+      "parameters": {
+        "content": "## RESETA MEMÓRIA DA CONVERSA NO POSTGRES",
+        "height": 280,
+        "width": 520,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -7760,
+        368
+      ],
+      "id": "d60973e3-4a9e-4562-a8d8-04c9e76aa503",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Conversa resetada"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -7440,
+        480
+      ],
+      "id": "65117ae3-bb23-4d13-b35a-1e8b06694e92",
+      "name": "Conversa Resetada"
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "salgado_advogados",
+          "mode": "list",
+          "cachedResultName": "salgado_advogados"
+        },
+        "deleteCommand": "delete",
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{$('Webhook').item.json.body['message[add][0][contact_id]']}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -7664,
+        480
+      ],
+      "id": "80eb0074-f2e7-469d-b8bd-d02d75676b81",
+      "name": "Deleta Linhas do Contato",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -7104,
+        880
+      ],
+      "id": "7972019c-a42c-46b0-ab42-28fad40e3ff2",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 2 - BUSCA CAMPOS, LEADS, FUNIS DE VENDAS E ESTÁGIOS DE FUNIS DE VENDAS",
+        "height": 318,
+        "width": 595,
+        "color": 6
+      },
+      "id": "27deb575-3ddd-44f9-8d53-ab7e24617e10",
+      "name": "Sticky Note22",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -7824,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 3 - Verificar a tag no lead\n\nVerifica se o lead tem a tag definida em `Campos Iniciais`\n\nSe tiver, continua o fluxo\n\nSe não tiver, faz uma retentativa depois de 10 segundos\npara verificar se foi atribuída através de uma execução\n de fluxo de automação. \n\nSe tiver na retentativa, continua\nSe não tiver, aborta a execução",
+        "height": 1240,
+        "width": 504
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -7200,
+        544
+      ],
+      "typeVersion": 1,
+      "id": "fc621f1f-c9f0-42e3-94d6-f13631ef104c",
+      "name": "Sticky Note25"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').first().json.body['account[_links][self]'] }}/api/v4/leads/custom_fields",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('CONFIGURAÇÃO IA').first().json.kommo_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7712,
+        1344
+      ],
+      "id": "865150fb-e099-4327-948b-5e9cb464ed23",
+      "name": "BUSCA CAMPOS PERSONALIZADOS1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').first().json.body['account[_links][self]'] }}/api/v4/leads/{{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}?with=contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('CONFIGURAÇÃO IA').item.json.kommo_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6880,
+        880
+      ],
+      "id": "b01dc0f9-c752-4313-b8d7-39e6bee40331",
+      "name": "BUSCA LEAD1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').first().json.body['account[_links][self]'] }}/api/v4/leads/pipelines",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('CONFIGURAÇÃO IA').item.json.kommo_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7456,
+        1344
+      ],
+      "id": "c92957ec-e864-4ae6-8e02-639cd5984283",
+      "name": "BUSCA FUNIS DE VENDAS E ESTÁGIOS2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b597ae62-8326-4019-9993-e324bf614d17",
+              "leftValue": "={{ \n  $('BUSCA LEAD1').first().json._embedded.tags.some(\n    t => $('CONFIGURAÇÃO IA').first().json['Tags Permitidas']\n      .split(',')\n      .map(tag => tag.trim())\n      .includes(t.name)\n  ) \n}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -7088,
+        1104
+      ],
+      "id": "bd7a27f9-ed03-4d15-88ae-70304a965e46",
+      "name": "SE LEAD TEM A TAG1"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -6880,
+        1120
+      ],
+      "id": "16028c0c-7eca-4f5f-875a-e870b8da690c",
+      "name": "Espera p/ Retentativa1",
+      "webhookId": "cb713e8f-180c-44c8-b552-8c08229b1b23"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').first().json.body['account[_links][self]'] }}/api/v4/leads/{{ $('Webhook').item.json.body['message[add][0][entity_id]'] }}?with=contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('CONFIGURAÇÃO IA').item.json.kommo_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -7072,
+        1344
+      ],
+      "id": "9537abb8-59e0-4875-bf75-84b455675721",
+      "name": "BUSCA LEAD (RETENTATIVA)1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b597ae62-8326-4019-9993-e324bf614d17",
+              "leftValue": "={{ \n  $('BUSCA LEAD (RETENTATIVA)1').first().json._embedded.tags.some(\n    t => $('CONFIGURAÇÃO IA').first().json['Tags Permitidas']\n      .split(',')\n      .map(tag => tag.trim())\n      .includes(t.name)\n  ) \n}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -6880,
+        1344
+      ],
+      "id": "ab28d5d6-35de-4a20-af88-142eb4b4496b",
+      "name": "SE LEAD TEM A TAG (RETENTATIVA)1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -6880,
+        1584
+      ],
+      "id": "2ed2268c-b746-434d-bb53-ea0f814ad3a5",
+      "name": "No Operation, do nothing4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c729c33c-a888-4aac-a7d7-94c6e839a1e9",
+              "leftValue": "={{ $json[\"Status (1 para ativo/0 para inativo)\"] }}",
+              "rightValue": "1",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -7648,
+        848
+      ],
+      "id": "a20b26e7-cf13-4e54-a690-47e4c68b7144",
+      "name": "Se Ativo1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -7408,
+        1040
+      ],
+      "id": "950622dd-f68b-4eb3-b5fe-21d9550c327f",
+      "name": "No Operation, do nothing1"
+    },
+    {
+      "parameters": {
+        "content": "## CRIAR TABELA DE CLIENTE NO POSTGRES",
+        "height": 280,
+        "width": 336,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -8128,
+        368
+      ],
+      "id": "8edfc9aa-6d4a-46b0-95e2-72f2f9a75a5d",
+      "name": "Sticky Note26"
+    },
+    {
+      "parameters": {
+        "content": "## ROTEAMENTO",
+        "height": 280,
+        "width": 320,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -6672,
+        544
+      ],
+      "id": "94435abe-1b15-41dc-88f2-477bb3e85167",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "zgkb267WxpeLS6Ol",
+          "mode": "list",
+          "cachedResultName": "[TESTE][METRIK][ROTEAMENTO]"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "body": "={{ $items('Webhook').first().json.body }}",
+            "pipelines": "={{ $('BUSCA FUNIS DE VENDAS E ESTÁGIOS2').first().json._embedded.pipelines }}",
+            "busca lead": "={{ $('BUSCA LEAD1').first().json }}",
+            "kommo token": "={{ $('CONFIGURAÇÃO IA').first().json.kommo_token }}",
+            "busca campos": "={{ $('BUSCA CAMPOS PERSONALIZADOS1').first().json._embedded }}"
+          },
+          "matchingColumns": [
+            "body",
+            "body_firstItem",
+            "_embedded_pipelines_firstItem",
+            "_firstItem",
+            "kommo_token_firstItem",
+            "atualizaFAQ_body_firstItem_1_1_1_1_1_1_1_1_1_1_1_1",
+            "kommo_token",
+            "BUSCA_LEAD_RETENTATIVA__firstItem"
+          ],
+          "schema": [
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "kommo token",
+              "displayName": "kommo token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "busca campos",
+              "displayName": "busca campos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "pipelines",
+              "displayName": "pipelines",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "busca lead",
+              "displayName": "busca lead",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -6576,
+        624
+      ],
+      "name": "roteamento",
+      "id": "0d2bafd9-4429-40ac-881b-dec309611851"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.metriksales.com",
+            "user-agent": "amoCRM-Webhooks/3.0",
+            "content-length": "908",
+            "accept-encoding": "gzip",
+            "content-type": "application/x-www-form-urlencoded",
+            "x-amocrm-requestid": "53c90a53-a68d-4011-bf6b-ba367077b7eb",
+            "x-forwarded-for": "169.150.216.79",
+            "x-forwarded-host": "webhook.metriksales.com",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "971218aeaba4",
+            "x-real-ip": "169.150.216.79"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "account[subdomain]": "metriksales",
+            "account[id]": "33123327",
+            "account[_links][self]": "https://metriksales.amocrm.com",
+            "message[add][0][id]": "223487a2-b0a3-42af-88c5-dbac783584d4",
+            "message[add][0][chat_id]": "ef4af2e7-1a94-4f84-ad9a-2671af5ab707",
+            "message[add][0][talk_id]": "1654",
+            "message[add][0][contact_id]": "18233120",
+            "message[add][0][text]": "Oiii",
+            "message[add][0][created_at]": "1756839402",
+            "message[add][0][element_type]": "2",
+            "message[add][0][entity_type]": "lead",
+            "message[add][0][element_id]": "23671977",
+            "message[add][0][entity_id]": "23671977",
+            "message[add][0][type]": "incoming",
+            "message[add][0][author][id]": "f7bad034-d17b-4e41-9d17-5b23b5af2ce4",
+            "message[add][0][author][type]": "external",
+            "message[add][0][author][name]": "Owen",
+            "message[add][0][origin]": "waba"
+          },
+          "webhookUrl": "https://webhook.metriksales.com/webhook/738b6b88-ef02-4bf1-b35c-dca10ec120fa",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "CONFIGURAÇÃO IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF FRASE": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    "CONFIGURAÇÃO IA": {
+      "main": [
+        [
+          {
+            "node": "Se Ativo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SE RESET": {
+      "main": [
+        [
+          {
+            "node": "Deleta Linhas do Contato",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BUSCA CAMPOS PERSONALIZADOS1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deleta Linhas do Contato": {
+      "main": [
+        [
+          {
+            "node": "Conversa Resetada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "roteamento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BUSCA LEAD1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA CAMPOS PERSONALIZADOS1": {
+      "main": [
+        [
+          {
+            "node": "BUSCA FUNIS DE VENDAS E ESTÁGIOS2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA LEAD1": {
+      "main": [
+        [
+          {
+            "node": "SE LEAD TEM A TAG1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA FUNIS DE VENDAS E ESTÁGIOS2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SE LEAD TEM A TAG1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Espera p/ Retentativa1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Espera p/ Retentativa1": {
+      "main": [
+        [
+          {
+            "node": "BUSCA LEAD (RETENTATIVA)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA LEAD (RETENTATIVA)1": {
+      "main": [
+        [
+          {
+            "node": "SE LEAD TEM A TAG (RETENTATIVA)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SE LEAD TEM A TAG (RETENTATIVA)1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Se Ativo1": {
+      "main": [
+        [
+          {
+            "node": "SE RESET",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "roteamento": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "39337463-ae8c-446f-b23b-8b1def5a2bda",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "HS3uzgnLxEjiP6do",
+  "tags": [
+    {
+      "createdAt": "2025-07-28T16:32:37.843Z",
+      "updatedAt": "2025-07-28T16:32:37.843Z",
+      "id": "KBmh4LOWWSQpT31a",
+      "name": "METRIK"
+    }
+  ]
+}

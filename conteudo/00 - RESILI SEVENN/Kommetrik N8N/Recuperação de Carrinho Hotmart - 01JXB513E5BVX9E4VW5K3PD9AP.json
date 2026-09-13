@@ -1,0 +1,1312 @@
+{
+  "name": "Webhooks (aprovados)",
+  "nodes": [
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f6cda682-1e60-4829-8fad-7d6f9ac3aabe",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "PURCHASE_OUT_OF_SHOPPING_CART",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Abandonado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d230df5d-dd6f-4b5e-a9d7-98d07e2e8e9d",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "PURCHASE_APPROVED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Completo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d199f9f1-3423-4e37-ac58-7569d478f811",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "PURCHASE_CANCELED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Compra cancelada"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7fb90093-19d0-4318-9d74-85c467ef7383",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "PURCHASE_BILLET_PRINTED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Pix gerado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6be8157f-2628-42fd-b4d2-7bde48027b7b",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "PURCHASE_REFUNDED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reembolsado"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -380,
+        780
+      ],
+      "id": "75bfff7e-aecb-4232-80c0-108a3908d08b",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e4972df8-1002-4c72-9e9c-04e920332c80",
+              "name": "Nome completo",
+              "value": "={{ $json.body.data.buyer.name }}",
+              "type": "string"
+            },
+            {
+              "id": "edf24c1a-04cb-472d-b8c0-577a6be4518b",
+              "name": "Telefone",
+              "value": "={{ $json.body.data.buyer.checkout_phone }}",
+              "type": "string"
+            },
+            {
+              "id": "35059f5c-14e2-4699-8fe3-6d61a0d0b970",
+              "name": "Email",
+              "value": "={{ $json.body.data.buyer.email }}",
+              "type": "string"
+            },
+            {
+              "id": "098015d0-a043-4683-aeb7-4532e500732a",
+              "name": "CPF/CNPJ",
+              "value": "={{ $json.body.data.buyer.document_type }}",
+              "type": "string"
+            },
+            {
+              "id": "9eb83bc6-eded-435e-bb9e-135fa21445ac",
+              "name": "Produto",
+              "value": "={{ $('Webhook').item.json.body.data.product.name }}",
+              "type": "string"
+            },
+            {
+              "id": "7ccff292-4484-4ab6-8f77-e6212dad1173",
+              "name": "Valor",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.original_offer_price.value }}",
+              "type": "string"
+            },
+            {
+              "id": "5a5b942c-9d3c-4fe0-84c9-67aee125444a",
+              "name": "Método de Pagamento",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.payment.type }}",
+              "type": "string"
+            },
+            {
+              "id": "8452e374-ab1f-4cc6-b2bf-d5adc9a02348",
+              "name": "Data de Pagamento",
+              "value": "={{ $json.body.data.product.warranty_date }}",
+              "type": "string"
+            },
+            {
+              "id": "04b379fe-f604-4147-96ad-e87bc6ce893b",
+              "name": "Status",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        480
+      ],
+      "id": "5fb5b66d-5927-4ed2-8ba8-27ab3475e027",
+      "name": "aprovada"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nome completo": "={{ $json['Nome completo'] }}",
+            "Telefone": "={{ $json.Telefone }}",
+            "Email": "={{ $json.Email }}",
+            "Produto": "={{ $json.Produto }}",
+            "Valor": "={{ $json.Valor }}",
+            "Método de Pagamento": "={{ $json['Método de Pagamento'] }}",
+            "Data de Pagamento": "={{ $json['Data de Pagamento'] }}",
+            "Status": "={{ $json.Status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Nome completo",
+              "displayName": "Nome completo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Produto",
+              "displayName": "Produto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valor",
+              "displayName": "Valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Método de Pagamento",
+              "displayName": "Método de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data de Pagamento",
+              "displayName": "Data de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Moeda",
+              "displayName": "Moeda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        340,
+        480
+      ],
+      "id": "d11e0aa3-fe90-4c82-a47c-c66ab27f349a",
+      "name": "Google Sheets3",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yZZfopKgSfVRd17Z",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc",
+          "mode": "list",
+          "cachedResultName": "rec",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nome completo": "={{ $json['Nome completo'] }}",
+            "Telefone": "={{ $json.Telefone }}",
+            "Email": "={{ $json.Email }}",
+            "Produto": "={{ $json.Produto }}",
+            "Valor": "={{ $json.Valor }}",
+            "Método de Pagamento": "={{ $json['Método de Pagamento'] }}",
+            "Data de Pagamento": "={{ $json['Data de Pagamento'] }}",
+            "Status": "={{ $json.Status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Nome completo",
+              "displayName": "Nome completo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Produto",
+              "displayName": "Produto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valor",
+              "displayName": "Valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Método de Pagamento",
+              "displayName": "Método de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data de Pagamento",
+              "displayName": "Data de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Moeda",
+              "displayName": "Moeda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        340,
+        120
+      ],
+      "id": "5c33ebe3-9a8d-4577-81d3-c359fb551116",
+      "name": "Google Sheets",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yZZfopKgSfVRd17Z",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc",
+          "mode": "list",
+          "cachedResultName": "rec",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nome completo": "={{ $json['Nome completo'] }}",
+            "Telefone": "={{ $json.Telefone }}",
+            "Email": "={{ $json.Email }}",
+            "Produto": "={{ $json.Produto }}",
+            "Valor": "={{ $json.Valor }}",
+            "Método de Pagamento": "={{ $json['Método de Pagamento'] }}",
+            "Data de Pagamento": "={{ $json['Data de Pagamento'] }}",
+            "Status": "={{ $json.Status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Nome completo",
+              "displayName": "Nome completo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Produto",
+              "displayName": "Produto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valor",
+              "displayName": "Valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Método de Pagamento",
+              "displayName": "Método de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data de Pagamento",
+              "displayName": "Data de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Moeda",
+              "displayName": "Moeda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        340,
+        820
+      ],
+      "id": "5895d9b6-7fed-4d03-870c-10f4c4450609",
+      "name": "Google Sheets4",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yZZfopKgSfVRd17Z",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e4972df8-1002-4c72-9e9c-04e920332c80",
+              "name": "Nome completo",
+              "value": "={{ $json.body.data.buyer.name }}",
+              "type": "string"
+            },
+            {
+              "id": "edf24c1a-04cb-472d-b8c0-577a6be4518b",
+              "name": "Telefone",
+              "value": "={{ $json.body.data.buyer.checkout_phone }}",
+              "type": "string"
+            },
+            {
+              "id": "35059f5c-14e2-4699-8fe3-6d61a0d0b970",
+              "name": "Email",
+              "value": "={{ $json.body.data.buyer.email }}",
+              "type": "string"
+            },
+            {
+              "id": "098015d0-a043-4683-aeb7-4532e500732a",
+              "name": "CPF/CNPJ",
+              "value": "={{ $json.body.data.buyer.document_type }}",
+              "type": "string"
+            },
+            {
+              "id": "9eb83bc6-eded-435e-bb9e-135fa21445ac",
+              "name": "Produto",
+              "value": "={{ $('Webhook').item.json.body.data.product.name }}",
+              "type": "string"
+            },
+            {
+              "id": "7ccff292-4484-4ab6-8f77-e6212dad1173",
+              "name": "Valor",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.original_offer_price.value }}",
+              "type": "string"
+            },
+            {
+              "id": "5a5b942c-9d3c-4fe0-84c9-67aee125444a",
+              "name": "Método de Pagamento",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.payment.type }}",
+              "type": "string"
+            },
+            {
+              "id": "8452e374-ab1f-4cc6-b2bf-d5adc9a02348",
+              "name": "Data de Pagamento",
+              "value": "={{ $json.body.data.product.warranty_date }}",
+              "type": "string"
+            },
+            {
+              "id": "04b379fe-f604-4147-96ad-e87bc6ce893b",
+              "name": "Status",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        820
+      ],
+      "id": "7360dcd4-b342-44d4-94f1-853cb0d8b316",
+      "name": "aprovada1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e4972df8-1002-4c72-9e9c-04e920332c80",
+              "name": "Nome completo",
+              "value": "={{ $json.body.data.buyer.name }}",
+              "type": "string"
+            },
+            {
+              "id": "edf24c1a-04cb-472d-b8c0-577a6be4518b",
+              "name": "Telefone",
+              "value": "={{ $json.body.data.buyer.checkout_phone }}",
+              "type": "string"
+            },
+            {
+              "id": "35059f5c-14e2-4699-8fe3-6d61a0d0b970",
+              "name": "Email",
+              "value": "={{ $json.body.data.buyer.email }}",
+              "type": "string"
+            },
+            {
+              "id": "098015d0-a043-4683-aeb7-4532e500732a",
+              "name": "CPF/CNPJ",
+              "value": "={{ $json.body.data.buyer.document_type }}",
+              "type": "string"
+            },
+            {
+              "id": "9eb83bc6-eded-435e-bb9e-135fa21445ac",
+              "name": "Produto",
+              "value": "={{ $('Webhook').item.json.body.data.product.name }}",
+              "type": "string"
+            },
+            {
+              "id": "7ccff292-4484-4ab6-8f77-e6212dad1173",
+              "name": "Valor",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.original_offer_price.value }}",
+              "type": "string"
+            },
+            {
+              "id": "5a5b942c-9d3c-4fe0-84c9-67aee125444a",
+              "name": "Método de Pagamento",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.payment.type }}",
+              "type": "string"
+            },
+            {
+              "id": "8452e374-ab1f-4cc6-b2bf-d5adc9a02348",
+              "name": "Data de Pagamento",
+              "value": "={{ $json.body.data.product.warranty_date }}",
+              "type": "string"
+            },
+            {
+              "id": "04b379fe-f604-4147-96ad-e87bc6ce893b",
+              "name": "Status",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        60,
+        1180
+      ],
+      "id": "a0251e67-59da-403d-875d-c74adb67e3ac",
+      "name": "aprovada2"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc",
+          "mode": "list",
+          "cachedResultName": "rec",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nome completo": "={{ $json['Nome completo'] }}",
+            "Telefone": "={{ $json.Telefone }}",
+            "Email": "={{ $json.Email }}",
+            "Produto": "={{ $json.Produto }}",
+            "Valor": "={{ $json.Valor }}",
+            "Método de Pagamento": "={{ $json['Método de Pagamento'] }}",
+            "Data de Pagamento": "={{ $json['Data de Pagamento'] }}",
+            "Status": "={{ $json.Status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Nome completo",
+              "displayName": "Nome completo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Produto",
+              "displayName": "Produto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valor",
+              "displayName": "Valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Método de Pagamento",
+              "displayName": "Método de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data de Pagamento",
+              "displayName": "Data de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Moeda",
+              "displayName": "Moeda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        340,
+        1180
+      ],
+      "id": "bedcdf98-6608-4942-815b-0231e56959d4",
+      "name": "Google Sheets5",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yZZfopKgSfVRd17Z",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e4972df8-1002-4c72-9e9c-04e920332c80",
+              "name": "Nome completo",
+              "value": "={{ $json.body.data.buyer.name }}",
+              "type": "string"
+            },
+            {
+              "id": "edf24c1a-04cb-472d-b8c0-577a6be4518b",
+              "name": "Telefone",
+              "value": "={{ $json.body.data.buyer.checkout_phone }}",
+              "type": "string"
+            },
+            {
+              "id": "35059f5c-14e2-4699-8fe3-6d61a0d0b970",
+              "name": "Email",
+              "value": "={{ $json.body.data.buyer.email }}",
+              "type": "string"
+            },
+            {
+              "id": "098015d0-a043-4683-aeb7-4532e500732a",
+              "name": "CPF/CNPJ",
+              "value": "={{ $json.body.data.buyer.document_type }}",
+              "type": "string"
+            },
+            {
+              "id": "9eb83bc6-eded-435e-bb9e-135fa21445ac",
+              "name": "Produto",
+              "value": "={{ $('Webhook').item.json.body.data.product.name }}",
+              "type": "string"
+            },
+            {
+              "id": "7ccff292-4484-4ab6-8f77-e6212dad1173",
+              "name": "Valor",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.original_offer_price.value }}",
+              "type": "string"
+            },
+            {
+              "id": "5a5b942c-9d3c-4fe0-84c9-67aee125444a",
+              "name": "Método de Pagamento",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.payment.type }}",
+              "type": "string"
+            },
+            {
+              "id": "8452e374-ab1f-4cc6-b2bf-d5adc9a02348",
+              "name": "Data de Pagamento",
+              "value": "={{ $json.body.data.product.warranty_date }}",
+              "type": "string"
+            },
+            {
+              "id": "04b379fe-f604-4147-96ad-e87bc6ce893b",
+              "name": "Status",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        60,
+        1560
+      ],
+      "id": "da4b21a8-aa50-4de3-a957-1faab3576c4d",
+      "name": "aprovada3"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc",
+          "mode": "list",
+          "cachedResultName": "rec",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UKQc66vkyjlSCyfcTShQF1G-Va42hfiKkMmFxt6Dvjc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nome completo": "={{ $json['Nome completo'] }}",
+            "Telefone": "={{ $json.Telefone }}",
+            "Email": "={{ $json.Email }}",
+            "Produto": "={{ $json.Produto }}",
+            "Valor": "={{ $json.Valor }}",
+            "Método de Pagamento": "={{ $json['Método de Pagamento'] }}",
+            "Data de Pagamento": "={{ $json['Data de Pagamento'] }}",
+            "Status": "={{ $json.Status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Nome completo",
+              "displayName": "Nome completo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telefone",
+              "displayName": "Telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Produto",
+              "displayName": "Produto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valor",
+              "displayName": "Valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Método de Pagamento",
+              "displayName": "Método de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Data de Pagamento",
+              "displayName": "Data de Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Moeda",
+              "displayName": "Moeda",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        340,
+        1560
+      ],
+      "id": "bc17d884-dd70-4a79-aed0-f528177ecceb",
+      "name": "Google Sheets6",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "yZZfopKgSfVRd17Z",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e4972df8-1002-4c72-9e9c-04e920332c80",
+              "name": "Nome completo",
+              "value": "={{ $json.body.data.buyer.name }}",
+              "type": "string"
+            },
+            {
+              "id": "edf24c1a-04cb-472d-b8c0-577a6be4518b",
+              "name": "Telefone",
+              "value": "={{ $json.body.data.buyer.checkout_phone }}",
+              "type": "string"
+            },
+            {
+              "id": "35059f5c-14e2-4699-8fe3-6d61a0d0b970",
+              "name": "Email",
+              "value": "={{ $json.body.data.buyer.email }}",
+              "type": "string"
+            },
+            {
+              "id": "098015d0-a043-4683-aeb7-4532e500732a",
+              "name": "CPF/CNPJ",
+              "value": "={{ $json.body.data.buyer.document_type }}",
+              "type": "string"
+            },
+            {
+              "id": "9eb83bc6-eded-435e-bb9e-135fa21445ac",
+              "name": "Produto",
+              "value": "={{ $('Webhook').item.json.body.data.product.name }}",
+              "type": "string"
+            },
+            {
+              "id": "7ccff292-4484-4ab6-8f77-e6212dad1173",
+              "name": "Valor",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.original_offer_price.value }}",
+              "type": "string"
+            },
+            {
+              "id": "5a5b942c-9d3c-4fe0-84c9-67aee125444a",
+              "name": "Método de Pagamento",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.payment.type }}",
+              "type": "string"
+            },
+            {
+              "id": "8452e374-ab1f-4cc6-b2bf-d5adc9a02348",
+              "name": "Data de Pagamento",
+              "value": "={{ $json.body.data.product.warranty_date }}",
+              "type": "string"
+            },
+            {
+              "id": "04b379fe-f604-4147-96ad-e87bc6ce893b",
+              "name": "Status",
+              "value": "={{ $('Webhook').item.json.body.data.purchase.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        100,
+        120
+      ],
+      "id": "a54c9b90-eb86-4537-b238-2d37dc848ba5",
+      "name": "aprovada4"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b656479c-6617-468c-8cde-668cec2909f9",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        820
+      ],
+      "id": "aa4280d7-44bc-4cc5-8fbd-685064d2ac77",
+      "name": "Webhook",
+      "webhookId": "b656479c-6617-468c-8cde-668cec2909f9"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "aprovada4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "aprovada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "aprovada1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "aprovada2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "aprovada3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "aprovada": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "aprovada1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "aprovada2": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "aprovada3": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "aprovada4": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3f427e9e-b49e-4efd-8e78-2b0c28ff2ba7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "db83f15dd1d16da3b9d8b44acd6c852c089540e2ade29f9ed8784dd0477fb994"
+  },
+  "id": "HXi2e8fVjn0ARx6J",
+  "tags": []
+}

@@ -1,0 +1,131 @@
+{
+  "name": "Threads – Renovar Token Mensalmente",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "node-schedule",
+      "name": "1. Rodar todo mês",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [260, 200],
+      "notes": "Roda automaticamente todo mês para renovar o token antes de expirar."
+    },
+    {
+      "parameters": {
+        "url": "https://graph.threads.net/access_token",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "th_exchange_token"
+            },
+            {
+              "name": "client_id",
+              "value": "SEU_APP_ID_AQUI"
+            },
+            {
+              "name": "client_secret",
+              "value": "SUA_APP_SECRET_AQUI"
+            },
+            {
+              "name": "access_token",
+              "value": "SEU_TOKEN_ATUAL_AQUI"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-http",
+      "name": "2. Chamar API de renovação",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 200],
+      "notes": "⚙️ CONFIGURE antes de ativar:\n  - client_id: seu App ID (ex: 1661563498485854)\n  - client_secret: sua App Secret (clique em Mostrar na tela de Configurações do Meta)\n  - access_token: seu token atual de 60 dias"
+    },
+    {
+      "parameters": {
+        "jsCode": "const resposta = $input.first().json;\n\nif (!resposta.access_token) {\n  throw new Error('Token não retornado pela API. Verifique App ID, App Secret e token atual.');\n}\n\nconst token_novo = resposta.access_token;\nconst tipo = resposta.token_type || 'bearer';\n\nconst staticData = $getWorkflowStaticData('global');\nstaticData.ultimo_token = token_novo;\nstaticData.ultima_renovacao = new Date().toISOString();\n\nreturn [{\n  json: {\n    token_novo,\n    tipo,\n    renovado_em: new Date().toLocaleString('pt-BR'),\n    instrucao: 'Copie o token_novo e atualize na credencial Query Auth do nó 4 do workflow principal'\n  }\n}];"
+      },
+      "id": "node-extrair",
+      "name": "3. Extrair novo token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.token_novo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "node-if",
+      "name": "4. Token válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [860, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const token = $json.token_novo;\nconst data = $json.renovado_em;\n\nconsole.log(`Token renovado com sucesso em ${data}`);\nconsole.log(`Novo token: ${token}`);\n\nreturn [{\n  json: {\n    status: 'SUCESSO',\n    mensagem: `Token renovado em ${data}. Atualize manualmente na credencial do nó 4 do workflow principal.`,\n    token_novo: token\n  }\n}];"
+      },
+      "id": "node-sucesso",
+      "name": "5a. Sucesso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 120]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.error('Falha na renovação do token do Threads');\n\nreturn [{\n  json: {\n    status: 'ERRO',\n    mensagem: 'Token não foi renovado. Verifique App ID, App Secret e token atual no nó 2.',\n    acao: 'Acesse developers.facebook.com, gere um novo token manualmente e atualize o nó 2 e a credencial do workflow principal.'\n  }\n}];"
+      },
+      "id": "node-erro",
+      "name": "5b. Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 300]
+    }
+  ],
+  "connections": {
+    "1. Rodar todo mês": {
+      "main": [[{ "node": "2. Chamar API de renovação", "type": "main", "index": 0 }]]
+    },
+    "2. Chamar API de renovação": {
+      "main": [[{ "node": "3. Extrair novo token", "type": "main", "index": 0 }]]
+    },
+    "3. Extrair novo token": {
+      "main": [[{ "node": "4. Token válido?", "type": "main", "index": 0 }]]
+    },
+    "4. Token válido?": {
+      "main": [
+        [{ "node": "5a. Sucesso", "type": "main", "index": 0 }],
+        [{ "node": "5b. Erro", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

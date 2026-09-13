@@ -1,0 +1,514 @@
+{
+  "name": "TRANSFERE ATENDIMENTO",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "contato"
+            },
+            {
+              "name": "contactId"
+            },
+            {
+              "name": "leadId"
+            },
+            {
+              "name": "subdomain"
+            },
+            {
+              "name": "tokenKommo"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        176,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.contato }}",
+                    "rightValue": "whatsapp_1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a7f64fe0-4c99-413b-9973-15747ef53aa2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Maria"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0dfaeca7-af5e-437d-aca3-5b1a24461306",
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.contato }}",
+                    "rightValue": "whatsapp_2",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Rogério"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9f92eb5a-b351-4827-9fa0-55b337ecc7ba",
+                    "leftValue": "={{ $('When Executed by Another Workflow').first().json.contato }}",
+                    "rightValue": "whatsapp_3",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Miguel"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        480,
+        272
+      ],
+      "id": "f398b619-85b6-4837-a6c4-c34574a2188a",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $('When Executed by Another Workflow').first().json.subdomain }}.kommo.com/api/v2/salesbot/run ",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('When Executed by Another Workflow').first().json.tokenKommo }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"bot_id\": <id do salesbot>,\n    \"entity_id\": {{ $('When Executed by Another Workflow').first().json.leadId }},\n    \"entity_type\": \"2\"\n  }\n] ",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2368,
+        96
+      ],
+      "id": "b5e97420-2233-4b15-a7e0-56a362314461",
+      "name": "acionarSalesbot"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('formataHistorico').first().json.historico_markdown }}",
+        "options": {
+          "systemMessage": "=Você é **Maria**, consultora de vendas de carros da Carros Bacanas em Osasco.\nSeu papel é dar continuidade ao atendimento iniciado pelo agente **Carlos**.\n\n* Na **primeira mensagem**, você deve se apresentar de forma cordial, solícita e profissional.\n* Mencione explicitamente que o Carlos conversou com o lead e repassou a você as informações sobre o carro de interesse.\n* Cite o carro pelo nome e modelo conforme identificado no histórico.\n* Demonstre interesse genuíno pelo cliente, perguntando como ele está.\n* Mantenha um tom caloroso, mas objetivo, conduzindo naturalmente a conversa para a negociação.\n\n**Exemplo de primeira mensagem da Maria:**\n\n> Oi, tudo bem? 😊 Eu sou a Maria, consultora de vendas aqui da Carros Bacanas em Osasco. O Carlos me contou sobre nosso papo e disse que você está interessado no Honda Civic LXR 2.0 Automático 2019. Gostaria de saber como você está e se podemos avançar nos próximos passos para fechar essa ótima escolha. 🚗✨\n\n---"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1328,
+        96
+      ],
+      "id": "69db01c8-366b-4d69-beff-a1cb521f1ab6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        320
+      ],
+      "id": "88b6a39a-66fa-4ed1-b775-7c2ddce303df",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2144,
+        96
+      ],
+      "id": "54b0de6b-984b-4e21-a025-5223d7b059ff",
+      "name": "Wait",
+      "webhookId": "9f96aa92-35b8-49ff-9b7f-1d2b40de9dfe"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_lua_chat",
+          "mode": "list",
+          "cachedResultName": "n8n_lua_chat"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{ $('When Executed by Another Workflow').item.json.contactId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        832,
+        96
+      ],
+      "id": "16626785-83e3-4494-9fc8-b22f50279ff5",
+      "name": "puxaHistorico",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code node (Run Once for All Items)\n// Busca histórico a partir do nó especificado\nconst historicoItems = $items(\"puxaHistorico\"); // substitua pelo nome real do nó anterior\n\n// Definições de nomes\nconst NOME_CLIENTE = \"Cliente\";\nconst NOME_AGENTE  = \"Carlos\";\n\nlet historico = \"# HISTÓRICO DE CONVERSA\\n\";\n\nfor (const item of historicoItems) {\n  const msg = item.json.message;\n  if (!msg?.content) continue;\n\n  if (msg.type === \"human\") {\n    historico += `## ${NOME_CLIENTE}: ${msg.content}\\n`;\n  } else if (msg.type === \"ai\") {\n    historico += `## ${NOME_AGENTE}: ${msg.content}\\n`;\n  }\n}\n\nreturn [\n  {\n    json: {\n      historico_markdown: historico.trim()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        96
+      ],
+      "id": "2fc1c9f1-9d00-45a7-b727-ed55d445e127",
+      "name": "formataHistorico"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_lua_chat",
+          "mode": "list",
+          "cachedResultName": "n8n_lua_chat"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('When Executed by Another Workflow').first().json.contactId }}",
+            "message": "={   \n  \"type\": \"ai\",   \n  \"content\": \"{{ $('AI Agent').first().json.output }}\",   \n  \"additional_kwargs\": {},   \n  \"response_metadata\": {} \n}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1664,
+        96
+      ],
+      "id": "1f61390d-d696-45a3-8741-6ee878f2a620",
+      "name": "insereMensagemMemória",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Implementação completa\n1. Criar tool de transferência de número de atendimento e conectá-la ao agente. \n2. Instruir no prompt preenchimento do contato a ser transferido.\n3. Definir expressões para puxar os valores do subdomínio, lead_id, contact_id e token da kommo.\n4. Selecionar no nó de postgres a tabela em que os históricos de conversas está sendo armazenado. \n5. Configurar no formataHistorico o nome do agente que realizou o primeiro atendimento. \n6. Formular prompt de mensagem de primeiro contato (pelo novo número). \n7. Criar campo no leadcard na Kommo que receberá a mensagem formulada pelo agente. \n8. Inserir id do campo no nó de requisição 'preencheCampo'\n9. Criar salesbot sem gatilho pré-definido que encaminhe a mensagem pelo canal desejado. Na seção onde se insere o texto da mensagem escrever \"[\" e selecionar a opção de preenchimento dinâmico pelo campo criado no passo 7.\n10. Definir em \"acionarSalesbot\" o id do salesbot. Para encontrar o id do salesbot consulte: https://developers.kommo.com/reference/launch-salesbot",
+        "height": 544,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        -128
+      ],
+      "id": "9cad8f53-7780-4481-accd-79d576866fe8",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://{{ $('When Executed by Another Workflow').first().json.subdomain }}.kommo.com/api/v4/leads/{{ $('When Executed by Another Workflow').first().json.leadId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('When Executed by Another Workflow').first().json.tokenKommo }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n   \"custom_fields_values\":[\n      {\n         \"field_id\": <id do campo em que a mensagem de transferência será salva>,\n         \"values\":[\n            {\n               \"value\":\"{{ $('AI Agent').first().json.output }}\"\n            }\n         ]\n      }\n   ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        96
+      ],
+      "id": "f60e9f83-5e08-4c95-a6d2-662718db3aec",
+      "name": "preencheCampo"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "contato": "whatsapp_1",
+          "contactId": "16550970",
+          "leadId": "10092082",
+          "subdomain": "<subdomínio da sua conta kommo>",
+          "tokenKommo": "<seu token>"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "puxaHistorico",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        []
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "insereMensagemMemória",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "acionarSalesbot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "puxaHistorico": {
+      "main": [
+        [
+          {
+            "node": "formataHistorico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formataHistorico": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insereMensagemMemória": {
+      "main": [
+        [
+          {
+            "node": "preencheCampo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "preencheCampo": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e18e0657-dc63-4df7-81a4-d4883f31684d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "Lgf7scfZM05wgldJ",
+  "tags": []
+}

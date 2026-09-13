@@ -1,0 +1,80 @@
+Tarefa: preparar subdomínio de propostas.
+
+1) Crie a pasta /public/propostas (se não existir).
+
+2) Dentro dela, crie o arquivo /public/propostas/proposta1.html com este conteúdo:
+
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Proposta — Cliente Teste</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <style>
+    :root { --brand:#059669; --bg:#f9fafb; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#0f172a}
+    .wrap{max-width:960px;margin:40px auto;padding:24px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    h1{margin:0 0 10px;font-size:28px}
+    h2{margin:22px 0 10px;font-size:20px}
+    p,li{line-height:1.6}
+    .muted{color:#64748b;font-size:14px}
+    .cta{display:inline-block;margin-top:16px;padding:12px 18px;border-radius:10px;background:var(--brand);color:#fff;text-decoration:none;font-weight:600}
+    .hr{height:1px;background:#e5e7eb;margin:18px 0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Resili Sevenn — Proposta para Cliente Teste</h1>
+      <p class="muted">Gerada em 29/09/2025 · Válida por 24h</p>
+
+      <div class="hr"></div>
+
+      <h2>Escopo</h2>
+      <ul>
+        <li>Gestão de Tráfego (Meta + Google)</li>
+        <li>Implementação de CRM e automações</li>
+        <li>Relatórios quinzenais e otimizações semanais</li>
+      </ul>
+
+      <h2>Investimento</h2>
+      <p><strong>R$ 2.490/mês</strong> + verba de mídia</p>
+
+      <a class="cta" href="https://wa.me/5551999999999?text=Quero%20avancar%20com%20a%20proposta">Aceitar Proposta</a>
+    </div>
+  </div>
+</body>
+</html>
+
+3) Abra o arquivo next.config.mjs que já existe na raiz do projeto. Mantenha todos os campos atuais (eslint.ignoreDuringBuilds, typescript.ignoreBuildErrors, images.unoptimized, etc.). Apenas ADICIONE a função async rewrites() no objeto exportado. Se já houver uma função rewrites(), apenas acrescente esta regra se ela não existir.
+
+A regra a ser garantida:
+- source: '/propostas/:slug'
+- destination: '/propostas/:slug.html'
+
+Exemplo de resultado esperado (mesclando com o que já tem):
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
+  images: { unoptimized: true },
+  async rewrites() {
+    const rules = [
+      { source: '/propostas/:slug', destination: '/propostas/:slug.html' },
+    ];
+    // Se houver outras regras pré-existentes, mantenha-as e concatene.
+    return rules;
+  },
+};
+
+export default nextConfig;
+
+Importante:
+- Não remova nenhuma configuração existente.
+- Use sintaxe ESM (export default).
+- Garanta que o arquivo compile (sem vírgulas sobrando).
+
+4) Salve as alterações e prepare para publicar (build/deploy).

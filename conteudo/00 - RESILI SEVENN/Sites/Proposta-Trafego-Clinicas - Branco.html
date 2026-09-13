@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposta Comercial - Resili Sevenn</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Paleta Resili Sevenn - Tema Clean (Branco) */
+            --bg-color: #ffffff; /* Fundo Principal Branco */
+            --card-bg: #f5f5f5; /* Fundo dos Cartões (Cinza Claro) */
+            --primary-green: #59A52C; /* Verde Logo */
+            --light-green: #6fca3a; /* Verde Claro */
+            --dark-green: #437d21; /* Verde Escuro */
+            --text-main: #1f1f1f; /* Texto Principal (Preto) */
+            --text-secondary: #666666; /* Texto Secundário (Cinza Escuro) */
+            --border-color: #e0e0e0; /* Cor da borda */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- HEADER & LOGO --- */
+        header {
+            text-align: center;
+            padding: 40px 0;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .logo-container img {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 20px;
+            /* Filtro para inverter a logo branca para preta, se necessário */
+            /* filter: invert(1); */ 
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--text-main);
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        h1 span {
+             background: linear-gradient(to right, var(--primary-green), var(--light-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* --- SECTIONS --- */
+        section {
+            margin-bottom: 60px;
+            padding: 40px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            /* backdrop-filter: blur(10px);  Removido para o tema clean */
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05); /* Sombra suave */
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        /* Delays para animação em cascata */
+        section:nth-child(2) { animation-delay: 0.2s; }
+        section:nth-child(3) { animation-delay: 0.4s; }
+        section:nth-child(4) { animation-delay: 0.6s; }
+        section:nth-child(5) { animation-delay: 0.8s; }
+
+        h2 {
+            border-left: 4px solid var(--primary-green);
+            padding-left: 15px;
+            margin-bottom: 25px;
+            color: var(--text-main);
+            font-size: 1.8rem;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+        }
+
+        ul {
+            list-style: none;
+            margin-left: 10px;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 12px;
+            position: relative;
+            padding-left: 25px;
+            color: var(--text-main);
+        }
+
+        li::before {
+            content: '✔';
+            color: var(--primary-green);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        /* --- ESCOPO GRID --- */
+        .scope-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .scope-item {
+            background: #ffffff; /* Fundo branco para os itens */
+            padding: 25px;
+            border-radius: 8px;
+            border-left: 3px solid var(--dark-green);
+            border: 1px solid var(--border-color);
+            border-left-width: 3px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .scope-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+        }
+
+        .scope-title {
+            color: var(--primary-green);
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: block;
+            font-size: 1.2rem;
+        }
+
+        /* --- PRICING CARDS --- */
+        .pricing-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .pricing-card {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 16px;
+            position: relative;
+            min-width: 300px;
+            max-width: 350px;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .pricing-card.featured {
+            border: 2px solid var(--primary-green);
+            box-shadow: 0 0 30px rgba(89, 165, 44, 0.15);
+            transform: scale(1.03);
+            z-index: 2;
+        }
+
+        .pricing-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            z-index: 3;
+        }
+
+        .card-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .pricing-card h3 {
+            margin-top: 10px;
+            color: var(--text-main);
+        }
+
+        .badge {
+            background-color: var(--primary-green);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .price {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .price span {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* --- MAINTENANCE BOX --- */
+        .maintenance-box {
+            background: rgba(89, 165, 44, 0.08);
+            border: 1px solid var(--primary-green);
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .maintenance-box h3 {
+             color: var(--primary-green);
+             margin-bottom: 5px;
+        }
+        
+        .maintenance-box p {
+             color: var(--text-main);
+        }
+
+        .maintenance-price {
+            color: var(--primary-green);
+            font-weight: 700;
+            font-size: 1.3rem;
+            text-align: right;
+        }
+
+        /* --- FOOTER & CTA --- */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            margin-bottom: 80px;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 1.2s forwards;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(90deg, var(--primary-green), var(--light-green));
+            color: white;
+            padding: 18px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(111, 202, 58, 0.4);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .cta-button svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        .cta-button:hover {
+            box-shadow: 0 6px 25px rgba(111, 202, 58, 0.6);
+            transform: translateY(-3px);
+            color: #ffffff;
+        }
+
+        .footer-text {
+            margin-top: 25px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .highlight-text {
+            color: var(--primary-green);
+            font-weight: 600;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .pricing-container { flex-direction: column; align-items: center; }
+            .pricing-card.featured { transform: scale(1); }
+            .pricing-card:hover { transform: translateY(-5px); }
+            section { padding: 25px; }
+            .maintenance-box > div { flex-direction: column; text-align: left; gap: 10px; }
+            .maintenance-price { text-align: left; }
+
+            /* Ajuste do botão mobile */
+            .cta-button {
+                padding: 9px 28px; /* Redução de ~50% na altura e ~30% na largura */
+                font-size: 1rem; /* Fonte ligeiramente menor */
+                width: auto; /* Largura automática baseada no conteúdo e padding */
+                white-space: nowrap; /* Garante que o texto fique em uma linha */
+            }
+            
+            .cta-button svg {
+                width: 20px; /* Ícone ligeiramente menor */
+                height: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <div class="logo-container">
+                <img src="public/images/resili-sevenn-logo.png" alt="Resili Sevenn Logo">
+            </div>
+            <h1>Gestão de Tráfego de <span>Alta Performance</span></h1>
+            <p class="subtitle">Estratégias exclusivas para escalar o faturamento da sua clínica</p>
+        </header>
+
+        <section>
+            <h2>1. O Diferencial Resili Sevenn</h2>
+            <p>Nossa gestão não foca apenas em cliques, mas em pacientes na cadeira. Conheça o que já está incluso em todos os nossos planos de parceria:</p>
+            <div class="scope-grid">
+                <div class="scope-item">
+                    <span class="scope-title">Incluso em todos os planos:</span>
+                    <ul>
+                        <li><strong>Captação de Leads:</strong> Campanhas focadas em agendamentos imediatos.</li>
+                        <li><strong>Posicionamento & Autoridade:</strong> Campanhas institucionais para tornar sua clínica referência na região.</li>
+                        <li><strong>Transparência Total:</strong> Relatórios de performance para você acompanhar seus resultados de perto.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>2. Modelos de Parceria</h2>
+            <p>Escolha o plano que melhor se adapta ao momento atual de expansão da sua clínica.</p>
+            
+            <div class="pricing-container">
+                
+                <div class="pricing-card">
+                    <div class="card-header">
+                        <h3>Plano Essencial</h3>
+                    </div>
+                    <div class="price">R$ 1.300<span>/mês</span></div>
+                    <ul>
+                        <li>Foco em <strong>1 a 2</strong> procedimentos.</li>
+                        <li>Gestão de até <strong>R$ 2.000</strong> em anúncios.</li>
+                        <li>Captação de Leads + Institucional.</li>
+                    </ul>
+                </div>
+
+                <div class="pricing-card featured">
+                    <div class="card-header">
+                        <span class="badge">Recomendado</span>
+                        <h3>Plano Crescimento</h3>
+                    </div>
+                    <div class="price">R$ 1.800<span>/mês</span></div>
+                    <ul>
+                        <li>Foco em <strong>3 a 4</strong> procedimentos.</li>
+                        <li>Gestão de até <strong>R$ 4.000</strong> em anúncios.</li>
+                        <li>Captação de Leads + Institucional.</li>
+                    </ul>
+                </div>
+
+                <div class="pricing-card">
+                    <div class="card-header">
+                        <h3>Plano Escala</h3>
+                    </div>
+                    <div class="price">R$ 2.400<span>/fixo</span></div>
+                    <p style="text-align: center; color: var(--text-secondary); margin-top: -10px; margin-bottom: 15px; font-size: 0.9rem;">+ % Faturamento de Anúncios</p>
+                    <ul>
+                        <li>Foco em <strong>5 ou +</strong> procedimentos.</li>
+                        <li>Gestão entre <strong>R$ 4.000 e R$ 10.000</strong> em anúncios.</li>
+                        <li>Ideal para alto volume de escala.</li>
+                    </ul>
+                </div>
+
+            </div>
+        </section>
+
+        <section>
+            <h2>3. Regras de Expansão e Adicionais</h2>
+            <p>Sua clínica cresceu e precisa dominar novos territórios ou plataformas? Temos uma estrutura ágil para isso:</p>
+            <div class="scope-grid">
+                <div class="scope-item">
+                    <span class="scope-title">Regiões e Abrangência</span>
+                    <ul>
+                        <li>Todos os planos contemplam <strong>Máximo de 2 Regiões (cidades)</strong>, independente do estado.</li>
+                        <li>Cada região extra anunciada adiciona <span class="highlight-text">R$ 400,00</span> (independente de quantos procedimentos).</li>
+                    </ul>
+                </div>
+                <div class="scope-item">
+                    <span class="scope-title">Plataformas de Anúncio</span>
+                    <ul>
+                        <li>Os valores dos planos consideram o investimento em uma <strong>única plataforma</strong> de anúncios.</li>
+                        <li>A inclusão de plataforma extra (Ex: Google Ads) acrescenta <span class="highlight-text">R$ 700,00 mensais</span> (para até 2 procedimentos ativos).</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>4. Nota Técnica</h2>
+            <div class="maintenance-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <h3>Atenção a Grandes Volumes</h3>
+                        <p style="margin:0; font-size:1rem;">Investimentos mensais superiores a <strong>R$ 10.000,00</strong> necessitarão de reavaliação automática das condições de parceria para garantir o suporte adequado.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <a href="https://wa.me/5548988663609" target="_blank" class="cta-button">
+                <svg xmlns="http://www.svgrepo.com/show/333621/whatsapp.svg" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+                </svg>
+                Falar com Especialista
+            </a>
+            <p class="footer-text">
+                Proposta válida por 15 dias.<br> 
+                Desenvolvido por <strong>Resili Sevenn Marketing e Vendas</strong>.
+            </p>
+        </footer>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,178 @@
+Código MVP - Google Vertex ai
+
+
+action.tc = CODIGO NO V0
+
+"use server"
+
+export async function processSmileImage(formData: FormData) {
+  try {
+    console.log("[v0] Starting image processing...")
+
+    // Check if Google credentials are configured
+    const googleCredentialsJSON = process.env.GOOGLE_CREDENTIALS_JSON
+
+    if (!googleCredentialsJSON) {
+      return {
+        success: false,
+        error:
+          "Configuration Error: Google Vertex AI credentials are not configured. Please add GOOGLE_CREDENTIALS_JSON to your environment variables.",
+      }
+    }
+
+    const imageFile = formData.get("image") as File
+
+    if (!imageFile) {
+      return {
+        success: false,
+        error: "No image file provided",
+      }
+    }
+
+    console.log("[v0] Image file received:", imageFile.name, imageFile.type)
+
+    // Convert image to base64
+    const bytes = await imageFile.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+    const base64Image = buffer.toString("base64")
+
+    console.log("[v0] Image converted to base64, length:", base64Image.length)
+
+    const credentials = JSON.parse(googleCredentialsJSON)
+
+    // CRITICAL FIX FOR VERCEL: Replace escaped newlines with actual newlines
+    if (credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, "\n")
+    }
+
+    const projectId = credentials.project_id
+
+    if (!projectId) {
+      return {
+        success: false,
+        error: "Configuration Error: project_id not found in GOOGLE_CREDENTIALS_JSON",
+      }
+    }
+
+    console.log("[v0] Credentials parsed, project ID:", projectId)
+
+    // --- IMPORTANTE: Importando 'helpers' para traduzir o JSON ---
+    const { PredictionServiceClient, helpers } = await import("@google-cloud/aiplatform")
+
+    const predictionClient = new PredictionServiceClient({
+      credentials: credentials,
+    })
+
+    console.log("[v0] PredictionServiceClient initialized")
+
+    const location = "us-central1"
+    const publisher = "google"
+    const model = "imagegeneration@006"
+
+    const endpoint = `projects/${projectId}/locations/${location}/publishers/${publisher}/models/${model}`
+
+    console.log("[v0] Endpoint:", endpoint)
+
+    const prompt = `Reconstruct the smile with high-end composite resin veneers, focusing on brightness and perfect symmetry.
+
+**1. Architectural Correction (Crucial):**
+* **Symmetry & Size:** Forcefully correct any size discrepancies between teeth. Lengthen short teeth to match the neighbors. Create a perfectly leveled incisal plane (smile line).
+* **Alignment:** Straighten the teeth arch. If a tooth is rotated or recessed, digitally build it out to look perfectly aligned with the others.
+
+**2. The "Rich White" Color (BL1):**
+* **Body Shade:** Ultra-Bleach BL1 (High Value). The main body of the tooth must be BRIGHT, SOLID, and OPAQUE white to cover any underlying darkness.
+* **Brightness:** Maximize the brightness value. The teeth should "pop" with whiteness but retain texture.
+
+**3. The "Subtle" Translucency (Refined):**
+* **Edge Effect:** Instead of grey transparency, create a DELICATE "milky halo" at the very tips (incisal edge).
+* **Opacity Control:** 90% of the tooth is solid white; only the bottom 10% has a faint, subtle opalescence. It should look like a pearl, not like glass.
+
+**4. Surface & Luster:**
+* **Texture:** High-gloss polish with a "wet" look. Sharp, white reflections on the curves of the teeth (line angles) to show volume.
+
+**Restrictions:** PRESERVE the gums, mouth, and the rest of the skin exactly as they are, **this is mandatory**. Do not blur the skin. Keep the image sharp.`
+
+    // Objeto JS normal
+    const instanceObject = {
+      prompt: prompt,
+      image: {
+        bytesBase64Encoded: base64Image
+      }
+    };
+
+    const parametersObject = {
+      sampleCount: 1,
+      // Tenta liberar a geração de pessoas/rostos
+      personGeneration: "allow_adult",
+      // Tenta relaxar os filtros de segurança
+      safetySetting: "block_mode: \"BLOCK_ONLY_HIGH\""
+    };
+
+    // --- A CORREÇÃO MÁGICA: Convertendo para Protobuf Value ---
+    const instanceValue = helpers.toValue(instanceObject);
+    const parametersValue = helpers.toValue(parametersObject);
+
+    console.log("[v0] Sending prediction request to Legacy API (Protobuf format)...")
+
+    const [response] = await predictionClient.predict({
+      endpoint: endpoint,
+      instances: [instanceValue], // Enviando o valor convertido
+      parameters: parametersValue, // Enviando o valor convertido
+    })
+
+    console.log("[v0] Received prediction response")
+
+    if (response.predictions && response.predictions.length > 0) {
+      const prediction = response.predictions[0]
+      
+      let imageBytes = null;
+
+      // O helper toValue faz o request ir certo, mas a volta também precisa ser lida com cuidado
+      if (prediction && typeof prediction === "object") {
+          // Verifica se é um objeto protobuf structValue (comum na resposta)
+          if (prediction.structValue?.fields?.bytesBase64Encoded?.stringValue) {
+              imageBytes = prediction.structValue.fields.bytesBase64Encoded.stringValue;
+          }
+          // Verifica se veio direto como propriedade (depende da versão da API)
+          else if ('bytesBase64Encoded' in prediction) {
+             // @ts-ignore
+             imageBytes = prediction.bytesBase64Encoded;
+          }
+           // Caso venha como stringValue direto
+          else if (prediction.stringValue) {
+             imageBytes = prediction.stringValue;
+          }
+      }
+
+      if (imageBytes) {
+        const processedImageUrl = `data:image/png;base64,${imageBytes}`
+        console.log("[v0] Successfully processed image")
+        return {
+          success: true,
+          processedImageUrl,
+        }
+      }
+    }
+
+    console.log("[v0] No valid image in prediction response. Full response structure:", JSON.stringify(response))
+
+    return {
+      success: false,
+      error: "Failed to generate processed image. The AI did not return a valid result.",
+    }
+  } catch (error) {
+    console.error("[v0] Error processing image:", error)
+
+    if (error instanceof Error) {
+      return {
+        success: false,
+        error: `Processing failed: ${error.name} - ${error.message}`,
+      }
+    }
+
+    return {
+      success: false,
+      error: "An unexpected error occurred while processing the image.",
+    }
+  }
+}

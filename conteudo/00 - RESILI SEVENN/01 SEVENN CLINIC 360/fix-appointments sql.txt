@@ -1,0 +1,147 @@
+-- ============================================================
+-- FIX RLS POLICIES FOR APPOINTMENTS AND RELATED TABLES
+-- Data: 2026-01-30
+-- Problema: Agendamentos não aparecem devido a políticas RLS
+-- ============================================================
+
+-- 1. DESABILITAR RLS temporariamente para testes (APENAS PARA DEBUG)
+-- ALTER TABLE appointments DISABLE ROW LEVEL SECURITY;
+-- NÃO use isso em produção! Use as políticas corretas abaixo.
+
+-- 2. REMOVER políticas antigas problemáticas
+DROP POLICY IF EXISTS "Users can view appointments from their clinic" ON appointments;
+DROP POLICY IF EXISTS "Users can insert appointments to their clinic" ON appointments;
+DROP POLICY IF EXISTS "Users can update appointments from their clinic" ON appointments;
+DROP POLICY IF EXISTS "Users can delete appointments from their clinic" ON appointments;
+
+-- 3. CRIAR políticas RLS corretas para APPOINTMENTS
+
+-- Política de SELECT (leitura)
+CREATE POLICY "clinic_members_select_appointments"
+ON appointments
+FOR SELECT
+USING (
+    clinic_id IN (
+        SELECT clinic_id 
+        FROM profiles 
+        WHERE id = auth.uid()
+    )
+);
+
+-- Política de INSERT (criação)
+CREATE POLICY "clinic_members_insert_appointments"
+ON appointments
+FOR INSERT
+WITH CHECK (
+    clinic_id IN (
+        SELECT clinic_id 
+        FROM profiles 
+        WHERE id = auth.uid()
+    )
+);
+
+-- Política de UPDATE (atualização)
+CREATE POLICY "clinic_members_update_appointments"
+ON appointments
+FOR UPDATE
+USING (
+    clinic_id IN (
+        SELECT clinic_id 
+        FROM profiles 
+        WHERE id = auth.uid()
+    )
+)
+WITH CHECK (
+    clinic_id IN (
+        SELECT clinic_id 
+        FROM profiles 
+        WHERE id = auth.uid()
+    )
+);
+
+-- Política de DELETE (exclusão)
+CREATE POLICY "clinic_members_delete_appointments"
+ON appointments
+FOR DELETE
+USING (
+    clinic_id IN (
+        SELECT clinic_id 
+        FROM profiles 
+        WHERE id = auth.uid()
+    )
+);
+
+-- 4. VERIFICAR/CRIAR políticas para tabelas relacionadas (LEADS)
+
+DROP POLICY IF EXISTS "clinic_members_select_leads" ON leads;
+
+CREATE POLICY "clinic_members_select_leads"
+ON leads
+FOR SELECT
+USING (
+    clinic_id IN (
+        SELECT clinic_id 
+        FROM profiles 
+        WHERE id = auth.uid()
+    )
+);
+
+-- 5. VERIFICAR/CRIAR políticas para PROFESSIONALS
+
+DROP POLICY IF EXISTS "clinic_members_select_professionals" ON professionals;
+
+CREATE POLICY "clinic_members_select_professionals"
+ON professionals
+FOR SELECT
+USING (
+    clinic_id IN (
+        SELECT clinic_id 
+        FROM profiles 
+        WHERE id = auth.uid()
+    )
+);
+
+-- 6. VERIFICAR/CRIAR políticas para SERVICES
+
+DROP POLICY IF EXISTS "clinic_members_select_services" ON services;
+
+CREATE POLICY "clinic_members_select_services"
+ON services
+FOR SELECT
+USING (
+    clinic_id IN (
+        SELECT clinic_id 
+        FROM profiles 
+        WHERE id = auth.uid()
+    )
+);
+
+-- 7. HABILITAR RLS em todas as tabelas (caso não esteja habilitado)
+ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE professionals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE services ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- VERIFICAÇÃO: Execute estas queries para confirmar
+-- ============================================================
+
+-- Ver todas as políticas de appointments
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies
+WHERE tablename = 'appointments';
+
+-- Ver todas as políticas de leads
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies
+WHERE tablename = 'leads';
+
+-- Ver todas as políticas de professionals
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies
+WHERE tablename = 'professionals';
+
+-- Ver todas as políticas de services
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies
+WHERE tablename = 'services';

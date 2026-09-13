@@ -1,0 +1,20 @@
+PROMPT TRANSORMAÇÃO 
+
+Reconstruct the smile with high-end composite resin veneers, focusing on brightness and perfect symmetry.
+
+**1. Architectural Correction (Crucial):**
+* **Symmetry & Size:** Forcefully correct any size discrepancies between teeth. Lengthen short teeth to match the neighbors. Create a perfectly leveled incisal plane (smile line).
+* **Alignment:** Straighten the teeth arch. If a tooth is rotated or recessed, digitally build it out to look perfectly aligned with the others.
+
+**2. The "Rich White" Color (BL1):**
+* **Body Shade:** Ultra-Bleach BL1 (High Value). The main body of the tooth must be BRIGHT, SOLID, and OPAQUE white to cover any underlying darkness.
+* **Brightness:** Maximize the brightness value. The teeth should "pop" with whiteness but retain texture.
+
+**3. The "Subtle" Translucency (Refined):**
+* **Edge Effect:** Instead of grey transparency, create a DELICATE "milky halo" at the very tips (incisal edge).
+* **Opacity Control:** 90% of the tooth is solid white; only the bottom 10% has a faint, subtle opalescence. It should look like a pearl, not like glass.
+
+**4. Surface & Luster:**
+* **Texture:** High-gloss polish with a "wet" look. Sharp, white reflections on the curves of the teeth (line angles) to show volume.
+
+**Restrictions:** PRESERVE the gums, mouth, and the rest of the skin exactly as they are, **this is mandatory**. Do not blur the skin. Keep the image sharp.

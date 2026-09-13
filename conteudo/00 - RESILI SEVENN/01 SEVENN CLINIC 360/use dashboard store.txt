@@ -1,0 +1,542 @@
+import { create } from 'zustand';
+import { supabase } from '@/lib/supabase';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+export interface DashboardMetrics {
+    revenue: number;
+    salesCount: number;
+    avgTicket: number;
+    conversionRate: number;
+    pipelineValue: number;
+    pipelineCount: number;
+    revenueGrowth: number;
+    salesGrowth: number;
+    avgTicketGrowth: number;
+    conversionRateGrowth: number;
+    avgSalesCycle: number;
+    avgSalesCycleGrowth: number;
+}
+
+export interface ChartData {
+    name: string;
+    revenue: number;
+}
+
+export interface FunnelData {
+    name: string;
+    value: number;
+    fill: string;
+}
+
+export interface AppointmentItem {
+    id: string;
+    time: string;
+    patient: string;
+    service: string;
+    professional: string;
+    procedure_id?: string;
+    status: 'Pendente' | 'Confirmado' | 'Concluído' | 'Cancelado' | 'Faltou' | 'Chegou' | 'Em Atendimento';
+}
+
+export interface ActivityItem {
+    id: string;
+    action: string;
+    name: string;
+    value: number;
+    time: string;
+    type: 'lead' | 'schedule' | 'sale';
+    rawTime: string; // for sorting
+}
+
+export interface ProcedureData {
+    name: string;
+    days: number; // Ciclo médio em dias
+}
+
+interface DashboardState {
+    metrics: DashboardMetrics;
+    chartData: ChartData[];
+    funnelData: FunnelData[];
+    chartDataByProcedure: ProcedureData[];
+    todayAppointments: AppointmentItem[];
+    recentActivity: ActivityItem[];
+    loading: boolean;
+    fetchDashboardMetrics: (clinicId: string, range: string, customStart?: Date, customEnd?: Date) => Promise<void>;
+}
+
+// Helper: Calcula o range atual
+const getDateRange = (range: string, customStart?: Date, customEnd?: Date) => {
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (range === 'today') {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+    } else if (range === 'yesterday') {
+        start.setDate(now.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+        end.setDate(now.getDate() - 1);
+        end.setHours(23, 59, 59, 999);
+    } else if (range === 'this-week') {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+        start.setDate(diff);
+        start.setHours(0, 0, 0, 0);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+    } else if (range === 'last-7') {
+        start.setDate(now.getDate() - 7);
+        start.setHours(0, 0, 0, 0);
+        end = now;
+    } else if (range === 'last-30') {
+        start.setDate(now.getDate() - 30);
+        start.setHours(0, 0, 0, 0);
+        end = now;
+    } else if (range === 'this-month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        end.setHours(23, 59, 59, 999);
+    } else if (range === 'last-month') {
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), 0);
+        end.setHours(23, 59, 59, 999);
+    } else if (range === 'custom' && customStart && customEnd) {
+        start = customStart;
+        end = customEnd;
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+    } else if (range === 'all') {
+        start = new Date(2000, 0, 1);
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
+    } else {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    }
+    return { start, end };
+};
+
+// Helper: Calcula o range anterior para comparação
+const getPreviousDateRange = (range: string, currentStart: Date, currentEnd: Date) => {
+    const prevStart = new Date(currentStart);
+    const prevEnd = new Date(currentEnd);
+
+    if (range === 'today' || range === 'yesterday') {
+        prevStart.setDate(prevStart.getDate() - 1);
+        prevEnd.setDate(prevEnd.getDate() - 1);
+    } else if (range === 'this-week' || range === 'last-7') {
+        prevStart.setDate(prevStart.getDate() - 7);
+        prevEnd.setDate(prevEnd.getDate() - 7);
+    } else if (range === 'last-30') {
+        prevStart.setDate(prevStart.getDate() - 30);
+        prevEnd.setDate(prevEnd.getDate() - 30);
+    } else if (range === 'this-month' || range === 'last-month') {
+        prevStart.setMonth(prevStart.getMonth() - 1);
+        prevEnd.setMonth(prevEnd.getMonth() - 1);
+        // Ajuste para último dia do mês correto
+        const lastDay = new Date(prevEnd.getFullYear(), prevEnd.getMonth() + 1, 0);
+        prevEnd.setDate(lastDay.getDate());
+    } else if (range === 'this-year') {
+        prevStart.setFullYear(prevStart.getFullYear() - 1);
+        prevEnd.setFullYear(prevEnd.getFullYear() - 1);
+    } else if (range === 'custom') {
+        const diffTime = Math.abs(currentEnd.getTime() - currentStart.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        prevStart.setDate(prevStart.getDate() - diffDays);
+        prevEnd.setDate(prevEnd.getDate() - diffDays);
+    }
+
+    return { prevStart, prevEnd };
+};
+
+const calculateGrowth = (current: number, previous: number) => {
+    // Evita divisão por zero
+    if (previous === 0) return current > 0 ? 100 : 0;
+
+    // Calcula a porcentagem
+    const growth = ((current - previous) / previous) * 100;
+
+    // CORREÇÃO: Fixa em 1 casa decimal e converte de volta para número
+    // Ex: 80.2358... vira 80.2
+    return Number(growth.toFixed(1));
+};
+
+// Helper: Custom rounding logic for Sales Cycle
+const customRound = (value: number) => {
+    const integerPart = Math.floor(value);
+    const decimalPart = value - integerPart;
+
+    if (decimalPart <= 0.5) {
+        return Math.floor(value);
+    } else {
+        return Math.ceil(value);
+    }
+};
+
+export const useDashboardStore = create<DashboardState>((set, get) => ({
+    metrics: {
+        revenue: 0,
+        salesCount: 0,
+        avgTicket: 0,
+        conversionRate: 0,
+        pipelineValue: 0,
+        pipelineCount: 0,
+        revenueGrowth: 0,
+        salesGrowth: 0,
+        avgTicketGrowth: 0,
+        conversionRateGrowth: 0,
+        avgSalesCycle: 0,
+        avgSalesCycleGrowth: 0,
+    },
+    chartData: [],
+    funnelData: [],
+    chartDataByProcedure: [],
+    todayAppointments: [],
+    recentActivity: [],
+    loading: false,
+
+    fetchDashboardMetrics: async (clinicId: string, range: string, customStart?: Date, customEnd?: Date) => {
+        set({ loading: true });
+        try {
+            // 1. Definição de Datas (Atual e Anterior)
+            const { start, end } = getDateRange(range, customStart, customEnd);
+            const { prevStart, prevEnd } = getPreviousDateRange(range, start, end);
+
+            const startIso = start.toISOString();
+            const endIso = end.toISOString();
+            const prevStartIso = prevStart.toISOString();
+            const prevEndIso = prevEnd.toISOString();
+
+            // Datas formatadas para RPC (YYYY-MM-DD)
+            const rpcStartDate = start.toISOString().split('T')[0];
+            const rpcEndDate = end.toISOString().split('T')[0];
+
+            console.log(`Metrics: ${range} | Curr: ${rpcStartDate} to ${rpcEndDate} | Prev: ${prevStartIso} to ${prevEndIso}`);
+
+            // 2. STATS VIA RPC (Gráficos)
+            let rpcData: any = {};
+            try {
+                const { data, error } = await supabase.rpc('get_dashboard_stats', {
+                    p_clinic_id: clinicId,
+                    p_start_date: rpcStartDate,
+                    p_end_date: rpcEndDate
+                });
+                if (!error && data) rpcData = data;
+            } catch (err) {
+                console.error("RPC error:", err);
+            }
+
+            const chartData = rpcData.daily_revenue || [];
+            const funnelRaw = rpcData.funnel || {};
+
+            const funnelData: FunnelData[] = [
+                { value: funnelRaw.leads || 0, name: 'Leads', fill: '#94a3b8' },
+                { value: funnelRaw.appointments || 0, name: 'Agendados', fill: '#3b82f6' },
+                { value: funnelRaw.attendance || 0, name: 'Compareceram', fill: '#8b5cf6' },
+                { value: funnelRaw.sales || 0, name: 'Venderam', fill: '#59A52C' },
+            ];
+
+            // 3. MÉTRICAS FINANCEIRAS (ATUAIS)
+            const { data: currentTransactions } = await supabase
+                .from('financial_transactions')
+                .select('amount')
+                .eq('clinic_id', clinicId)
+                .eq('type', 'income')
+                .eq('status', 'paid')
+                .gte('transaction_date', startIso)
+                .lte('transaction_date', endIso);
+
+            const revenue = currentTransactions?.reduce((acc, t) => acc + (Number(t.amount) || 0), 0) || 0;
+            const salesCount = currentTransactions?.length || 0;
+            const avgTicket = salesCount > 0 ? revenue / salesCount : 0;
+
+            // 4. MÉTRICAS FINANCEIRAS (ANTERIORES - Para Comparação)
+            const { data: prevTransactions } = await supabase
+                .from('financial_transactions')
+                .select('amount')
+                .eq('clinic_id', clinicId)
+                .eq('type', 'income')
+                .eq('status', 'paid')
+                .gte('transaction_date', prevStartIso)
+                .lte('transaction_date', prevEndIso);
+
+            const prevRevenue = prevTransactions?.reduce((acc, t) => acc + (Number(t.amount) || 0), 0) || 0;
+            const prevSalesCount = prevTransactions?.length || 0;
+            const prevAvgTicket = prevSalesCount > 0 ? prevRevenue / prevSalesCount : 0;
+
+            // 5. TAXA DE CONVERSÃO (ATUAL)
+            // Total Leads Atual
+            const { count: totalLeadsCount } = await supabase
+                .from('leads')
+                .select('*', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .gte('created_at', startIso)
+                .lte('created_at', endIso);
+
+            // Leads Ganhos Atual
+            const { count: wonCount } = await supabase
+                .from('leads')
+                .select('*', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .eq('status', 'Venda Realizada')
+                .gte('created_at', startIso)
+                .lte('created_at', endIso);
+
+            const conversionRate = (totalLeadsCount && totalLeadsCount > 0)
+                ? ((wonCount || 0) / totalLeadsCount) * 100
+                : 0;
+
+            // 6. TAXA DE CONVERSÃO (ANTERIOR)
+            // Total Leads Anterior
+            const { count: prevTotalLeadsCount } = await supabase
+                .from('leads')
+                .select('*', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .gte('created_at', prevStartIso)
+                .lte('created_at', prevEndIso);
+
+            // Leads Ganhos Anterior
+            const { count: prevWonCount } = await supabase
+                .from('leads')
+                .select('*', { count: 'exact', head: true })
+                .eq('clinic_id', clinicId)
+                .eq('status', 'Venda Realizada')
+                .gte('created_at', prevStartIso)
+                .lte('created_at', prevEndIso);
+
+            const prevConversionRate = (prevTotalLeadsCount && prevTotalLeadsCount > 0)
+                ? ((prevWonCount || 0) / prevTotalLeadsCount) * 100
+                : 0;
+
+            // 7. PIPELINE (Snapshot Atual - Sem histórico de crescimento)
+            const { data: leads } = await supabase
+                .from('leads')
+                .select('estimated_value, status')
+                .eq('clinic_id', clinicId);
+
+            const activeLeads = leads?.filter(l => !['Venda Realizada', 'Descarte', 'No-Show', 'Nutrição'].includes(l.status as string)) || [];
+            const pipelineValue = activeLeads.reduce((acc, l) => acc + (Number(l.estimated_value) || 0), 0);
+            const pipelineCount = activeLeads.length;
+
+            // 8. LISTAS (Agendamentos e Atividades)
+            const today = new Date();
+            const startOfToday = new Date(today); startOfToday.setHours(0, 0, 0, 0);
+            const endOfToday = new Date(today); endOfToday.setHours(23, 59, 59, 999);
+
+            const { data: todayApptsData } = await supabase
+                .from('appointments')
+                .select(`
+                    id, start_time, status, lead_id, procedure_id, professional_id,
+                    professionals!professional_id (name),
+                    services!procedure_id (name),
+                    leads!lead_id (name, procedure)
+                `)
+                .eq('clinic_id', clinicId)
+                .gte('start_time', startOfToday.toISOString())
+                .lte('start_time', endOfToday.toISOString())
+                .in('status', ['Confirmado', 'Chegou', 'Pendente', 'Em Atendimento'])
+                .order('start_time', { ascending: true });
+
+            const todayAppointments: AppointmentItem[] = (todayApptsData || []).map((a: any) => ({
+                id: a.id,
+                time: new Date(a.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                patient: a.leads?.name || 'Paciente',
+                service: a.services?.name || a.leads?.procedure || 'Consulta',
+                professional: a.professionals?.name || 'Profissional',
+                procedure_id: a.procedure_id,
+                status: a.status
+            }));
+
+            // Feed de Atividade
+            const { data: recentLeads } = await supabase
+                .from('leads')
+                .select('id, name, created_at')
+                .eq('clinic_id', clinicId)
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            const { data: recentAppts } = await supabase
+                .from('appointments')
+                .select('id, start_time, created_at, lead_id, leads!lead_id(name)')
+                .eq('clinic_id', clinicId)
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            const { data: recentSales } = await supabase
+                .from('financial_transactions')
+                .select('id, description, amount, transaction_date, created_at')
+                .eq('clinic_id', clinicId)
+                .eq('type', 'income')
+                .eq('status', 'paid')
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            const activities: ActivityItem[] = [];
+            recentLeads?.forEach((l: any) => activities.push({ id: l.id, type: 'lead', action: 'Novo Lead', name: l.name, value: 0, time: '', rawTime: l.created_at }));
+            recentAppts?.forEach((a: any) => activities.push({ id: a.id, type: 'schedule', action: 'Novo Agendamento', name: a.leads?.name || 'Paciente', value: 0, time: '', rawTime: a.created_at }));
+            recentSales?.forEach((s: any) => activities.push({ id: s.id, type: 'sale', action: 'Venda Concluída', name: s.description || 'Venda', value: s.amount, time: '', rawTime: s.created_at || s.transaction_date }));
+
+            const sortedActivities = activities
+                .sort((a, b) => new Date(b.rawTime).getTime() - new Date(a.rawTime).getTime())
+                .slice(0, 10)
+                .map(act => ({ ...act, time: formatDistanceToNow(new Date(act.rawTime), { addSuffix: true, locale: ptBR }) }));
+
+            // SET FINAL COM OS CÁLCULOS
+            set({
+                metrics: {
+                    revenue,
+                    salesCount,
+                    avgTicket,
+                    conversionRate,
+                    pipelineValue,
+                    pipelineCount,
+                    // Cálculos de Crescimento
+                    revenueGrowth: calculateGrowth(revenue, prevRevenue),
+                    salesGrowth: calculateGrowth(salesCount, prevSalesCount),
+                    avgTicketGrowth: calculateGrowth(avgTicket, prevAvgTicket),
+                    conversionRateGrowth: calculateGrowth(conversionRate, prevConversionRate),
+                    avgSalesCycle: 0,
+                    avgSalesCycleGrowth: 0
+                },
+                chartData: chartData.length > 0 ? chartData : [],
+                funnelData: funnelData,
+                todayAppointments,
+                recentActivity: sortedActivities,
+                loading: false
+            });
+
+            // 9. CICLO DE VENDAS (Current vs Previous) - BASEADO EM DATA DE FECHAMENTO
+            // Current Period Sales Cycle
+            const { data: currentSalesCycleLeads } = await supabase
+                .from('leads')
+                .select('created_at, closed_at, updated_at, procedure')
+                .eq('clinic_id', clinicId)
+                .eq('status', 'Venda Realizada')
+                .or(`closed_at.gte.${startIso},updated_at.gte.${startIso}`) // Fallback to updated_at if closed_at not used heavily yet
+                .or(`closed_at.lte.${endIso},updated_at.lte.${endIso}`);
+
+            // Refine filtering in memory to ensure we catch the right range depending on which date exists
+            const validCurrentSales = (currentSalesCycleLeads || []).filter(lead => {
+                const closeDate = lead.closed_at ? new Date(lead.closed_at) : new Date(lead.updated_at);
+                return closeDate >= start && closeDate <= end;
+            });
+
+            // Calculate Current Average Cycle
+            let currentTotalDays = 0;
+            let currentCycleSalesCount = 0;
+            const procedureStats: Record<string, { totalDays: number; salesCount: number }> = {};
+
+            validCurrentSales.forEach(lead => {
+                const created = new Date(lead.created_at);
+                const closed = lead.closed_at ? new Date(lead.closed_at) : new Date(lead.updated_at);
+
+                const diffTime = Math.abs(closed.getTime() - created.getTime());
+                const exactDays = diffTime / (1000 * 60 * 60 * 24);
+                const roundedDays = customRound(exactDays);
+
+                currentTotalDays += roundedDays;
+                currentCycleSalesCount += 1;
+
+                // Per procedure stats
+                const procName = lead.procedure || 'Não Informado';
+                if (!procedureStats[procName]) {
+                    procedureStats[procName] = { totalDays: 0, salesCount: 0 };
+                }
+                procedureStats[procName].totalDays += roundedDays;
+                procedureStats[procName].salesCount += 1;
+            });
+
+            const avgSalesCycle = currentCycleSalesCount > 0
+                ? Math.round(currentTotalDays / currentCycleSalesCount) // Global average rounded to int
+                : 0;
+
+            // Previous Period Sales Cycle
+            const { data: prevSalesCycleLeads } = await supabase
+                .from('leads')
+                .select('created_at, closed_at, updated_at')
+                .eq('clinic_id', clinicId)
+                .eq('status', 'Venda Realizada')
+                .or(`closed_at.gte.${prevStartIso},updated_at.gte.${prevStartIso}`)
+                .or(`closed_at.lte.${prevEndIso},updated_at.lte.${prevEndIso}`);
+
+            const validPrevSales = (prevSalesCycleLeads || []).filter(lead => {
+                const closeDate = lead.closed_at ? new Date(lead.closed_at) : new Date(lead.updated_at);
+                return closeDate >= prevStart && closeDate <= prevEnd;
+            });
+
+            let prevTotalDays = 0;
+            let prevCycleSalesCount = 0;
+            validPrevSales.forEach(lead => {
+                const created = new Date(lead.created_at);
+                const closed = lead.closed_at ? new Date(lead.closed_at) : new Date(lead.updated_at);
+
+                const diffTime = Math.abs(closed.getTime() - created.getTime());
+                const exactDays = diffTime / (1000 * 60 * 60 * 24);
+                const roundedDays = customRound(exactDays);
+
+                prevTotalDays += roundedDays;
+                prevCycleSalesCount += 1;
+            });
+
+            const prevAvgSalesCycle = prevCycleSalesCount > 0
+                ? Math.round(prevTotalDays / prevCycleSalesCount)
+                : 0;
+
+            // Difference in days (Current - Previous)
+            // positive means slower (bad), negative means faster (good)
+            const avgSalesCycleGrowth = avgSalesCycle - prevAvgSalesCycle;
+
+
+            // Transforma em Array para o Gráfico (Procedure Breakdown)
+            const chartDataByProcedure: ProcedureData[] = Object.keys(procedureStats).map(name => {
+                const stats = procedureStats[name];
+                const avgDays = stats.salesCount > 0
+                    ? customRound(stats.totalDays / stats.salesCount)
+                    : 0;
+
+                return {
+                    name: name,
+                    days: avgDays
+                };
+            }).sort((a, b) => b.days - a.days);
+
+            // Add 'Geral' as the global average
+            if (currentCycleSalesCount > 0) {
+                chartDataByProcedure.unshift({
+                    name: 'Geral',
+                    days: avgSalesCycle // This is already the global average using custom rounding logic
+                });
+            }
+
+            set({
+                metrics: {
+                    revenue,
+                    salesCount,
+                    avgTicket,
+                    conversionRate,
+                    pipelineValue,
+                    pipelineCount,
+                    // Cálculos de Crescimento
+                    revenueGrowth: calculateGrowth(revenue, prevRevenue),
+                    salesGrowth: calculateGrowth(salesCount, prevSalesCount),
+                    avgTicketGrowth: calculateGrowth(avgTicket, prevAvgTicket),
+                    conversionRateGrowth: calculateGrowth(conversionRate, prevConversionRate),
+                    avgSalesCycle,
+                    avgSalesCycleGrowth
+                },
+                chartData: chartData.length > 0 ? chartData : [],
+                funnelData: funnelData,
+                chartDataByProcedure: chartDataByProcedure,
+                todayAppointments,
+                recentActivity: sortedActivities,
+                loading: false
+            });
+
+        } catch (error) {
+            console.error('Error fetching dashboard metrics', error);
+            set({ loading: false });
+        }
+    }
+}));

@@ -1,0 +1,957 @@
+# 📘 PROJECT MASTER BLUEPRINT: SEVENN CLINIC 360
+
+**Versão:** 5.0 (Deep-Dive Audit — SSOT Final)
+**Tipo:** SaaS Multi-tenant (B2B) para Clínicas de Estética e Odontologia.
+**Objetivo:** Transformar a gestão clínica em uma "Máquina de Prosperidade", unindo CRM de Vendas Multipipelined, IA Híbrida, Inteligência Financeira Real (Lucro Líquido + Projeções) e Gestão de Pacientes 360°.
+
+---
+
+## 1. STACK TECNOLÓGICA & INFRAESTRUTURA
+
+### 1.1 Frontend (Aplicação)
+* **Core:** Vite + React JS + TypeScript.
+* **UI System:** Tailwind CSS + ShadcnUI.
+* **State Management:** TanStack Query (Server State) + Zustand (Client State — `useFinanceStore`, `useSettingsStore`, `useUIStore`, `useServicesStore`, etc.).
+* **Routing:** `react-router-dom` com `useSearchParams` (URL-based tab navigation em Settings e Finance).
+* **Visualização de Dados:** Recharts (BarChart, AreaChart, PieChart — Gráficos Financeiros/BI).
+* **Interatividade:** `@dnd-kit/core` (Kanban Drag & Drop), `react-big-calendar` (Agenda).
+* **Ícones:** `lucide-react`.
+* **Export:** `xlsx` (Exportação de dados financeiros em XLSX).
+* **Datas:** `date-fns` + `date-fns/locale/ptBR`.
+
+### 1.2 Backend & Dados (Serverless)
+* **Plataforma:** Supabase.
+* **Database:** PostgreSQL.
+* **Auth:** Supabase Auth (Magic Link + Email/Senha).
+* **Storage:** Supabase Storage (Fotos Antes/Depois, Exames — Galeria do Lead).
+* **Realtime:** Supabase Realtime (Chat e Pipeline).
+
+### 1.3 Inteligência & Conectividade
+* **Orquestrador:** n8n (Self-hosted).
+* **LLM:** OpenAI GPT-4o-mini (Custo-benefício para Chat).
+* **WhatsApp:** Evolution API (Instâncias Docker isoladas por Clinic).
+* **Social:** Meta Graph API (Instagram Direct/Messenger).
+
+---
+
+## 1.4 Design System (Identity)
+
+* **Conceito Visual:** Emerald Precision™ — Premium Health Tech focado em precisão clínica, controle e sofisticação.
+* **Temas:**
+  * Light Mode (Executive Clean) – fundo claro (`#F8FAFC`), superfícies suaves e alto contraste informacional.
+  * Dark Mode (Obsidian Premium) – fundo Rich Black (`#060606`) com cards Charcoal (`#141414`), superfícies Slate (`#1F1F1F`), detalhes em verde.
+* **Primary Color:** Emerald Core (`#59A52C`) com Emerald Glow (`#6FCA3A`) para hovers e microinterações.
+* **Base Institucional:** Emerald Deep (`#0E3D2E`) aplicado em sidebar e áreas premium.
+* **Emerald Stroke:** (`#437D21`) para bordas e detalhes.
+* **Neutros Premium:**
+  * Obsidian Black `#060606` (Fundo Dark)
+  * Charcoal Soft `#141414` (Superfícies Dark)
+  * Slate Dark `#1F1F1F` (Cards Dark)
+  * Cloud White `#F8FAFC` (Fundo Light)
+  * Mist Gray `#E5E7EB` (Divisões e bordas)
+* **Gradientes:**
+  * **Principal (Marca):** `linear-gradient(135deg, #0E3D2E 0%, #59A52C 60%, #6FCA3A 100%)` — Para sidebar, CTAs, estados ativos. **Nunca** em cards comuns.
+  * **Superfície Ativa (Sutil):** `linear-gradient(180deg, rgba(111,202,58,0.18), rgba(111,202,58,0.02))` — KPIs, seleção, foco.
+* **Tipografia:**
+  * Primária (90%): **Manrope** (Body 14–15px/400, Label 12–13px/500, Semibold 600 restrito).
+  * Secundária (10%): **Space Grotesk** (Section Title 18–20px/500, KPI Principal 28–36px/600). **Nunca** em parágrafos longos.
+* **Superfícies:** Cards com bordas sutis, radius 14px, sombras leves (`0 8px 24px rgba(0,0,0,0.06)` Light / `0 12px 32px rgba(0,0,0,0.6)` Dark).
+* **Interações:** Hover `translateY(-2px)` em 200ms ease-out; Click `scale(0.98)`. Sticky Headers com `backdrop-filter: blur(12px)`.
+* **Gráficos (Executive BI):** Linha fina, gradiente quase invisível, gridlines em `rgba(0,0,0,0.04)`, valor sempre mais destacado que o gráfico. Evitar visual "cartoon".
+* **Sidebar:** Fundo Emerald Deep com gradiente sutil, texto branco suave, item ativo com barra lateral Emerald Glow e fundo gradiente. Ícones Lucide minimalistas.
+
+---
+
+## 1.5 Mapa de Navegação e Rotas
+
+A navegação foi reestruturada para suportar múltiplos funis de venda e gestão clínica.
+
+* **Sidebar Inteligente (Menu Expansível):**
+  * O item "CRM & Leads" expande para revelar os **3 Pilares de Receita**:
+    * **1. Oportunidades** (`/crm-oportunidades`): Pipeline de Vendas Principal.
+    * **2. Gestão de Pacientes** (`/crm-pacientes`): Pipeline de Ciclo de Vida.
+    * **3. Nutrição** (`/crm-nutricao`): Pipeline de Reaquecimento.
+  * **Demais Rotas:**
+    * `/dashboard` — Dashboard Geral
+    * `/agenda` — Calendário Multi-Profissional
+    * `/pacientes` — Gestão de Pacientes (Base & KPIs)
+    * `/financeiro` — Financeiro & BI Estratégico (4 sub-tabs via URL)
+    * `/configuracoes` — Configurações (7 sub-tabs via URL)
+    * `/admin` — SaaS Admin (Super Admin apenas)
+* **Lógica de Roteamento:**
+  * A rota antiga `/crm` redireciona automaticamente para `/crm-oportunidades`.
+  * Cada rota CRM carrega dinamicamente o `pipeline_id` correspondente, isolando dados.
+
+### 1.5.1 Padrão de Navegação por URL (Settings & Finance)
+
+Tanto `/configuracoes` quanto `/financeiro` adotam o padrão de **tabs por URL** via `useSearchParams`:
+
+**Finance Page** (`/financeiro`):
+| URL Param | Tab Key | Label |
+|---|---|---|
+| (nenhum) | `dashboard` | Visão Geral |
+| `?tab=lancamentos` | `transactions` | Lançamentos |
+| `?tab=comissoes` | `commissions` | Comissões |
+| `?tab=pendente` | `debtors` | Saldos |
+
+**Settings Page** (`/configuracoes`):
+| URL Param | Tab Key | Label |
+|---|---|---|
+| (nenhum) | `professionals` | Profissionais |
+| `?tab=servicos` | `services` | Procedimentos |
+| `?tab=clinica` | `clinic` | Clínica |
+| `?tab=financeiro` | `financial` | Financeiro |
+| `?tab=custos` | `costs` | Custos e Taxas |
+| `?tab=retorno` | `return-time` | Tempo de Retorno |
+| `?tab=documentos` | `documents` | Documentos |
+
+* **Header Dinâmico:** Cada página injeta suas tabs no header global via `useUIStore.setHeaderContent()`, com breadcrumb "Módulo / Sub-tab".
+
+---
+
+## 2. MODELO DE NEGÓCIO (PLG & FEATURE GATING)
+
+O sistema bloqueia/libera recursos via código baseado no plano da clínica (`clinics.plan_tier`).
+
+### 2.1 Tabela de Feature Gating
+
+| Feature | START (C) | GOLD (B) | BLACK (A) |
+| :--- | :--- | :--- | :--- |
+| **Canais** | 1 WhatsApp | WhatsApp + Instagram | Múltiplos WhatsApps |
+| **Atendimento** | Humano (Manual) | Agente IA (Secretária) | Agente IA Avançado |
+| **Financeiro** | Básico (Extrato) | Automático (Via Funil) | BI Real (Lucro Líquido + ROI + Projeções) |
+| **Marketing** | 🔒 Bloqueado | 🔒 Bloqueado | Remarketing em Massa + Ads |
+| **Gestão** | Solo | Clínica | Multi-unidades |
+| **CRM Secundário** | 🔒 Bloqueado | Pipeline Pacientes | Pipeline Pacientes + Nutrição |
+| **BI Avançado** | 🔒 Bloqueado | 🔒 Bloqueado | Projeções + Antecipação + Simulador |
+
+### 2.2 Componente `FeatureGate.tsx` (Implementação)
+
+O componente wrapper `FeatureGate` controla a renderização baseada no plano:
+
+* **Props:** `requiredPlan` (PlanTier: `start` | `gold` | `black`), `currentPlan` (default: `start`), `children`, `fallback`.
+* **Lógica:** Hierarquia numérica `start=1, gold=2, black=3`. Se `planLevels[currentPlan] >= planLevels[requiredPlan]` → renderiza children. Caso contrário, exibe fallback ou UI de bloqueio padrão.
+* **UI de Bloqueio Padrão:**
+  * Área com `backdrop-blur-sm`, ícone Lock, texto "Funcionalidade Bloqueada", botão "Fazer Upgrade" que abre Dialog com opções de plano Gold (Agente IA + Instagram) e Black (Multi-WPP + Marketing).
+
+### 2.3 SaaS Admin (`/admin` — `SaaSAdmin.tsx`)
+
+* **Interface:** `ClinicData` { id, name, plan_tier, is_active, created_at, owner_name }.
+* **Funcionalidades:**
+  * `fetchClinics()` — Lista todas as clínicas com owner name.
+  * `toggleClinicStatus(id, currentStatus)` — Ativa/desativa clínicas (inadimplência).
+  * Busca por nome, exibição de plano, gerenciamento de tags globais (`ManageTagsDialog`).
+
+---
+
+## 3. ARQUITETURA DE DADOS & SEGURANÇA (SCHEMA)
+
+**Regra de Ouro:** Toda tabela **DEVE** ter `clinic_id`. Toda query **DEVE** filtrar por `clinic_id`.
+**Segurança:** Row Level Security (RLS) habilitado em todas as tabelas.
+
+### 3.1 Tabelas Principais (Schema Real Implementado)
+
+1.  **`clinics`**
+    * `id` (UUID, PK), `name`, `plan_tier` ('start', 'gold', 'black'), `status`, `is_active`, `created_at`.
+    * **Campos Financeiros:** `meta_faturamento` (Decimal), `verba_marketing` (Decimal), `meta_margem_liquida` (Decimal — % alvo), `imposto_aliquota` (Decimal — % Simples Nacional).
+    * **Campos de Pacientes:** `vip_ltv_threshold` (Decimal — Limiar LTV para VIP, default: 10000).
+2.  **`profiles`** (Extensão de `auth.users`)
+    * `id` (FK auth.users), `clinic_id` (FK clinics), `role` ('owner', 'manager', 'staff'), `full_name`, `avatar_url`.
+3.  **`leads`**
+    * `id` (UUID, PK), `clinic_id`, `name`, `phone`, `email`, `status` ('Novo', 'Qualificado', ... 'Venda Realizada'), `pipeline_stage_id`, `procedure`, `budget`, `total_ltv`.
+    * **Campos de Inteligência:** `custom_id` (Numeric String — ex: "00142"), `closed_at` (Timestamp), `sales_cycle_days` (Decimal), `stage_history` (JSONB Array).
+    * **Campos de Agendamento:** `sevenn_score` (0-100).
+4.  **`pipeline_stages`**
+    * `id`, `clinic_id`, `pipeline_id` ('vendas_principal', 'gestao_pacientes', 'nutricao'), `name`, `order_index`, `color`.
+    * A coluna `pipeline_id` é vital para o isolamento dos funis na query `fetchBoardData`.
+5.  **`appointments`**
+    * `id`, `clinic_id`, `lead_id` (FK leads), `professional_id` (FK professionals), `procedure_id` (FK services), `start_time`, `end_time`, `status` ('Pendente', 'Confirmado', 'Chegou', 'Concluído', 'Cancelado'), `notes`.
+6.  **`services`**
+    * `id`, `clinic_id`, `name`, `base_price`, `duration` (minutos), `custo_material` (Decimal — CMV por execução).
+    * **Campos Futuros:** `target_sales_cycle_days` (Int), `periodicidade_retorno_meses` (Int — para automação Stage 017).
+7.  **`professionals`**
+    * `id`, `clinic_id`, `name`, `specialty`, `phone`, `color`, `commission_percentage` (Decimal), `is_active` (Boolean).
+    * **Campos Híbridos:** `tipo_atuacao`, `descontar_taxas` (Boolean — deduct card fees from commission base), `descontar_material` (Boolean — deduct material cost from commission base).
+8.  **`financial_transactions`**
+    * `id`, `clinic_id`, `amount`, `type` ('income', 'expense'), `category`, `status` ('paid', 'pending'), `transaction_date`, `description`, `payment_method` ('pix', 'debito', 'credito_parcelado', 'credito'), `installments` (Int), `lead_id` (FK leads), `professional_id` (FK professionals), `commission_status`, `commission_paid_at`, `metadata` (JSONB — `{ procedure_name, patient_name }`).
+9.  **`config_taxas_pagamento`**
+    * `clinic_id`, `metodo_pagamento` ('pix', 'debito', 'credito_1x', 'credito_2x_4x', 'credito_5x_8x', 'credito_9x_12x'), `taxa_percentual` (Decimal).
+    * **Unique Constraint:** `(clinic_id, metodo_pagamento)` para `UPSERT`.
+10. **`antecipacoes_financeiras`**
+    * `id`, `clinic_id`, `mes_referencia` (Date String), `valor_bruto_retirado`, `valor_taxa`, `valor_liquido_recebido`, `created_at`.
+11. **`messages`**
+    * `id`, `clinic_id`, `lead_id`, `content`, `sender` ('user', 'lead', 'ai'), `channel` ('whatsapp', 'instagram').
+12. **`clinic_documents`**
+    * `id`, `clinic_id`, `name`, `file_url`, `type`, `created_at`.
+
+---
+
+## 4. MÓDULO CRM & VENDAS (MOTOR DE RECEITA)
+
+* **Kanban Dinâmico:** Drag & drop entre colunas com `@dnd-kit/core`. Ao mover para "Venda Realizada", abrir modal de lançamento financeiro.
+* **Sevenn Score:** Algoritmo de temperatura do lead (+20 Novo Lead, +10 Resposta, +20 Clique Proposta, -10 Inativo >72h).
+* **Chat Multicanal:** Interface unificada (WhatsApp + Insta).
+  * **Botão de Pânico:** "Pausar IA" (passa para humano).
+  * **Notas Internas:** Chat invisível para a equipe dentro do lead.
+
+### 4.1 Arquitetura de Pipelines (Multi-Funil)
+O sistema não opera mais com um único Kanban. A operação é dividida em 3 contextos distintos para evitar poluição visual e cognitiva.
+
+1.  **Pipeline de Oportunidades (Vendas):**
+    *   **Foco:** Conversão de novos leads em pacientes pagantes.
+    *   **Estágios Típicos:** Novo Lead, Qualificado, Agendou Avaliação, Compareceu, Negociação, Venda Realizada.
+2.  **Pipeline de Gestão de Pacientes (Ciclo de Vida):**
+    *   **Foco:** Entrega do serviço e fidelização. O paciente entra aqui automaticamente após "Venda Realizada".
+    *   **Estágios Típicos:** Em Tratamento, Aguardando Retorno, Finalizado, Alta.
+    *   **Transição de Nomenclatura:** Reforçar o termo **"Procedimento"** ao invés de "Tratamento" para procedimentos estéticos pontuais.
+3.  **Pipeline de Nutrição (Resgate):**
+    *   **Foco:** Reaquecimento de base morta ou ociosa.
+    *   **Estágios Típicos:** Lead Frio, Tentativa de Contato 1/2/3, Reaquecido.
+
+### 4.2 Lógica de IDs Estruturados (Human-Readable)
+* **Formato:** Série numérica simples (ex: `001`, `002`, `1042`).
+* **Implementação:** UUID (`id`) como PK + coluna `custom_id` (Serial) gerada por Trigger/Sequence.
+* **Busca:** Campo de busca global aceita nome e ID numérico.
+
+### 4.3 Inteligência de Ciclo de Venda & SLA
+* **SLA Dinâmico:** Badge na ficha do lead compara dias em aberto vs meta (`target_sales_cycle_days`).
+* **Alerta Visual:** Badge Âmbar/Laranja se exceder SLA.
+* **Cálculo Automático:** Ao fechar venda, sistema grava `closed_at` e `sales_cycle_days`.
+
+### 4.4 Inteligência de Retorno (LTV) — Etapa 017
+* **Gatilho:** Status `Concluído` em `appointments` → verifica periodicidade do serviço.
+* **Ação:** Cria card no Pipeline Nutrição/Gestão com data de follow-up agendada para X meses.
+* **Tag:** Lead recebe `Oportunidade Retorno`.
+* **Status Atual:** A periodicidade de retorno por tag/procedimento está prevista no schema (`periodicidade_retorno_meses`) mas **ainda não implementada** no frontend.
+
+---
+
+## 5. MÓDULO IA & AUTOMAÇÃO (O CÉREBRO)
+
+* **Agente Secretária:** Qualifica leads, consulta disponibilidade em `appointments` e oferece horários.
+* **Confirmação Inteligente:** Disparo WhatsApp 24h antes. Se confirma, status → `Confirmado`.
+* **NPS Smart Delay:** Disparo 24h após `Concluído`. Nota 9-10: link Google Maps. Nota 0-6: alerta Gerente.
+
+### 5.1 Fluxos de Automação (n8n)
+1.  **Entrada de Mensagem:** Recebe Msg → Verifica `clinic_id` → Verifica `ai_active` → OpenAI → Devolve Resposta.
+2.  **Agendamento via IA:** IA detecta intenção → Function Calling → Consulta Slots no Supabase → Retorna horários → Confirma → Grava em `appointments`.
+3.  **Sync Google Agenda:** Novo agendamento no Supabase → Cria evento Google Calendar do profissional.
+4.  **Coleta de Custos de Ads:** Cron (00:01) → API Facebook Ads → Salva em `marketing_expenses`.
+
+---
+
+## 6. MÓDULO FINANCEIRO & BI ESTRATÉGICO
+
+O módulo Financeiro é o mais denso da aplicação, dividido em 4 sub-tabs acessíveis via URL (`/financeiro?tab=...`).
+
+### 6.1 Visão Geral (Dashboard) — `FinanceDashboardTab.tsx`
+
+#### 6.1.1 KPIs Principais (4 Cards)
+| KPI | Fonte | Lógica |
+|---|---|---|
+| **Faturamento Bruto** | `metrics.totalRevenue` | Soma de `income` com `status = paid` no período |
+| **Lucro Líquido** | `metrics.totalProfit` | `Faturamento - (Comissões + Materiais + CustosFixos)` |
+| **Margem Líquida** | `metrics.profitMargin` | `(Lucro / Faturamento) × 100` |
+| **Ticket Médio** | Calculado | `Faturamento / count(transactions)` |
+
+* **Comparativo de Crescimento:** Query paralela ao período anterior (mesmo número de dias). Exibe `+X%` ou `-X%` no card de Faturamento Bruto.
+* **Margem Status:** `>= meta` → "Ótima Performance" (emerald); `< meta - 5` → "Baixa Performance" (red); else → "Estável" (blue).
+
+#### 6.1.2 Meta de Faturamento
+* **Progress Bar:** `currentRevenue / revenueGoal × 100`, capped at 100%. Bar color `#59A52C`.
+* **Fonte de Dados:** `clinics.meta_faturamento` via `fetchFinanceData`.
+
+#### 6.1.3 Insight Margem de Contribuição
+* Margem `< 0` → "Prejuízo Operacional" (vermelho), `< 15%` → "Margem Apertada" (âmbar), else → "Operação Saudável" (verde).
+
+#### 6.1.4 Gráfico de Evolução de Vendas
+* **Visão Diária:** `eachDayOfInterval(startOfMonth(now), now)` → Mapeia para revenue por dia. X-axis: '01', '02', etc.
+* **Visão Mensal:** Agrupamento por mês (Jan, Fev...), disponível apenas se período selecionado >= 60 dias.
+
+#### 6.1.5 Top 5 Pacientes
+* Agrupamento de `income` por `patient` name → sort descending → `slice(0, 5)`.
+
+#### 6.1.6 Lucratividade Real por Procedimento
+* Agrupa por nome do procedimento, cruzando com `services` (whitelist). Procedimentos não oficiais → "Outros" (sem custo).
+* **Toggle Gross/Net:** O usuário pode alternar entre visualização bruta e líquida.
+
+#### 6.1.7 Planejamento Financeiro & Projeções (Credit Receivable Projection)
+
+Este é o motor mais complexo do dashboard. Projeta os recebíveis de **crédito parcelado** pelos próximos 12 meses.
+
+* **Lookback:** 24 meses de transações de crédito (`payment_method` ILIKE `%credit%` | `%crédito%` | `%credito%`).
+* **Algoritmo de Distribuição de Parcelas:**
+  1. Para cada transação de crédito: `parcelaLiquida = (amount × (1 - feePercent/100)) / installments`.
+  2. Cada parcela é projetada para recebimento em `D+30 × parcela` → `addMonths(saleDate, p + 1)`.
+  3. Parcelas caem em "buckets" mensais (0-11, sendo 0 = mês atual).
+* **KPIs de Projeção:**
+  * **Total Garantido (12 Meses):** Soma dos 12 buckets.
+  * **Pico de Recebimento:** Mês com maior valor.
+  * **Média Mensal:** Total / 12.
+  * **Visão Trimestral:** Q1 (Jan-Mar), Q2 (Abr-Jun), Q3 (Jul-Set), Q4 (Out-Dez) baseado no mês real (`getMonth()`).
+* **Charts:** BarChart (gradiente verde `#4ade80` → `#86efac`) + AreaChart (curva de recebimento).
+
+#### 6.1.8 Sistema de Antecipação de Recebíveis
+
+Modal wizard de 3 steps para registrar antecipações bancárias:
+
+1. **Step 1 — Seleção de Mês:** Lista meses futuros com saldo > 0. Card clicável com nome do mês e valor disponível.
+2. **Step 2 — Inputs:** Valor a antecipar (max = saldo do mês), Taxa da operação (% → calcula R$ automaticamente e vice-versa). Preview "Receberá Hoje".
+3. **Step 3 — Confirmação:** Resumo (Mês, Valor Bruto, Taxa, Valor Líquido). Botão "Confirmar Antecipação".
+* **Efeito no Projection:** Subtrai `valor_bruto_retirado` do bucket do mês de referência. Soma `valor_liquido_recebido` ao bucket do mês atual (index 0).
+* **Persistência:** `antecipacoes_financeiras` table. `registerAnticipation()` no `useFinanceStore`.
+* **Histórico:** Modal separado listando todas as antecipações registradas.
+
+### 6.2 Inteligência Híbrida de Comissões — Engine (`useFinanceStore.fetchFinanceData`)
+
+O cálculo de comissões é feito **linha-a-linha** (Row-Level Calculation) para cada transação de income.
+
+#### 6.2.1 Pipeline de Cálculo (por transação)
+
+```
+A. Identificar Profissional → professionals.find(p => p.id === t.professional_id)
+B. Calcular Taxa de Cartão:
+   - payment_method === 'credito_parcelado' || 'credito' →
+     - 1 parcela → config_taxas.credito_1x
+     - 2-4 parcelas → config_taxas.credito_2x_4x
+     - 5-8 parcelas → config_taxas.credito_5x_8x
+     - 9+ parcelas → config_taxas.credito_9x_12x
+   - Outros métodos → config_taxas[method]
+   - transactionFeeVal = amount × (feePercent / 100)
+C. Material Cost → materialMap.get(procedureName) || 0
+D. Base de Cálculo:
+   - baseDeCalculo = amount
+   - IF professional.descontar_taxas → baseDeCalculo -= transactionFeeVal
+   - IF professional.descontar_material → baseDeCalculo -= materialCostVal
+   - IF baseDeCalculo < 0 → baseDeCalculo = 0
+E. Comissão Final = baseDeCalculo × (professional.commission_percentage / 100)
+```
+
+#### 6.2.2 Lógica da "Fatia Laranja" (Custos Operacionais)
+
+```
+IF filtro de profissional/procedimento ativo:
+  displayedFixedCosts = totalCardFees (apenas)
+ELSE:
+  displayedFixedCosts = totalCardFees + marketingInvested + totalOperatingCosts + totalTaxes
+```
+
+* **Impostos:** `totalRevenue × (clinics.imposto_aliquota / 100)` — zerado se filtro ativo.
+* **Marketing:** `clinics.verba_marketing` — zerado se filtro ativo.
+* **Operating Costs:** Todas as expenses `paid` EXCETO categorias 'Comissões', 'Taxas Financeiras', 'Impostos' (para evitar dupla contagem).
+
+#### 6.2.3 Resultado Final
+
+```
+totalProfit = totalRevenue - (totalCommissions + totalMaterials + displayedFixedCosts)
+profitMargin = (totalProfit / totalRevenue) × 100
+```
+
+### 6.3 Lançamentos (Transactions CRUD) — `TransactionsManagerTab.tsx`
+
+* **DataTable:** Powered by `@tanstack/react-table` com ordenação e paginação.
+* **Colunas:** Data, Tipo (income/expense com ícone), Paciente (link para CRM), Procedimento, Profissional, Método de Pagamento, Valor, Status.
+* **Filtros:** Período (Hoje, 7 dias, 30 dias, Mês Anterior, 3 Meses, Custom), Tipo (Receita/Despesa), Busca textual.
+* **CRUD:** Adicionar (Modal), Editar (Modal), Deletar (Confirmação). Confirmar Recebimento (status `pending` → `paid`).
+* **Exportação XLSX:** `handleExport()` usando `xlsx` library. Gera label de período localizado em pt-BR.
+* **Enrichment:** Cada transação é enriched com `patient` (via `leads.name`), `procedure` (via `metadata.procedure_name || leads.procedure`), `professional_name`, `calculated_commission`.
+
+### 6.4 Comissões — `CommissionsTab.tsx`
+
+* **Filtros:** Seleção de Mês e Ano (dropdowns). Query `fetchFinanceData` com filtro de período.
+* **Tabela:** Profissional, Nº Atendimentos, Total Faturado, % Comissão, Valor Comissão, Status (Pendente/Paga).
+* **Ações em Lote:**
+  * `handleToggleAll(checked)` — Seleciona/deseleciona todas as comissões pendentes.
+  * `handleToggleOne(id, checked)` — Toggle individual.
+  * `handlePayCommissions()` — Marca como pago em batch (atualiza `commission_status` e `commission_paid_at`).
+* **KPIs:** TrendingUp (Total pago), Users (Profissionais ativos), Wallet (Pendente total).
+
+### 6.5 Saldos (Devedores) — `DebtorsTab.tsx`
+
+* **Interface `Debtor`:** { patientName, totalDebt, phone, lastTransactionDate, oldestTransactionDate, transactions[], leadId, status }.
+* **`processDebtors()`:** Agrupa transações `income` com `status = pending` por paciente. Calcula total, data mais antiga e mais recente.
+* **Ações:**
+  * `handleConfirmReceipt(t)` — Confirma recebimento de transação individual.
+  * `handleRegisterPayment()` — Registra pagamento novo.
+  * Link para CRM do paciente via `leadId`.
+
+---
+
+## 7. MÓDULO CLÍNICO & PACIENTES
+
+### 7.1 Super Modal (Perfil 360)
+* **Timeline:** Histórico cronológico (Msgs, Compras, Faltas).
+* **Galeria:** Fotos Antes/Depois (Supabase Storage).
+* **Resumo IA:** Briefing de 3 pontos gerado por IA antes da consulta.
+    * **Galeria:** Fotos Antes/Depois (Supabase Storage).
+    * **Resumo IA:** Briefing de 3 pontos gerado por IA antes da consulta.
+* **LTV & Demografia:** Dashboard com idade, gênero e valor total gasto pelo paciente (Lifetime Value).
+* **KPI de Velocidade:** Indicador "Ciclo Médio de Venda" na lista de pacientes, mostrando a agilidade de fechamento da carteira.
+
+### 7.2 Gestão de Pacientes — `PatientsPage.tsx`
+
+
+#### 7.2.1 Critério de Entrada
+Pacientes = Leads com `status = 'Venda Realizada'`. Query: `leads.eq('status', 'Venda Realizada')`.
+
+
+#### 7.2.2 Sistema de Tiers (Classificação Automática)
+
+
+| Tier | Label | Condição |
+|---|---|---|
+| `vip` | VIP (Diamante) | `total_ltv >= clinic.vip_ltv_threshold` (default R$ 10.000) |
+| `ativo` | Ativo | Criado nos últimos 6 meses, não VIP, não Inativo |
+| `novo` | Novo | Recém-adquirido |
+| `recorrente` | Recorrente | Compras repetidas |
+| `ausente` / `inativo` | Inativo | Sem visita há > 12 meses |
+
+
+* **VIP Threshold Configurável:** Em Configurações > Clínica (`ClinicSettingsTab.tsx`). Campo `vip_ltv_threshold` na tabela `clinics`.
+
+
+#### 7.2.3 Sistema de Tabs (Segmentação)
+
+
+| Tab Key | Label | Ícone | Filtro |
+|---|---|---|---|
+| `todos` | Todos | Users | Sem filtro |
+| `ativos` | Ativos | TrendingUp | Criados nos últimos 6 meses, não VIP, não Inativo |
+| `vips` | VIPs (Diamante) | Crown | `tier === 'vip'` |
+| `retorno` | Para Retorno | Clock | Última visita entre 4-6 meses atrás |
+| `aniversariantes` | Aniversariantes | Cake | Mês de aniversário = mês selecionado |
+| `inativos` | Inativos (Risco) | AlertTriangle | Sem visita há > 12 meses |
+| `devedores` | Saldos em Aberto | DollarSign | `outstandingBalance > 0` |
+| `assinaturas` | Assinaturas Pendentes | FileText | Assinaturas ativas pendentes |
+
+
+#### 7.2.4 KPIs Calculados (useMemo sobre `filteredPatients`)
+
+
+| KPI | Cálculo |
+|---|---|
+| **Base Ativa** | Pacientes com última visita nos últimos 6 meses |
+| **LTV Médio** | `totalLtv / count(patients)` |
+| **Ticket Médio Total** | Soma total de LTV de todos os pacientes |
+| **Recorrência Pendente** | Última visita entre 4-6 meses atrás (zona de risco) |
+| **Ciclo Médio de Venda** | Média de `sales_cycle_days` dos leads fechados |
+
+
+#### 7.2.5 Filtros Combinados
+* **Busca textual** por nome.
+* **Filtro por Procedimento:** Dropdown com lista de serviços oficiais.
+* **Filtro por Período:** Date range picker aplicado sobre `createdAt` (data de venda).
+* **Filtro por Mês de Aniversário** (exclusivo da tab Aniversariantes).
+
+
+#### 7.2.6 Cálculo de LTV do Paciente (fetchPatients)
+1. Query `leads` com status 'Venda Realizada' + JOIN `appointments`.
+2. Query separada `financial_transactions` tipo `income` para toda a clínica.
+3. Match por `lead_id` para agregar: Total gasto, Outstanding balance, Data efetiva de início, Último procedimento.
+4. Normalização de status strings para filtro preciso.
+
+
+#### 7.2.7 Exportação
+* Botão de export dos dados filtrados.
+* Link do nome do paciente navega para `/crm?leadId=ID_DO_LEAD`.
+
+
+------------------------------------------
+## 8. MÓDULO AGENDA & OPERAÇÃO CLÍNICA
+
+
+### 8.1 Calendário Multi-Profissional — `Calendar.tsx`
+
+
+* **Engine:** `react-big-calendar` com DnD (`react-big-calendar/lib/addons/dragAndDrop`).
+* **Visões:** Week (padrão), Day, Month. Filtro por profissional.
+* **EventComponent Custom:** Renderização diferenciada por status:
+  * `blocked` → Visual de slot bloqueado.
+  * `Cancelado` → Fundo vermelho claro + borda vermelha.
+  * High Value (`procedurePrice > 3000`) → Border âmbar + glow dourado.
+
+
+### 8.2 Máquina de Status de Appointment
+
+
+```
+PENDENTE → CONFIRMADO → CHEGOU → CONCLUÍDO
+         └→ CANCELADO
+```
+
+
+* **Default:** Novo appointment = `Pendente`.
+* **Fluxo de Confirmação:** 24h antes → disparo WhatsApp → cliente confirma → `Confirmado`.
+* **Interceptor de Conclusão:** Ao mudar para `Concluído`:
+  1. `setPendingFinishId(id)` → Abre modal de confirmação (`finishConfirmationOpen`).
+  2. Após confirmação, executa `executeStatusUpdate` com automação:
+     * Move lead no CRM (pode disparar lançamento financeiro).
+     * Atualiza `total_ltv` do lead.
+     * Dispara gatilho para Stage 017 (LTV/Retorno).
+
+
+### 8.3 Validação de Conflito de Horário
+* **Regra:** Dois agendamentos não podem sobrepor-se para o **mesmo profissional**.
+* **Implementação:** Check no `appointments` table antes de persistir. Se conflito: toast de erro + cancelamento.
+
+
+### 8.4 Drag & Drop
+* **`onEventDrop`:** Move evento no tempo (altera `start_time` e `end_time`), validando conflitos.
+* **`onEventResize`:** Redimensiona duração do evento.
+
+
+### 8.5 Integração CRM → Agenda
+* **Botão "Agendar" no Lead:** `navigate('/agenda', { state: { action: 'new_appointment', leadId } })`.
+* **CalendarPage:** Detecta `location.state.action === 'new_appointment'`:
+  1. Seta `initialModalData` com `leadId`.
+  2. Abre `AddAppointmentModal`.
+  3. Limpa state com `window.history.replaceState` (previne reopen no refresh).
+
+------------------------------------------
+## 9. MÓDULO CONFIGURAÇÕES — `Settings.tsx`
+
+
+### 9.1 Estrutura (7 Tabs via URL)
+Header dinâmico injetado via `useUIStore.setHeaderContent()`. Breadcrumb "Configurações / Sub-tab".
+
+
+### 9.2 Tab: Profissionais (`?tab=professionals` — default)
+* CRUD de profissionais: nome, especialidade, telefone, cor, percentual de comissão, status ativo/inativo.
+* **Campos Híbridos:** `descontar_taxas`, `descontar_material` (toggles booleanos para cada profissional).
+* **Store:** `useSettingsStore.fetchProfessionals(clinicId)` → Supabase query com `eq('is_active', true)`.
+
+
+### 9.3 Tab: Procedimentos (`?tab=servicos`)
+* CRUD de serviços: nome, preço base, duração (minutos), custo de material (CMV).
+
+
+### 9.4 Tab: Clínica (`?tab=clinica`)
+* **`ClinicSettingsTab.tsx`:**
+  * Campo: "Valor Mínimo para Paciente VIP (LTV Acumulado)" → `clinics.vip_ltv_threshold`.
+  * Default: R$ 10.000. Persistido via `supabase.from('clinics').update()`.
+
+
+### 9.5 Tab: Financeiro (`?tab=financeiro`)
+* **`FinancialSettings.tsx`:**
+  * **Planejamento Mensal:**
+    * Meta de Faturamento (`meta_faturamento`) — Input com máscara de moeda BR (pontos e vírgulas). `formatMoney()` / `parseMoney()`.
+    * Meta de Margem de Lucro (`meta_margem_liquida`) — Input percentual.
+    * Verba de Marketing (`verba_marketing`) — Input com máscara de moeda BR.
+  * **Taxas de Maquininha:**
+    * 6 tipos de pagamento configuráveis: Pix, Cartão Débito, Crédito 1x, Crédito 2x-4x, Crédito 5x-8x, Crédito 9x-12x.
+    * **Auto-save:** Salva automaticamente ao sair do campo (`onBlur`) via `UPSERT` na `config_taxas_pagamento`.
+
+
+### 9.6 Tab: Custos e Taxas (`?tab=custos`)
+* **`Config_taxas_pagamento.tsx`:**
+  * Lista de serviços com `custo_material` editável (input com máscara de moeda).
+  * Exibe `preco_base` como referência para cálculo de margem.
+
+
+### 9.7 Tab: Tempo de Retorno (`?tab=retorno`)
+* **Status:** Placeholder na navegação. Lógica de periodicidade por procedimento **ainda não implementada** no frontend.
+* **Propósito Futuro:** Configurar X meses de retorno por tipo de procedimento/tag para automação Stage 017.
+
+
+### 9.8 Tab: Documentos (`?tab=documentos`)
+* Gerenciamento de documentos da clínica (contratos, termos).
+
+---------------------------------------------
+
+## 10. CONTROLE DE ACESSOS INTERNOS (RBAC)
+
+Este módulo blinda a aplicação, definindo **quem vê o quê**. A segurança é aplicada em duas camadas: Interface (UX) e Banco de Dados (Segurança Real).
+
+### 10.1. Estrutura de Dados (Roles)
+A tabela `profiles` (vinculada ao `auth.users`) possui a coluna obrigatória `role`:
+* **Enum:** `'owner'`, `'manager'`, `'staff'`.
+* **Padrão:** Novos convites de e-mail devem definir o role no momento da criação. O primeiro usuário (criador da conta) é sempre `'owner'`.
+
+
+### 10.2. Regras de Interface (Frontend Logic)
+O Frontend deve esconder visualmente elementos que o usuário não pode acessar.
+
+* **Menu Lateral (Sidebar):**
+    * **Financeiro:** Renderizar APENAS SE `role === 'owner' OR 'manager'`.
+    * **Marketing / Configurações:** Renderizar APENAS SE `role === 'owner'`.
+    * **Staff (Secretária):** Vê apenas *Agenda*, *Chat*, *Pacientes* e *Kanban*.
+* **Botões de Ação (Critical Actions):**
+    * **Botão `Deletar Lead`:** Renderizar APENAS SE `role === 'owner'`. (Evita que funcionário apague leads por erro ou má fé).
+    * **Botão `Exportar Relatório Completo`:** Renderizar APENAS SE `role === 'owner'`.
+* **Mascaramento de Dados:**
+    * No "Super Modal" do Lead, o campo `Total Gasto (LTV)` deve aparecer como `R$ ****` se o usuário for `'staff'`.
+
+
+### 10.3. Regras de Segurança (Backend / Supabase RLS)
+A segurança real acontece no banco. Mesmo que um usuário "staff" tente chamar a API manualmente ou inspecionar o código, o banco deve rejeitar a leitura.
+
+**Políticas de RLS (Row Level Security) Obrigatórias:**
+
+1.  **Tabela `financial_transactions` (Financeiro):**
+    * **Política:** `DENY ALL` para role `'staff'`.
+    * **Regra SQL (Exemplo):**
+        ```sql
+        create policy "Staff cannot see finances"
+        on financial_transactions
+        for select
+        using (
+          (select role from profiles where id = auth.uid()) in ('owner', 'manager')
+        );
+        ```
+
+2.  **Tabela `marketing_expenses` (Marketing):**
+    * **Política:** Visível apenas para `'owner'`.
+
+3.  **Tabela `leads` (Deleção):**
+    * **Política:** `DELETE` permitido apenas para `'owner'`.
+    * **Regra SQL (Exemplo):**
+        ```sql
+        create policy "Only Owner can delete leads"
+        on leads
+        for delete
+        using (
+          (select role from profiles where id = auth.uid()) = 'owner'
+        );
+        ```
+
+**Resumo da Blindagem:**
+Isso garante que, mesmo que a secretária seja "hacker" e tente chamar a API direto via Postman ou Console do Navegador, o Supabase retorna um erro de permissão (403 Forbidden), protegendo os dados financeiros da clínica.
+
+------------------------------------------
+
+## 11. MÓDULO SUPER ADMIN (HOLDING)
+
+
+* **Visão de Deus:** Acesso apenas para equipe Resili Sevenn (rota `/admin`).
+* **Dashboard Valuation:** MRR Total, Churn Rate (futuro).
+* **Gestão de Clinics:** Lista de clínicas, Ativar/Bloquear inadimplente (`toggleClinicStatus`), Filtro/Busca por nome, Exibição de plano (Start/Gold/Black).
+* **Impersonation:** Botão "Logar como Cliente" para suporte técnico (futuro).
+* **Tags Globais:** `ManageTagsDialog` para gerenciar tags disponíveis em todas as clínicas.
+
+------------------------------------------
+
+
+## 10. ROADMAP TÉCNICO DE IMPLEMENTAÇÃO (DETALHADO)
+
+### ✅ FASE 1: FUNDAÇÃO & SEGURANÇA --> Dias 01 a 03 (CONCLUÍDO)
+* **Backend (Supabase):**
+    * [x] Configurar projeto e variáveis de ambiente (`.env`).
+    * [x] Criar tabelas core (`clinics`, `profiles`).
+    * [x] Implementar **RLS (Row Level Security)** base: `auth.uid() -> profile.id -> clinic_id`.
+* **Frontend (Vite+React):**
+    * [x] Instalar ShadcnUI, Tailwind, Lucide React.
+    * [x] Criar Layout Base (Sidebar, Header, ThemeProvider).
+    * [x] Implementar Contexto de Auth (`AuthProvider`).
+
+----------------------
+
+### ✅ FASE 2: CRM CORE & MOTOR DE VENDAS --> DIAS 04-07 (CONCLUÍDO)
+**Foco:** O usuário precisa ver leads e movê-los no Kanban.
+* **Backend (Supabase):**
+    * [x] Criar tabelas: `leads`, `pipeline_stages`.
+    * [x] **Database Trigger:** Criar função SQL `update_sevenn_score()` que recalcula a pontuação (+20, -10) sempre que a tabela `messages` ou `leads` for atualizada.
+    * [x] **Realtime:** Habilitar *Replication* na tabela `leads` para o Kanban atualizar sozinho.
+* **Frontend (Components):**
+    * [x] **`KanbanBoard.tsx`**: Implementar `@dnd-kit/core` para arrastar cards.
+    * [x] **`LeadCard.tsx`**: Componente visual exibindo Nome, Status e o gráfico circular do **Sevenn Score**.
+    * [x] **`NewLeadModal.tsx`**: Formulário com validação Zod para criar leads manualmente.
+    * [x] **Lógica de Negócio**: Ao soltar o card na coluna "Venda Realizada", disparar gatilho que abre o modal de `FinancialTransaction`.
+
+----------------------
+
+### ✅ FASE 3: AGENDA & OPERAÇÃO CLÍNICA --> DIAS 08-14 (CONCLUÍDO)
+**Foco:** O calendário precisa ser multi-profissional e inteligente.
+* **Backend (Supabase):**
+    * [x] Criar tabelas: `professionals`, `services`, `appointments`.
+    * [x] **Constraint SQL:** Criar função para impedir *overlapping* (dois agendamentos no mesmo horário para o mesmo profissional).
+* **Frontend (Components):**
+    * [x] **`CalendarView.tsx`**: Grid semanal/diário filtrável por `professional_id`.
+    * [x] **`ServiceSelector.tsx`**: Dropdown que puxa a duração do serviço e calcula o horário de fim automaticamente.
+    * [x] **`ProfessionalSettings.tsx`**: Tela para definir cor do médico e % de comissão.
+    * [x] Calendário com `react-big-calendar`, multi-profissional, drag & drop.
+    * [x] Status machine (Pendente → Confirmado → Chegou → Concluído / Cancelado).
+    * [x] Validação de conflito de horário.
+    * [x] Integração CRM → Agenda (botão Agendar navega com state).
+
+----------------------
+### ✅ FASE 4: BI FINANCEIRO & LUCRO REAL --> DIAS 15-21 (CONCLUÍDO)
+**Foco:** Cálculos matemáticos precisos no Frontend.
+* **Backend (Supabase):**
+    * [x] Criar tabelas `financial_transactions` e `material_costs`.
+    * [x] **View SQL** `monthly_profit_report`: Uma view materializada para agilizar o carregamento de gráficos pesados.
+* **Frontend (Components):**
+    * [x] **`FinancialDashboard.tsx`**: Implementar gráficos `Recharts` (Barra, Linha, Pizza).
+    * [x] **Lógica de Cálculo**: Criar hook `useProfitCalculator` que recebe faturamento bruto e subtrai (Taxa Cartão + Comissões + Materiais).
+    * [x] **`CommissionReport.tsx`**: Tabela geradora de PDF com o valor a pagar para cada médico.
+
+
+* [x] `useFinanceStore` com cálculo híbrido de comissões (Row-Level).
+* [x] Projeção de recebíveis (24-month lookback, 12-month forward).
+* [x] Sistema de Antecipação (wizard 3-step, persistência, efeito nos buckets).
+* [x] Dashboard com KPIs, growth comparativo, insights de margem.
+* [x] TransactionsManagerTab com CRUD, filtros, export XLSX.
+* [x] CommissionsTab com batch pay, month/year selection.
+* [x] DebtorsTab com agrupamento de saldos e confirmação de recebimento.
+* [x] FinancialSettings com metas, marketing, taxas de maquininha (auto-save on blur).
+
+----------------------
+### ✅ FASE 5: PACIENTES 360 --> DIAS 22-28 (CONCLUÍDO)
+* [x] PatientsPage com 8 tabs de segmentação, 5 KPIs dinâmicos.
+* [x] Sistema de Tiers (VIP, Ativo, Inativo etc.) com threshold configurável.
+* [x] LTV calculado por cross-join de leads + transactions.
+* [x] Filtros combinados (busca, procedimento, período, aniversário).
+* [x] Link de paciente → CRM.
+
+----------------------
+
+### ✅ FASE 6: SUPER ADMIN & FEATURE GATING --> DIAS 01 a 10 (CONCLUÍDO)
+* [x] `FeatureGate.tsx` com hierarquia de planos (Start/Gold/Black).
+* [x] SaaSAdmin com listagem de clínicas, toggle de status, gerenciamento de tags.
+* [x] Settings com 7 tabs (URL-based navigation), header dinâmico.
+* [x] ClinicSettingsTab (VIP threshold), Config_taxas_pagamento (custos material).
+
+----------------------
+
+### ⏳ FASE 7: IA, CHAT & AUTOMATION --> DIAS 29-35 (EM ANDAMENTO)
+**Foco:** Conectar o "cérebro" e a "boca" do sistema.
+* **Infraestrutura (Docker/n8n):**
+    * [ ] Subir container da **Evolution API** (Isolado por Clinic).
+    * [ ] Configurar Webhooks no n8n: `on_message_received` -> OpenAI -> `send_message`.
+* **Backend (Supabase):**
+    * [ ] Criar tabela `messages` e `whatsapp_instances`.
+    * [ ] Criar Edge Function `send-whatsapp`: Proxy seguro para chamar a API da Evolution sem expor tokens no frontend.
+* **Frontend (Components):**
+    * [ ] **`ChatInterface.tsx`**: Layout estilo WhatsApp Web (Lista à esquerda, Chat à direita).
+    * [ ] **`MessageBubble.tsx`**: Diferenciar visualmente mensagens de HUMANO vs. IA.
+    * [ ] **`PanicButton.tsx`**: Switch "Pausar IA" que atualiza o status do lead para `ai_paused = true`.
+    * [ ] Chat multicanal (WhatsApp + Instagram).
+    * [ ] Confirmação inteligente, NPS Smart Delay.
+
+----------------------
+
+### ⏳ FASE 8: REFINAMENTO & SUPER ADMIN (DIAS 36-42)
+**Foco:** Ferramentas para você (Dono do SaaS) e UX.
+* **Backend:**
+    * [ ] Criar políticas RLS especiais para o role `super_admin` acessar dados globais (apenas leitura de métricas).
+* **Frontend:**
+    * [ ] **`FeatureGate.tsx`**: Componente Wrapper que bloqueia renderização de filhos se `clinic.plan` < Requisito (PLG).
+    * [ ] **`ImpersonationBar.tsx`**: Barra no topo indicando "Você está acessando como [Nome da Clínica]" com botão de sair.
+    * [ ] **Otimização:** Implementar *Virtualization* nas listas de leads e mensagens para performance.
+
+----------------------
+### 🔜 FASE 9: RECORRÊNCIA & AUTOMAÇÃO AVANÇADA (FUTURO)
+* [ ] Periodicidade de retorno por procedimento (Tab Tempo de Retorno).
+* [ ] Automação Stage 017 (LTV) com criação automática de cards.
+* [ ] Multi-unidades (Black plan).
+* [ ] Simulador de Preço ("E se?").
+* [ ] Marketing no App (Remarketing em Massa + Ads).
+
+-----------------
+
+### FLUXOS DE AUTOMAÇÃO N8N
+Estes são os workflows que vou criar no n8n.
+Entrada de Mensagem (Webhook Evolution):
+Recebe Msg -> Verifica clinic_id -> Verifica se ai_active é true -> Envia para OpenAI -> Devolve Resposta.
+Agendamento via IA:
+IA detecta intenção de agendar -> Chama Tool (Function Calling) -> Consulta Slots Livres no Supabase -> Retorna horários -> Cliente confirma -> Grava em appointments.
+Sync Google Agenda:
+Novo agendamento no Supabase -> Cria evento no Google Calendar do profissional.
+Coleta de Custos de Ads:
+Cron (Todo dia 00:01) -> Lê API Facebook Ads -> Salva em marketing_expenses.
+
+-----------------
+
+
+🎨 DESIGN SYSTEM: GUIA DEFINITIVO DE IMPLEMENTAÇÃO
+Sevenn Clinic AI — Design System “Emerald Precision™”
+1️⃣ CONCEITO VISUAL
+
+Nome do conceito: Emerald Precision™
+Posicionamento: Premium Health Tech / Executive SaaS
+Sensação desejada:
+
+Precisão clínica, controle absoluto, tecnologia sofisticada e estética silenciosa.
+
+O design deve evitar aparência genérica de SaaS e reforçar autoridade, exclusividade e valor percebido alto.
+
+2️⃣ ESTRUTURA DE TEMAS (OBRIGATÓRIO)
+
+O sistema possui dois temas oficiais, com alternância pelo usuário:
+
+☀️ Light Mode (Padrão): Executive Clean
+
+🌙 Dark Mode (Secundário): Obsidian Premium
+
+Ambos seguem o mesmo Design System, mudando apenas superfícies, contraste e profundidade.
+
+3️⃣ PALETA DE CORES — DEFINITIVA
+🟢 CORES DE MARCA (Brand Core)
+Uso	Cor	Hex
+Emerald Deep (Base institucional)	Sidebar, fundos premium	#0E3D2E
+Emerald Core (Ação)	CTA principal, ações positivas	#59A52C
+Emerald Glow (Luz/hover)	Hover, foco, microinterações	#6FCA3A
+Emerald Stroke	Bordas, detalhes	#437D21
+
+📌 Regra:
+
+Verde é usado para ação, status positivo e foco — nunca como decoração.
+
+⚫ NEUTROS PREMIUM
+Nome	Hex	Uso
+Obsidian Black	#060606	Fundo Dark
+Charcoal Soft	#141414	Superfícies Dark
+Slate Dark	#1F1F1F	Cards Dark
+Cloud White	#F8FAFC	Fundo Light
+Mist Gray	#E5E7EB	Divisões e bordas
+4️⃣ GRADIENTES (ASSINATURA VISUAL)
+🎯 Gradiente Principal (Marca)
+linear-gradient(135deg, #0E3D2E 0%, #59A52C 60%, #6FCA3A 100%)
+
+
+Usar em:
+
+Sidebar
+
+Botões CTA primários
+
+Estados ativos importantes
+
+Não usar em:
+
+Cards comuns
+
+Tabelas
+
+Gráficos base
+
+🎯 Gradiente de Superfície Ativa (Sutil)
+linear-gradient(180deg, rgba(111,202,58,0.18), rgba(111,202,58,0.02))
+
+
+Uso leve para:
+
+Destaque de KPIs
+
+Estados de seleção
+
+Áreas de foco
+
+5️⃣ TIPOGRAFIA (ASSINATURA AUTORAL)
+🔤 Fonte Primária (90% do sistema)
+
+Manrope
+
+Corpo de texto
+
+Labels
+
+Inputs
+
+Tabelas
+
+CRM, Agenda, Financeiro
+
+Pesos permitidos:
+
+Regular (400)
+
+Medium (500)
+
+Semibold (600 – uso restrito)
+
+🔤 Fonte Secundária (Assinatura Visual – 10%)
+
+Space Grotesk
+
+Uso restrito e estratégico:
+
+Títulos de páginas
+
+Headline do dashboard
+
+KPIs principais (valores grandes)
+
+🚫 Nunca usar Space Grotesk em parágrafos longos.
+
+📐 Escala Tipográfica
+
+Body: 14–15px (Manrope 400)
+
+Label: 12–13px (Manrope 500)
+
+Section Title: 18–20px (Space Grotesk 500)
+
+KPI Principal: 28–36px (Space Grotesk 600)
+
+6️⃣ SUPERFÍCIES, CARDS E ELEVAÇÃO
+Cards (Light)
+
+Radius: 14px
+
+Border: 1px solid rgba(0,0,0,0.06)
+
+Shadow:
+
+0 8px 24px rgba(0,0,0,0.06)
+
+Cards (Dark)
+
+Radius: 14px
+
+Border: 1px solid rgba(255,255,255,0.06)
+
+Shadow:
+
+0 12px 32px rgba(0,0,0,0.6)
+
+
+📌 Cards nunca devem parecer “chapados”.
+
+7️⃣ INTERAÇÕES & MOTION (PREMIUM FEEL)
+Hover
+
+Elevação: translateY(-2px)
+
+Transição: 200ms ease-out
+
+Leve alteração de border ou glow
+
+Click
+
+Scale: 0.98
+
+Feedback imediato
+
+Sticky Headers
+backdrop-filter: blur(12px);
+background: rgba(255,255,255,0.85);
+
+
+(no dark: rgba(6,6,6,0.85))
+
+8️⃣ GRÁFICOS (EXECUTIVE BI)
+
+Linha fina
+
+Gradiente quase invisível
+
+Gridlines em rgba(0,0,0,0.04)
+
+Valor sempre mais destacado que o gráfico
+
+Evitar visual “cartoon”
+
+9️⃣ SIDEBAR (PADRÃO DEFINITIVO)
+
+Fundo: Emerald Deep (#0E3D2E) com gradiente sutil
+
+Texto: branco suave
+
+Item ativo:
+
+Barra lateral em Emerald Glow
+
+Fundo com leve gradiente
+
+Ícones minimalistas (Lucide, stroke padrão)
+

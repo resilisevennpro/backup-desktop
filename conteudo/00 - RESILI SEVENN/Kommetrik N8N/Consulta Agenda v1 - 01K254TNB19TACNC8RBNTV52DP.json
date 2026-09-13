@@ -1,0 +1,893 @@
+{
+  "name": "[COMUNIDADE][CONSULTA_CAL][V1]",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# 📅 “AGENDAMENTO” — multi‑agente que agenda, consulta e cancela eventos via **Cal.com → Google Calendar V1**\n\n> Copie‑e‑cole este módulo no seu workflow‐base e ligue a IA Principal com um **prompt roteador** igual aos demais.\n\n---\n\n### 1. Estrutura em alto nível\n\n```\nWebhook (agendamento1)   ← recebe JSON do roteador\n      │\n      ▼\nAI Agent (agendamento2)  ← entende a intenção: verificar / buscar / criar / cancelar\n      │\n      ├─ Tool “verificarAgenda”\n      ├─ Tool “busca_evento_agenda”\n      ├─ Tool “cancela_evento_agenda”\n      └─ Tool “criar_agendamento”\n      ▼\nRespond to Webhook       ← devolve a resposta ao canal\n```\n\nEm paralelo, cada *tool* dispara **Execução de Workflow Paralela** (sub‑workflow em vermelho):\n\n```\nExecução de Webhook  → kommo_call (manual) → Switch(action)\n                                       │\n              ┌─────────────┬──────────┴──────────┬───────────┐\n         verificarAgenda  busca_evento  cancela_evento  criar_agendamento\n```\n\n---\n\n### 2. Como copiar para seu fluxo‑base\n\n1. **Abra** o template *agendamento* no n8n.\n2. **Selecionar** todos os nós do bloco cinza (“agendamento”).\n3. **Ctrl/Cmd + C**, troque para o *workflow‑base*, **Ctrl/Cmd + V**.\n4. Faça o mesmo com o bloco vermelho (sub‑workflow paralelo) e os 4 containers dourados.\n5. Organize em uma área “AGENTES” para manter legível.\n\n---\n\n### 3. Ajustes obrigatórios pós‑cola\n\n| Item                  | O que alterar                                                                              | Onde                          |\n| --------------------- | ------------------------------------------------------------------------------------------ | ----------------------------- |\n| **Webhook URL**       | clique na URL de produção e coloque na tool que chama o multiagente em específico.(Kommo/WhatsApp).          | `agendamento1`                |\n| **Credencial OpenAI** | Use a mesma das outras IAs. Temp 0, Top‑p 0.                                               | `OpenAI Chat Model`           |\n| **Postgres Memory**   | `session_key = **{{ $('nome_do_seu_webhook').first().json.body['message[add][0][contact_id]'] }}**.                                       | `Postgres Chat Memory`        |\n| **Headers da API**    | `Authorization: Bearer <CAL_API_TOKEN>` + `Content-Type: application/json`.                | Nos 4 *HTTP Request* dourados |\n| **ID do evento‑tipo** | `eventTypeId` do Cal.com que corresponde à reunião (ex. consulta jurídica 30 min).         | Body do `criar_agendamento`   |\n| **G‑Calendar**        | No painel do Cal.com, confirme que a conta Google está conectada (“Settings → Calendars”). | fora do n8n                   |\n\n---\n\n### 4. Detalhando cada *tool* (rota)\n\n| Função                      | Endpoint Cal.com                                                                         | Exemplo de uso pelo agente                    | Retorno esperado          |\n| --------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------- |\n| **verificarAgenda**         | `GET /v2/availability?eventTypeId={{id}}&date={{YYYY-MM-DD}}`                            | “Quais horários você tem disponíveis dia 25?” | array de *timeSlots*      |\n| **busca\\_evento\\_agenda**   | `GET /v2/bookings?email={{leadEmail}}`                                                   | “Tenho reunião agendada?”                     | lista de bookings do lead |\n| **cancela\\_evento\\_agenda** | `DELETE /v2/bookings/{{bookingId}}`                                                      | “Quero cancelar meu horário de terça”         | 204 No Content            |\n| **criar\\_agendamento**      | `POST /v2/bookings` com body:<br>`{ eventTypeId, start, end, attendees:[{email,name}] }` | “Agende às 10h de sexta”                      | booking Id + meeting link |\n\n*Referência oficial* ([cal.com][1], [cal.com][2])\n\n---\n\n### 5. Prompt do **AI Agent agendamento2**\n\n```text\n# SYSTEM\nVocê é um agente de agenda. RESPEITE o formato abaixo ↴\nRETORNE SEMPRE {\"action\":\"<rota>\", \"payload\":{...}}.\n\nRotas permitidas:\n- verificarAgenda\n  • payload: { \"data\":\"YYYY-MM-DD\" }\n- busca_evento_agenda\n  • payload: { \"email\":\"lead@dominio.com\" }\n- cancela_evento_agenda\n  • payload: { \"bookingId\":\"1234\" }\n- criar_agendamento\n  • payload: { \"data\":\"YYYY-MM-DD\", \"hora\":\"HH:MM\", \"nome\":\"\", \"email\":\"\" }\n\nSe a pergunta não for sobre agenda ⇒ responda NORMAL ao usuário.\nTemperature:0.\n\n# EXEMPLO\nUsuário: Quero um horário dia 30/07 às 14h\nAssistente: {\"action\":\"criar_agendamento\",\"payload\":{\"data\":\"2025-07-30\",\"hora\":\"14:00\"}}\n```\n\nO roteador (nó *Switch* no vermelho) lê `action` e dispara o container dourado correto.\n\n---\n\n### 6. Fluxo de volta ao usuário\n\n1. Container executa o *HTTP Request* → recebe JSON do Cal.com.\n2. No último **Edit Fields** converta a resposta num texto amigável (ex.: “Agendado! Link de reunião: …”).\n3. Esse texto volta pelo **Respond to Webhook** ao WhatsApp/Kommo.\n\n---\n\n### 7. Teste ponta‑a‑ponta\n\n| Cenário                   | O que esperar                                                                    |\n| ------------------------- | -------------------------------------------------------------------------------- |\n| “Quero um horário amanhã” | IA devolve **action verificarAgenda** → recebe slots.                            |\n| “Marca 10h”               | action criar\\_agendamento → Cal.com cria event → Google Calendar mostra convite. |\n| “Cancela meu horário”     | action cancela\\_evento\\_agenda → 204 OK → confirmação pro lead.                  |\n| “Qual meu horário mesmo?” | action busca\\_evento\\_agenda → retorna detalhes.                                 |\n\nObserve logs; se cair em *default* é porque a IA respondeu fora do schema.\n\n---\n\n### 8. Boas‑práticas finais\n\n* 🔑 **Segurança**: gere o *CAL\\_API\\_TOKEN* com escopo mínimo (bookings + availability).\n* 📨 **Notificações**: deixe “Guest notifications = ON” no evento‑tipo para enviar e‑mail automático.\n* 🗂 **Campos Kommo**: salve `bookingId` e `meetingLink` em custom fields (`agenda_id`, `agenda_link`).\n* 🧪 **Staging**: teste com um calendário Google de teste antes de ativar em produção.\n* ♻️ **Refresh Token**: se usar Managed Users do Cal.com, configure rota `/v2/auth/refresh` via Cron n8n.\n\n[1]: https://cal.com/docs/api-reference/v2/bookings/create-a-booking?utm_source=chatgpt.com \"Create a booking - Cal.com Docs\"\n[2]: https://cal.com/docs/api-reference/v2/introduction?utm_source=chatgpt.com \"Introduction to API v2 - Cal.com Docs\"\n",
+        "height": 2720,
+        "width": 1160,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1376,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "7293f55b-1082-42be-af26-4fa8088e241a",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "acao"
+            },
+            {
+              "name": "start"
+            },
+            {
+              "name": "name"
+            },
+            {
+              "name": "email"
+            },
+            {
+              "name": "eventTypeId"
+            },
+            {
+              "name": "end"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -96,
+        416
+      ],
+      "id": "041e8237-66f6-496d-a25e-5f0fa680584c",
+      "name": "Execução de Webhook"
+    },
+    {
+      "parameters": {
+        "content": "# Execução de workflow paralela\n\nAs tools irão chamar esta execução\n\nUtilize o parâmetro action para\ndirecionar o fluxo de execução",
+        "height": 824,
+        "width": 780,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -80
+      ],
+      "id": "6c73c9cb-ad8c-4887-8d64-708741b84c3f",
+      "name": "Sticky Note28"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data.slots",
+        "options": {
+          "destinationFieldName": "time"
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        192
+      ],
+      "id": "6ea1f770-ec11-49de-b5e7-79a0c2171f5f",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "time",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        192
+      ],
+      "id": "074a80bf-22e0-4c73-a6e5-bad1509c3641",
+      "name": "Split Out3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70c47adb-3843-408b-a937-81c4ab0bfdb6",
+              "name": "time",
+              "value": "={{ $json.time.toDateTime().setZone('UTC-3') }}",
+              "type": "string"
+            },
+            {
+              "id": "aac93497-42d5-41d1-8ef1-30fa4693d138",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1360,
+        192
+      ],
+      "id": "471ff57c-8f76-4ce4-a45d-3a1deadf8f70",
+      "name": "Edit Fields8"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cc0ff90e-707c-4776-8574-71415b321309",
+              "name": "response",
+              "value": "={{ $json.time }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1648,
+        192
+      ],
+      "id": "8ec386b0-f0dc-46e7-9b00-7e25944f52b5",
+      "name": "Edit Fields9"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6e3ddd36-99ff-4461-9ac8-4b4bb905f7c5",
+                    "leftValue": "={{ $('Execução de Webhook').first().json.acao }}",
+                    "rightValue": "verificarAgenda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "verificarAgenda"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ab9b535f-ab3e-4123-8bbe-1eecb62c6318",
+                    "leftValue": "={{ $('Execução de Webhook').first().json.acao }}",
+                    "rightValue": "busca_evento_agenda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "busca_evento_agenda"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "798b7091-7673-4a4e-ae27-f2df2e5710c6",
+                    "leftValue": "={{ $('Execução de Webhook').first().json.acao }}",
+                    "rightValue": "cancela_evento_agenda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancela_evento_agenda"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e475d6ac-7e8f-4e55-aad8-19cd89e4a584",
+                    "leftValue": "={{ $('Execução de Webhook').item.json.acao }}",
+                    "rightValue": "criar_agendamento",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "criar_agendamento"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        368,
+        384
+      ],
+      "id": "e15d918d-49ef-4e70-9ff3-07a5cf2f25c1",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cal.com/v2/bookings",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "attendeeEmail",
+              "value": "={{ $('Execução de Webhook').item.json.email }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization ",
+              "value": "={{ $json.cal_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        448
+      ],
+      "id": "e75cbf27-6e0e-40f5-8cda-ea1bb22fd213",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cal.com/v2/slots/available?startTime={{ $('Execução de Webhook').first().json.start }}&endTime={{ $('Execução de Webhook').first().json.end }}&eventTypeId={{ $json.cal_event_type }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization ",
+              "value": "={{ $json.cal_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        192
+      ],
+      "id": "a5a44bcc-efb7-4219-b288-c135950cdb15",
+      "name": "HTTP Request2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.cal.com/v2/bookings/{{ $('Execução de Webhook').item.json.eventTypeId }}/cancel",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization ",
+              "value": "={{ $json.cal_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "cancellationReason",
+              "value": "Lead solicitou cancelamento da reunião"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        672
+      ],
+      "id": "9c7c8ce4-4455-4a5f-82f1-785180b494c4",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "content": "## Verifica a agenda",
+        "height": 444,
+        "width": 1192
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        -80
+      ],
+      "id": "df17c80f-fde6-4ee7-bac5-bf6419d16f5d",
+      "name": "Sticky Note30"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "time"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        192
+      ],
+      "id": "fedd6f8b-7f7c-4f3f-9479-8673bce8c9ca",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "content": "## Credenciais Cliente\n\n",
+        "width": 380,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        224,
+        752
+      ],
+      "id": "ff563b02-aece-4372-a697-125c40223bab",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Credenciais Suas\n\n\n",
+        "width": 380,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        752
+      ],
+      "id": "f1a48919-1a28-4ba6-a089-516792730515",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Busca um evento pelo e-mail",
+        "height": 220,
+        "width": 920
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        384
+      ],
+      "id": "52add1ef-e660-41d4-b74e-99685d2190b2",
+      "name": "Sticky Note32"
+    },
+    {
+      "parameters": {
+        "content": "## Cancela um evento",
+        "height": 220,
+        "width": 920
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        624
+      ],
+      "id": "57254861-23d2-4d7c-8389-0a4f480a91c4",
+      "name": "Sticky Note33"
+    },
+    {
+      "parameters": {
+        "content": "## Criar agendamento",
+        "height": 260,
+        "width": 920
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        864
+      ],
+      "id": "a2fe72ba-5737-40bb-a814-088e8562d37f",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cal.com/v2/bookings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authentication",
+              "value": "=Bearer {{ $json.cal_token }}"
+            },
+            {
+              "name": "cal-api-version",
+              "value": "2024-08-13"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"start\": \"{{ $('Execução de Webhook').item.json.start }}\",\n  \"attendee\": {\n    \"name\": \"{{ $('Execução de Webhook').item.json.name }}\",\n    \"email\": \"{{ $('Execução de Webhook').item.json.email }}\",\n    \"timeZone\": \"America/Sao_Paulo\",\n    \"language\": \"pt-BR\"\n  },\n  \"eventTypeId\": {{ $('Execução de Webhook').item.json.eventTypeId }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        944
+      ],
+      "id": "a81a07f7-7f25-491a-8197-c29aa71ac015",
+      "name": "HTTP Request4",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c585ab62-0d22-44de-8d68-697a5992247b",
+              "name": "kommo_token",
+              "value": "=",
+              "type": "string"
+            },
+            {
+              "id": "72fa100c-a57b-4057-ae7a-2ae307089afb",
+              "name": "cal_token",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "78b82f1d-90e6-4726-af40-3a50bffe90b8",
+              "name": "cal_event_type",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        128,
+        416
+      ],
+      "id": "2c633f84-367a-4181-9f5b-a3cbddbf40fd",
+      "name": "kommo_cal"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Captura o array de entrada\nconst input = $input.item.json;\n\n// Função para converter UTC para UTC-3\nfunction convertToUTCMinus3(dateString) {\n  const date = new Date(dateString);\n  // Subtrai 3 horas (3 * 60 * 60 * 1000 ms)\n  date.setHours(date.getHours() - 3);\n  return date.toISOString(); // ou use .toLocaleString() se quiser formatado\n}\n\n// Clona os dados para evitar modificar o original diretamente\nconst updatedData = JSON.parse(JSON.stringify(input));\n\n// Itera sobre os bookings\nif (updatedData.data && Array.isArray(updatedData.data.bookings)) {\n  updatedData.data.bookings = updatedData.data.bookings.map(booking => {\n    booking.startTime = convertToUTCMinus3(booking.startTime);\n    booking.endTime = convertToUTCMinus3(booking.endTime);\n    return booking;\n  });\n}\n\nreturn [{ json: updatedData }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        448
+      ],
+      "id": "339e43c6-3690-480e-835f-239032013e4b",
+      "name": "Conversor de fuso"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1152,
+        960
+      ],
+      "id": "7074b092-61a2-454f-8d6c-77da3a1258ad",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "139913f4-6cb7-42d8-9f83-ab7c2fdf8573",
+              "leftValue": "={{ $json.data.slots }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        192
+      ],
+      "id": "0bd2f19d-4add-4153-b39b-933b520d88bd",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Acessa os dados JSON do nó \"Execução de Webhook\" corretamente com colchetes e aspas\nconst inputData = $node[\"Execução de Webhook\"].json;\n\n// Clona os dados\nconst updatedData = { ...inputData };\n\n// Converte 'end' para objeto Date\nconst endDate = new Date(inputData.end);\n\n// Adiciona 1 dia\nendDate.setUTCDate(endDate.getUTCDate() + 1);\n\n// Atualiza o campo 'end' com a nova data ISO\nupdatedData.end = endDate.toISOString();\n\n// Retorna o novo objeto\nreturn [{ json: updatedData }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -32
+      ],
+      "id": "b5c56b72-b8c3-4f20-aa15-08a324129e23",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "OjKkTddkyrF9O0eX",
+          "mode": "list",
+          "cachedResultName": "[COMUNIDADE][CONSULTA_CAL][V1]"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "acao": "={{ $json.acao }}",
+            "start": "={{ $json.start }}",
+            "name": "={{ $json.name }}",
+            "email": "={{ $json.email }}",
+            "eventTypeId": "={{ $json.eventTypeId }}",
+            "end": "={{ $json.end }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "acao",
+              "displayName": "acao",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "start",
+              "displayName": "start",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "eventTypeId",
+              "displayName": "eventTypeId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "end",
+              "displayName": "end",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        -32
+      ],
+      "id": "7fdafcd0-bc59-45a1-bbf7-91d3f3317bfa",
+      "name": "Execute Workflow"
+    }
+  ],
+  "pinData": {
+    "Execução de Webhook": [
+      {
+        "json": {
+          "acao": "criar_agendamento",
+          "start": "2025-08-05T13:00:00.000Z",
+          "name": "Owen Marques",
+          "email": "owenmarques011@gmail.com",
+          "eventTypeId": "2625915",
+          "end": "2025-08-05T13:30:00.000Z"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Execução de Webhook": {
+      "main": [
+        [
+          {
+            "node": "kommo_cal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Split Out3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields8": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Conversor de fuso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "kommo_cal": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "548cea4a-3753-4ff8-9b59-f40118c07aa1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "OjKkTddkyrF9O0eX",
+  "tags": [
+    {
+      "createdAt": "2025-07-12T19:04:59.708Z",
+      "updatedAt": "2025-07-12T19:04:59.708Z",
+      "id": "8jkMHCqDt1tGreZO",
+      "name": "kommetrik comunidade"
+    }
+  ]
+}

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposta Comercial - Portal Contábil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            /* Paleta Resili Sevenn */
+            --bg-color: #060606;       /* [cite: 1] */
+            --card-bg: #1f1f1f;        /* [cite: 3] */
+            --primary-green: #59A52C;  /* [cite: 4] */
+            --light-green: #6fca3a;    /* [cite: 5] */
+            --dark-green: #437d21;     /* [cite: 6] */
+            --text-main: #ffffff;
+            --text-secondary: #b3b3b3; /* [cite: 7] */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- HEADER & LOGO --- */
+        header {
+            text-align: center;
+            padding: 40px 0;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .logo-container img {
+            max-width: 200px; 
+            height: auto;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(to right, var(--primary-green), var(--light-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* --- SECTIONS --- */
+        section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(31, 31, 31, 0.4);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        /* Cascading Animation Delays */
+        section:nth-of-type(1) { animation-delay: 0.1s; }
+        section:nth-of-type(2) { animation-delay: 0.2s; }
+        section:nth-of-type(3) { animation-delay: 0.3s; }
+        section:nth-of-type(4) { animation-delay: 0.4s; }
+        section:nth-of-type(5) { animation-delay: 0.5s; }
+        section:nth-of-type(6) { animation-delay: 0.6s; }
+
+        h2 {
+            border-left: 4px solid var(--primary-green);
+            padding-left: 15px;
+            margin-bottom: 25px;
+            color: white;
+            font-size: 1.8rem;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: #dcdcdc;
+        }
+
+        ul {
+            list-style: none;
+            margin-left: 5px;
+        }
+
+        li {
+            margin-bottom: 10px;
+            position: relative;
+            padding-left: 25px;
+            color: #e0e0e0;
+        }
+
+        li::before {
+            content: '\f00c'; /* FontAwesome Check */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            color: var(--primary-green);
+            position: absolute;
+            left: 0;
+            font-size: 0.9rem;
+        }
+
+        /* --- ESCOPO GRID --- */
+        .scope-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .scope-item {
+            background: rgba(255,255,255,0.03);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 2px solid var(--dark-green);
+            transition: transform 0.3s ease;
+        }
+
+        .scope-item:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .scope-title {
+            color: var(--light-green);
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: block;
+            font-size: 1.2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
+        }
+
+        /* --- PRICING CARDS --- */
+        .pricing-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .pricing-card {
+            flex: 1;
+            background: linear-gradient(145deg, #1f1f1f, #151515);
+            border: 1px solid #333;
+            padding: 30px;
+            border-radius: 16px;
+            position: relative;
+            min-width: 300px;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pricing-card.featured {
+            border: 2px solid var(--primary-green);
+            box-shadow: 0 0 30px rgba(89, 165, 44, 0.15);
+        }
+
+        .pricing-card:hover {
+            transform: scale(1.02);
+        }
+
+        .card-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .badge {
+            background-color: var(--primary-green);
+            color: black;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .price span {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+        
+        .deadline-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 1px dashed var(--text-secondary);
+            font-size: 0.9rem;
+            color: var(--light-green);
+        }
+
+        /* --- EXTRAS & TRANSPARENCY --- */
+        .extras-grid, .costs-grid {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .cost-row strong { color: white; }
+        .cost-row span { color: var(--text-secondary); text-align: right; }
+
+        /* --- MAINTENANCE --- */
+        .maintenance-box {
+            background: rgba(89, 165, 44, 0.05);
+            border: 1px solid var(--primary-green);
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .maintenance-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid rgba(89, 165, 44, 0.3);
+            padding-bottom: 15px;
+        }
+
+        .maintenance-price {
+            color: var(--light-green);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        /* --- FOOTER & BUTTON --- */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            margin-bottom: 80px;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 1s forwards;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(90deg, var(--primary-green), var(--light-green)); /* [cite: 14] */
+            color: black;
+            padding: 12px 30px; /* Reduzido conforme solicitado */
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(111, 202, 58, 0.4);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cta-button:hover {
+            box-shadow: 0 6px 25px rgba(111, 202, 58, 0.6);
+            transform: translateY(-3px);
+            color: #000;
+        }
+        
+        .payment-info {
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Estilos do Bloco Bônus */
+        .bonus-card {
+            background: linear-gradient(145deg, rgba(31, 31, 31, 0.8), rgba(20, 20, 20, 0.9));
+            border: 1px solid var(--light-green); /* Borda verde neon para destaque */
+            box-shadow: 0 0 25px rgba(111, 202, 58, 0.1); /* Brilho verde sutil */
+            border-radius: 12px;
+            padding: 30px;
+            display: flex;
+            align-items: flex-start;
+            gap: 25px;
+            transition: transform 0.3s ease;
+        }
+
+        .bonus-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 35px rgba(111, 202, 58, 0.2);
+        }
+
+        .bonus-icon {
+            background-color: rgba(111, 202, 58, 0.1);
+            color: var(--light-green);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            flex-shrink: 0;
+            border: 1px solid var(--primary-green);
+        }
+
+        .bonus-content h3 {
+            color: white;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+
+        .bonus-content p {
+            font-size: 0.95rem;
+            color: #dcdcdc;
+            margin-bottom: 15px;
+        }
+
+        .bonus-content em {
+            color: var(--text-secondary);
+            font-style: italic;
+            display: block;
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid var(--primary-green);
+        }
+
+        .bonus-tag {
+            background: var(--primary-green);
+            color: black;
+            font-weight: 800;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        /* Ajuste Mobile */
+        @media (max-width: 768px) {
+            .bonus-card {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            .bonus-content em {
+                text-align: left;
+            }
+        }
+
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .pricing-container { flex-direction: column; }
+            section { padding: 20px; }
+            .cost-row { flex-direction: column; text-align: left; align-items: flex-start; gap: 5px; }
+            .cost-row span { text-align: left; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <div class="logo-container">
+                <img src="public/images/resili-sevenn-logo.png" alt="Resili Sevenn Logo">
+            </div>
+            <h1>Proposta de Desenvolvimento</h1>
+            <p class="subtitle">Portal do Cliente & Hub Contábil Inteligente</p>
+        </header>
+
+        <section>
+            <h2>1. O Objetivo</h2>
+            <p>Desenvolver uma plataforma web exclusiva (SaaS White-label) para centralizar a comunicação entre a Contabilidade e seus Clientes. O sistema eliminará a desorganização de e-mails, oferecendo uma experiência profissional, segura e escalável.</p>
+        </section>
+
+        <section>
+            <h2>2. O Que Será Entregue</h2>
+            <div class="scope-grid">
+                <div class="scope-item">
+                    <span class="scope-title">Painel do Cliente</span>
+                    <ul>
+                        <li>Login individual seguro.</li>
+                        <li>Dashboard com banners informativos.</li>
+                        <li>Upload e Download de documentos.</li>
+                        <li>Segurança total (Isolamento de dados por cliente).</li>
+                        <li>Área de Lives (Exclusivo p/ plano Avançado).</li>
+                    </ul>
+                </div>
+                <div class="scope-item">
+                    <span class="scope-title">Painel do Contador (Admin)</span>
+                    <ul>
+                        <li>Gestão completa de usuários.</li>
+                        <li>Upload de PDFs em massa.</li>
+                        <li>Visão geral de todos os clientes.</li>
+                        <li>Disparo de e-mails de notificação.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>3. Funcionalidades Extras (Inclusas)</h2>
+            <p>Implementações adicionais incluídas no pacote para garantir alta performance, sem custo extra:</p>
+            <div class="scope-grid" style="grid-template-columns: 1fr;">
+                <div class="scope-item" style="border-left-color: var(--light-green);">
+                    <ul>
+                        <li><strong>Design Responsivo Avançado:</strong> Otimização total para Celulares e Tablets.</li>
+                        <li><strong>Modo Escuro/Claro:</strong> Preparação da interface para conforto visual.</li>
+                        <li><strong>Log de Atividades:</strong> Registro básico de quem acessou o quê (Segurança).</li>
+                        <li><strong>Backup Automático:</strong> Configuração de rotina de segurança dos dados.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+
+       <section class="bonus-section">
+            <h2 style="border-color: var(--light-green);">
+                <i class="fas fa-gift" style="margin-right: 10px; color: var(--light-green);"></i>
+                Bônus Exclusivo
+            </h2>
+            
+            <div class="bonus-card">
+                <div class="bonus-icon">
+                    <i class="fas fa-envelope-open-text"></i>
+                </div>
+                <div class="bonus-content">
+                    <h3>Sistema de Notificações</h3>
+                    <p>
+                        Não deixe seu cliente perdido. O sistema fará o <strong>disparo automático de e-mail transacional</strong> avisando o cliente sempre que você realizar uma ação importante, como: 
+                        <br><br>
+                        <em>"Olá! Um novo documento foi adicionado ao seu portal. Clique para acessar."</em>
+                    </p>
+                    <span class="bonus-tag">ITEM INCLUSO (GRÁTIS)</span>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>4. Investimento e Prazos</h2>
+            <p>Escolha o modelo que melhor se adapta ao seu fluxo de caixa e automação.</p>
+            
+            <div class="pricing-container">
+                
+                <div class="pricing-card featured">
+                    <div class="card-header">
+                        <span class="badge">Recomendado</span>
+                        <h3 style="margin-top:10px; color:white;">Opção 1: Automático</h3>
+                        <p style="font-size:0.9rem; color:#aaa;">Portal + Pagamentos (Stripe)</p>
+                    </div>
+                    
+                    <div class="price">R$ 8.500<span>/único</span></div>
+                    
+                    <div class="deadline-box">
+                        <i class="fas fa-clock"></i> Prazo de Entrega: <strong>40 a 45 dias úteis</strong>
+                    </div>
+
+                    <ul>
+                        <li>Integração com Cartão/Pix.</li>
+                        <li>Liberação de acesso imediata.</li>
+                        <li>Bloqueio automático de inadimplentes.</li>
+                        <li>Painel financeiro para o cliente.</li>
+                    </ul>
+                </div>
+
+                <div class="pricing-card">
+                    <div class="card-header">
+                        <h3 style="margin-top:10px; color:white;">Opção 2: Manual</h3>
+                        <p style="font-size:0.9rem; color:#aaa;">Portal + Gestão Manual</p>
+                    </div>
+                    
+                    <div class="price">R$ 6.000<span>/único</span></div>
+                    
+                    <div class="deadline-box">
+                        <i class="fas fa-clock"></i> Prazo de Entrega: <strong>25 a 30 dias úteis</strong>
+                    </div>
+
+                    <ul>
+                        <li>Menor custo inicial.</li>
+                        <li>Liberação de acesso manual.</li>
+                        <li>Ideal para venda via contrato/boleto.</li>
+                        <li>Mesma estrutura visual e segurança.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="payment-info">
+                <h3 style="color: var(--light-green); font-size: 1.1rem; margin-bottom: 10px;">Facilidades de Pagamento</h3>
+                <p style="margin:0;">Pode ser parcelado: <strong>Entrada de 50% + Saldo na Entrega</strong> (ou prazo a combinar no cartão de crédito).</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>5. Custos de Terceiros (Transparência)</h2>
+            <p>Valores pagos diretamente aos fornecedores de infraestrutura:</p>
+            <div class="costs-grid">
+                <div class="cost-row">
+                    <div>
+                        <strong>Domínio (.com.br)</strong>
+                        <div style="font-size:0.8rem; color:#888;">Registro!</div>
+                    </div>
+                    <span>R$ 40,00 / ano (já incluso) ✅</span>
+                </div>
+                <div class="cost-row">
+                    <div>
+                        <strong>Infraestrutura (Servidor/Banco)</strong>
+                        <div style="font-size:0.8rem; color:#888;">Vercel / Supabase</div>
+                    </div>
+                    <span>$ 25 Dólares (já incluso) ✅</small></span>
+                </div>
+                <div class="cost-row">
+                    <div>
+                        <strong>Gateway de Pagamento</strong>
+                        <div style="font-size:0.8rem; color:#888;">Apenas p/ Opção 1 (Stripe)</div>
+                    </div>
+                    <span>~3.99% + R$ 0,39 <small>(por transação)</small></span>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>6. Manutenção e Suporte Contínuo</h2>
+            <p>Garantia de que seu negócio digital nunca pare.</p>
+            
+            <div class="maintenance-box">
+                <div class="maintenance-header">
+                    <div>
+                        <h3 style="color:white; margin-bottom:5px;">Pacote Mensal Completo</h3>
+                        <p style="margin:0; font-size:0.9rem; color:#aaa;">Sustentação e melhorias contínuas</p>
+                    </div>
+                    <div class="maintenance-price">R$ 300,00 <span style="font-size:1rem; color:#888; font-weight:400;">/mês</span></div>
+                </div>
+
+                <p style="color: var(--light-green); margin-bottom: 15px; font-weight: 600;">O que está incluso:</p>
+                <ul style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                    <li><strong>1. Monitoramento de Servidor:</strong> Garantia de uptime (site sempre no ar).</li>
+                    <li><strong>2. Gestão de Banco de Dados:</strong> Monitoramento do limite de armazenamento (Gestão de até 10GB via Supabase Free Tier, expansível).</li>
+                    <li><strong>3. Segurança:</strong> Atualizações de bibliotecas e correções de eventuais bugs.</li>
+                    <li><strong>4. Suporte Técnico:</strong> Canal direto para dúvidas de uso da plataforma.</li>
+                    <li><strong>5. Pequenos Ajustes:</strong> Alterações simples de texto ou troca de banners (até 2 solicitações/mês).</li>
+                </ul>
+            </div>
+        </section>
+
+        <footer>
+            <a href="http://wa.me/5548988663609" target="_blank" class="cta-button">
+                <i class="fab fa-whatsapp" style="font-size: 1.2rem;"></i>
+                Aprovar Proposta
+            </a>
+            
+            <p style="margin-top: 20px; font-size: 0.8rem; color: #666;">
+                Proposta válida por 15 dias. Desenvolvido por Resili Sevenn.
+            </p>
+        </footer>
+
+    </div>
+
+</body>
+</html>

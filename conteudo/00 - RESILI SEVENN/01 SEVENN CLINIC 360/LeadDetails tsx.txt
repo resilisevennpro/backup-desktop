@@ -1,0 +1,1951 @@
+import { useState, useEffect, useRef } from "react";
+import { toast } from 'sonner';
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCrmStore } from "@/store/useCrmStore";
+import { cn } from "@/lib/utils";
+import { useServicesStore } from "@/store/useServicesStore";
+import { useSettingsStore } from "@/store/useSettingsStore";
+import { LeadGalleryTab } from "@/components/lead/LeadGalleryTab";
+import { LeadFinancialTab } from "@/components/lead/LeadFinancialTab";
+import { MedicalRecordTab } from "@/components/lead/MedicalRecordTab";
+import { DocumentsTab } from "@/components/lead/DocumentsTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ManageTagsDialog } from "@/components/lead/ManageTagsDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useFinanceStore } from "@/store/useFinanceStore";
+import { useUIStore } from "@/store/useUIStore";
+
+import { Phone, DollarSign, Calendar, FileText, Sparkles, User, MapPin, Tag, Clock, MessageSquare, Search, Activity, MessageCircle, Send, Paperclip, ChevronRight, Image as ImageIcon, ArrowLeft, Zap, Smile, PauseCircle, PlayCircle, CheckCircle, CircleDollarSign, Stethoscope, RefreshCw, AlertCircle, Check, FileSignature, Pencil, X, Lock, Copy, History, AlertTriangle, MoreVertical, Trash2, } from "lucide-react";
+import { getLeadSourceInfo } from "@/lib/source-utils";
+import { supabase } from "@/lib/supabase";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+
+// ... (existing code top)
+
+// ... (existing code bottom)
+
+
+
+const LeadDetailsSkeleton = () => (
+    <div className="h-full flex items-center justify-center bg-slate-50">
+        <span className="animate-pulse text-muted-foreground font-medium flex items-center gap-2">
+            <Sparkles className="w-4 h-4 animate-spin" /> Carregando ficha do lead...
+        </span>
+    </div>
+);
+
+export default function LeadDetailsPage() {
+    const { leadId } = useParams();
+    const navigate = useNavigate();
+    const { profile, clinic } = useAuth();
+    const { leads, columns, moveLead, fetchBoardData, updateLead, loading, availableTags, fetchAvailableTags, fetchLeadById } = useCrmStore();
+    const { services, fetchServices } = useServicesStore();
+    const { professionals, fetchProfessionals } = useSettingsStore();
+    const lead = leads.find(l => l.id === leadId);
+    const [localName, setLocalName] = useState("");
+    const [localEmail, setLocalEmail] = useState("");
+    const [emailSuggestion, setEmailSuggestion] = useState("");
+    const [emailError, setEmailError] = useState(false);
+    const [localBudget, setLocalBudget] = useState("");
+
+    const setHeaderContent = useUIStore(state => state.setHeaderContent);
+
+
+
+    const { transactions, fetchTransactions } = useFinanceStore();
+
+    // Adicione isto logo no início do componente LeadDetailsPage
+    const [localProcedureId, setLocalProcedureId] = useState(lead?.procedure_id);
+
+    // Isso garante que se você mudar de lead, o botão atualiza
+    useEffect(() => {
+        setLocalProcedureId(lead?.procedure_id);
+    }, [lead?.procedure_id]);
+
+
+    const formatInteger = (val: string | number | undefined) => {
+        if (val === undefined || val === null || val === "") return "";
+        const clean = String(val).replace(/\D/g, "");
+        if (!clean) return "";
+        return new Intl.NumberFormat('pt-BR').format(parseInt(clean));
+    };
+
+    // --- FETCH SOB DEMANDA ---
+    useEffect(() => {
+        if (leadId && !lead && !loading) {
+            // Validação simples de formato (ex: se é UUID ou string válida)
+            if (leadId.length > 5) {
+                fetchLeadById(leadId);
+            }
+        }
+    }, [leadId, lead, loading, fetchLeadById]);
+
+    useEffect(() => {
+        if (lead) {
+            setLocalName(lead.name);
+            setLocalEmail(lead.email || "");
+            setLocalBudget(formatInteger(lead.budget));
+        }
+    }, [lead]);
+
+    // Fetch dependencies
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchServices(clinic.id);
+            fetchProfessionals(clinic.id);
+            fetchAvailableTags(clinic.id);
+            fetchTransactions(clinic.id);
+        }
+    }, [clinic?.id, fetchServices, fetchProfessionals, fetchAvailableTags, fetchTransactions]);
+
+    // REAL-TIME FINANCE CALCULATION
+    const leadTransactions = transactions.filter(t => t.lead_id === leadId);
+    const realLtv = leadTransactions.filter(t => t.status === 'paid').reduce((acc, t) => acc + (t.amount || 0), 0);
+    const realDebt = leadTransactions.filter(t => t.status === 'pending').reduce((acc, t) => acc + (t.amount || 0), 0);
+
+    const [syncModalOpen, setSyncModalOpen] = useState(false);
+    const [pendingUpdates, setPendingUpdates] = useState<Partial<typeof lead> | null>(null);
+    const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+    const executeUpdateLead = async (updates: any, showToast = true) => {
+        if (!lead?.id) return;
+        await updateLead(lead.id, updates);
+        if (showToast) {
+            toast.success("Salvo com sucesso", {
+                duration: 2000,
+                icon: <Check className="w-4 h-4 text-emerald-500" />
+            });
+        }
+    };
+
+    const handleUpdateLead = async (updates: any) => {
+        if (!lead?.id) return;
+
+        // 1. SALVAR NO BANCO IMEDIATAMENTE (Prioridade Máxima para garantir consistência)
+        // Isso remove a trava que impedia a atualização quando havia agendamentos.
+        await executeUpdateLead(updates);
+
+        // 2. DEPOIS verificamos efeitos colaterais (agendamentos) para sugerir sync
+        // Se houver conflito, abrimos a modal, mas o dado principal já está salvo.
+        if (updates && ('procedure_id' in updates || 'doctor_id' in updates)) {
+            try {
+                const { data } = await supabase
+                    .from('appointments')
+                    .select('id')
+                    .eq('lead_id', lead.id)
+                    .in('status', ['Confirmado', 'Pendente', 'Em Atendimento', 'Chegou'])
+                    .limit(1);
+
+                if (data && data.length > 0) {
+                    setActiveAppointmentId(data[0].id);
+                    setPendingUpdates(updates);
+                    setSyncModalOpen(true);
+                    // REMOVIDO: return; (Não bloqueamos mais o fluxo, pois o save já ocorreu)
+                }
+            } catch (error) {
+                console.error("Error checking appointments:", error);
+            }
+        }
+    };
+
+    const handleSyncAction = async (shouldSync: boolean) => {
+        if (!pendingUpdates || !activeAppointmentId) return;
+        setSyncModalOpen(false);
+
+        // 1. Update Lead
+        await executeUpdateLead(pendingUpdates, false);
+
+        // 2. Sync Appointment
+        if (shouldSync) {
+            const apptUpdates: any = {};
+            if ('doctor_id' in pendingUpdates) apptUpdates.professional_id = pendingUpdates.doctor_id;
+            if ('procedure_id' in pendingUpdates) apptUpdates.procedure_id = pendingUpdates.procedure_id;
+
+            if (Object.keys(apptUpdates).length > 0) {
+                const { error } = await supabase
+                    .from('appointments')
+                    .update(apptUpdates)
+                    .eq('id', activeAppointmentId);
+
+                if (!error) {
+                    toast.success("Ficha e Agendamento atualizados!", { icon: <CheckCircle className="w-4 h-4 text-emerald-500" /> });
+                } else {
+                    toast.error("Erro ao atualizar agendamento.");
+                }
+            }
+        } else {
+            toast.success("Apenas Ficha atualizada.", { icon: <Check className="w-4 h-4 text-emerald-500" /> });
+        }
+
+        setPendingUpdates(null);
+        setActiveAppointmentId(null);
+    };
+
+    const handleDeleteLead = async () => {
+        if (!lead?.id) return;
+        try {
+            const { error } = await supabase.from('leads').delete().eq('id', lead.id);
+            if (error) throw error;
+
+            toast.success("Lead excluído com sucesso.");
+            navigate('/crm'); // Redirect to CRM after deletion
+            setShowDeleteDialog(false);
+
+            // Refresh board data
+            if (clinic?.id) {
+                fetchBoardData(clinic.id);
+            }
+        } catch (error) {
+            console.error("Erro ao excluir:", error);
+            toast.error("Erro ao excluir lead.");
+        }
+    };
+
+    const handleCopy = (text: string, label: string) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        toast.success(`${label} copiado!`);
+    };
+
+    const validateEmail = (email: string) => {
+        const standardRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!standardRegex.test(email)) return false;
+
+        const [, domain] = email.split('@');
+        const allowedDomains = [
+            'gmail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+            'yahoo.com', 'yahoo.com.br', 'icloud.com', 'me.com',
+            'uol.com.br', 'bol.com.br', 'terra.com.br', 'ig.com.br'
+        ];
+        const allowedExtensions = ['.com', '.com.br', '.net', '.pro', '.dev', '.tech', '.co'];
+
+        const domainMatchesAllowed = allowedDomains.includes(domain.toLowerCase());
+        const extMatchesAllowed = allowedExtensions.some(ext => domain.toLowerCase().endsWith(ext));
+
+        return domainMatchesAllowed || extMatchesAllowed;
+    };
+
+    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value.toLowerCase().replace(/\s/g, ''); // Normalização: minúscula e sem espaços
+        setLocalEmail(val);
+
+        if (val.includes('@')) {
+            const [, domainPart] = val.split('@');
+            const domains = [
+                'gmail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+                'yahoo.com', 'yahoo.com.br', 'icloud.com', 'me.com',
+                'uol.com.br', 'bol.com.br', 'terra.com.br', 'ig.com.br'
+            ];
+            const suggestion = domains.find(d => d.startsWith(domainPart) && d !== domainPart);
+            if (suggestion && domainPart.length > 1) { // Só sugere após 2 letras do domínio
+                setEmailSuggestion(suggestion.slice(domainPart.length));
+            } else {
+                setEmailSuggestion("");
+            }
+        } else {
+            setEmailSuggestion("");
+        }
+
+        setEmailError(val.length > 0 && !validateEmail(val));
+    };
+
+    const handleEmailBlur = () => {
+        let val = localEmail;
+        // Correções automáticas comuns
+        if (val.endsWith('.con')) val = val.slice(0, -1) + 'm';
+        if (val.includes('gamil')) val = val.replace('gamil', 'gmail');
+        if (val.includes('gmial')) val = val.replace('gmial', 'gmail');
+        if (val.includes('hotmial')) val = val.replace('hotmial', 'hotmail');
+
+        setLocalEmail(val);
+        const isValid = val.length > 0 ? !validateEmail(val) : false;
+        setEmailError(isValid);
+        setEmailSuggestion("");
+
+        if (!isValid && val !== lead?.email) {
+            handleUpdateLead({ email: val });
+        }
+    };
+
+    const applySuggestion = () => {
+        if (emailSuggestion) {
+            setLocalEmail(prev => prev + emailSuggestion);
+            setEmailSuggestion("");
+            setEmailError(false);
+        }
+    };
+
+    const [msg, setMsg] = useState("");
+    const [chatView, setChatView] = useState<'conversation' | 'history'>('conversation');
+    const [isAiActive, setIsAiActive] = useState(true);
+    const [isConversationClosed, setIsConversationClosed] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // --- AI SYSTEM STATES ---
+    const [aiCredits, setAiCredits] = useState(3);
+    const [isGeneratingStrategy, setIsGeneratingStrategy] = useState(false);
+    const [lastAnalysisTime, setLastAnalysisTime] = useState<Date | null>(null);
+    const [dossierData, setDossierData] = useState<{ sentiment: string, sentimentIcon: any, sentimentColor: string, intent: number, consciousness: string, summary: string, objection?: string } | null>(null);
+
+
+
+    // --- 4. CRITICAL NOTES STATES ---
+    const [criticalNotes, setCriticalNotes] = useState("");
+    const [isEditingCriticalNotes, setIsEditingCriticalNotes] = useState(false);
+    const [tempCriticalNotes, setTempCriticalNotes] = useState("");
+
+    // --- 5. VISUALIZATION & MODALS ---
+    const [isQuickSaleModalOpen, setIsQuickSaleModalOpen] = useState(false);
+    const [quickSaleValue, setQuickSaleValue] = useState("");
+    const [quickSaleMethod, setQuickSaleMethod] = useState("credit");
+    const [quickSaleInstallments, setQuickSaleInstallments] = useState(1);
+    const [quickSaleObs, setQuickSaleObs] = useState("");
+    const [isProcessingSale, setIsProcessingSale] = useState(false);
+
+    const handleOpenQuickSale = () => {
+        setQuickSaleValue(lead?.budget ? lead.budget.toString() : "");
+        setQuickSaleMethod("credit");
+        setQuickSaleInstallments(1);
+        setQuickSaleObs("");
+        setIsQuickSaleModalOpen(true);
+    };
+
+    const handleFinalizeSale = async () => {
+        if (!lead || !quickSaleValue) return;
+        setIsProcessingSale(true);
+
+        try {
+            const numericValue = Number(quickSaleValue.toString().replace(/[^0-9.]/g, ''));
+
+            if (quickSaleMethod === 'other' && !quickSaleObs.trim()) {
+                toast.error("Para o método 'Outro', a observação é obrigatória.");
+                setIsProcessingSale(false);
+                return;
+            }
+
+            // Passo 1: Capturar o Estado Real da UI (Priorizando o que está no componente, se disponível, ou o lead atualizado)
+            // Como LeadDetailsPage usa `lead` do store que reflete o UI via handleUpdateLead,
+            // precisamos garantir que usamos os dados mais recentes.
+            // O `lead` objeto aqui já deve estar atualizado pelo onChange dos Selects anteriores.
+            // Mas para segurança, vamos usar o ID que está no objeto lead (que é reativo).
+
+            const realProcedureId = lead.procedure_id;
+            const realProfessionalId = lead.doctor_id || lead.professional_id || profile?.id; // Prioridade mantida
+
+            // Identificar Procedimento pelo ID (Crucial: buscar na lista de Services)
+            const serviceObj = services.find(s => s.id === realProcedureId);
+            const procedureName = serviceObj?.name || lead.procedure || "Procedimento Geral";
+
+            // Passo 2: Atualizar o Lead (Sync) - Garantir persistência antes da venda
+            // Isso resolve o "Dados Obsoletos" se o update anterior falhou ou não completou.
+            const { error: syncError } = await supabase.from('leads').update({
+                procedure_id: realProcedureId,
+                doctor_id: lead.doctor_id, // Mantém o que está na tela
+                status: 'Venda Realizada', // Já move o status aqui
+                budget: null, // Limpa orçamento
+                sales_cycle_days: (() => {
+                    const now = new Date();
+                    const createdAt = new Date(lead.created_at || now);
+                    const diffTime = Math.abs(now.getTime() - createdAt.getTime());
+                    return parseFloat((diffTime / (1000 * 60 * 60 * 24)).toFixed(2));
+                })(),
+                closed_at: new Date().toISOString()
+            }).eq('id', lead.id);
+
+            if (syncError) throw new Error("Erro ao sincronizar dados do lead.");
+
+
+            // 1. Busca Obrigatória (Atomic LTV Check) depois do update base
+            const { data: dbLead, error: fetchError } = await supabase
+                .from('leads')
+                .select('total_ltv, stage_history')
+                .eq('id', lead.id)
+                .single();
+
+            if (fetchError || !dbLead) throw new Error("Erro de segurança: Não foi possível sincronizar o LTV.");
+
+            const currentLtv = Number(dbLead.total_ltv || 0);
+            const newLtv = currentLtv + numericValue;
+
+            // Histórico de Etapa
+            const newHistoryItem = {
+                action: `Venda Rápida: ${quickSaleMethod} (R$ ${numericValue})`,
+                date: new Date().toISOString()
+            };
+            const updatedHistory = [...(dbLead.stage_history || []), newHistoryItem];
+
+            // Atualiza LTV e Histórico (separado para garantir integridade do cálculo LTV)
+            await supabase.from('leads').update({
+                total_ltv: newLtv,
+                stage_history: updatedHistory
+            }).eq('id', lead.id);
+
+
+            // Passo 3: Gerar Data 'Blindada' (String Manipulation)
+            const getHardcodedBrazilDate = () => {
+                const now = new Date();
+                const yyyy = now.getFullYear();
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                // Força T12:00:00-03:00 para garantir que caia no dia certo no Brasil
+                return `${yyyy}-${mm}-${dd}T12:00:00-03:00`;
+            };
+
+            // Passo 4: Inserir Transação (Save)
+            const { error: finError } = await supabase
+                .from('financial_transactions')
+                .insert({
+                    lead_id: lead.id,
+                    clinic_id: lead.clinic_id || clinic?.id,
+                    professional_id: realProfessionalId, // ID da tabela professionals
+
+                    amount: numericValue,
+                    status: 'paid',
+                    type: 'income',
+                    category: 'Vendas',
+                    payment_method: quickSaleMethod,
+                    installments: (quickSaleMethod === 'credit' || quickSaleMethod === 'debit') ? (Number(quickSaleInstallments) || 1) : 1,
+                    description: `Venda Rápida - ${procedureName}`, // Nome atualizado
+                    notes: quickSaleObs,
+                    transaction_date: getHardcodedBrazilDate(), // Data blindada
+                    metadata: {
+                        patient_name: lead.name,
+                        procedure_name: procedureName,
+                        professional_name: professionals.find(p => p.id === realProfessionalId)?.name || "Sem Responsável",
+                        payment_method: quickSaleMethod
+                    }
+                });
+
+            if (finError) {
+                console.error("Erro ao lançar financeiro:", finError);
+                toast.error("Venda salva, mas houve erro no registro financeiro.");
+                setIsProcessingSale(false);
+                return;
+            }
+
+            // 4. Registro de Atividade 
+            const formattedValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numericValue);
+            const activityDescription = `Venda de ${formattedValue} via ${quickSaleMethod} - ${procedureName}. ${quickSaleObs ? `Obs: ${quickSaleObs}` : ''}`;
+
+            await supabase.from('lead_activities').insert({
+                lead_id: lead.id,
+                type: 'venda',
+                description: activityDescription,
+                clinic_id: lead.clinic_id || clinic?.id,
+                created_at: getHardcodedBrazilDate()
+            });
+
+            // 5. Conversão e Refresh
+            await fetchLeadById(lead.id);
+            await fetchBoardData(clinic?.id || '');
+
+            toast.success(`Venda de ${formattedValue} processada com sucesso! 🚀`, {
+                duration: 4000
+            });
+            setIsQuickSaleModalOpen(false);
+            setIsProcessingSale(false);
+
+        } catch (error: any) {
+            console.error("Erro na Venda Rápida:", error);
+            toast.error("Erro ao processar venda: " + (error.message || "Verifique sua conexão."));
+            setIsProcessingSale(false);
+        }
+    };
+
+
+
+
+
+    // Load services on mount
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchServices(clinic.id);
+            fetchProfessionals(clinic.id);
+            fetchAvailableTags(clinic.id);
+        }
+    }, [clinic?.id, fetchServices, fetchProfessionals, fetchAvailableTags]);
+
+    // --- 1. DAILY CREDITS SYSTEM (Frontend Simulation with LocalStorage) ---
+    useEffect(() => {
+        if (!leadId) return;
+
+        const today = new Date().toDateString();
+        const storageKey = `sevenn_credits_${leadId}`;
+        const stored = localStorage.getItem(storageKey);
+
+        if (stored) {
+            const { date, credits } = JSON.parse(stored);
+            if (date === today) {
+                setAiCredits(credits);
+            } else {
+                // New day, reset credits
+                setAiCredits(3);
+                localStorage.setItem(storageKey, JSON.stringify({ date: today, credits: 3 }));
+            }
+        } else {
+            // First time logic
+            setAiCredits(3);
+            localStorage.setItem(storageKey, JSON.stringify({ date: today, credits: 3 }));
+        }
+    }, [leadId]);
+
+    const handleUseCredit = () => {
+        if (aiCredits <= 0) return;
+
+        setIsGeneratingStrategy(true);
+
+        // Simulate N8N Call
+        setTimeout(() => {
+            const newCredits = aiCredits - 1;
+            setAiCredits(newCredits);
+            localStorage.setItem(`sevenn_credits_${leadId}`, JSON.stringify({ date: new Date().toDateString(), credits: newCredits }));
+            setIsGeneratingStrategy(false);
+            setLastAnalysisTime(new Date());
+        }, 3000); // 3s fake processing
+    };
+
+    // --- 2. AUTOMATIC TRIGGER (Sevenn Analysis) ---
+    useEffect(() => {
+        if (!lead) return;
+
+        const advancedStages = ['Orçamento', 'Agendado', 'No-Show', 'Avaliado', 'Follow-up de Vendas', 'Venda Realizada'];
+        const isAdvanced = advancedStages.includes(lead.status);
+
+        if (isAdvanced && !dossierData) {
+            // Simulate N8N Automatic Analysis filling the Dossier
+            setDossierData({
+                sentiment: 'Interessado',
+                sentimentIcon: Smile,
+                sentimentColor: 'text-blue-600',
+                intent: 85,
+                consciousness: 'Pronto para Fechar',
+                summary: `O paciente ${lead.name} demonstra perfil altamente responsivo e interesse focado em ${lead.procedure || 'Estética Facial'}. A análise das últimas mensagens indica interesse genuíno.`,
+                objection: "Cliente mencionou 'tá caro', mas o contexto sugere que é falta de confiança no resultado final, não falta de orçamento. Focar em provas sociais e garantia de resultados."
+            });
+            setLastAnalysisTime(new Date()); // Mock timestamp
+        } else if (!isAdvanced) {
+            setDossierData(null); // Reset if moved back, or keep it depending on rules. Let's keep specific logic simple.
+        }
+    }, [lead, dossierData, isAiActive, leadId, fetchLeadById]);
+
+    // --- URL NAVIGATION & PRIVACY ---
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const getInternalTab = (urlParam: string | null) => {
+        if (!urlParam) return "";
+        const map: Record<string, string> = {
+            'chat': 'chat',
+            'prontuario': 'records',
+            'prontuário': 'records',
+            'financeiro': 'finance',
+            'galeria': 'gallery',
+            'insightsia': 'insights',
+            'documentos': 'documents'
+        };
+        return map[urlParam.toLowerCase()] || "";
+    };
+
+    const getUrlParam = (internalTab: string) => {
+        const map: Record<string, string> = {
+            'chat': 'chat',
+            'records': 'prontuario',
+            'finance': 'financeiro',
+            'gallery': 'galeria',
+            'insights': 'insightsia',
+            'documents': 'documentos'
+        };
+        return map[internalTab] || internalTab;
+    };
+
+    const activeTab = getInternalTab(searchParams.get('tab'));
+
+    const setActiveTab = (tab: string) => {
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            const paramValue = getUrlParam(tab);
+            if (paramValue) {
+                newParams.set('tab', paramValue);
+            } else {
+                newParams.delete('tab');
+            }
+            return newParams;
+        }, { replace: true });
+    };
+
+    const [activeChatId, setActiveChatId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (activeTab === 'chat' && !activeChatId) {
+            // Optional: Auto-select chat if needed or keep it empty as per request
+            // But if we wanted to auto-select: setActiveChatId('default');
+        } else if (activeTab !== 'chat') {
+            setActiveChatId(null);
+        }
+    }, [activeTab]);
+
+    // ESC Key Listener
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                // Limpa URL e Chat
+                setSearchParams({}, { replace: true });
+                setActiveChatId(null);
+                // Opcional: Remover foco se necessário
+                (document.activeElement as HTMLElement)?.blur();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [setSearchParams]);
+
+    const copyAndGoToChat = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setChatView('conversation');
+        setActiveTab("chat");
+    };
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    const quickActions = [
+        { label: "Localização", icon: MapPin, text: "Aqui está nossa localização: [Link Google Maps]" },
+        { label: "Tabela Preços", icon: CircleDollarSign, text: "Vou te enviar nossa tabela de procedimentos atualizada." },
+        { label: "Chamar Doutor", icon: Stethoscope, text: "Aguarde um momento, vou chamar o doutor para tirar sua dúvida técnica." },
+    ];
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [chatView]);
+
+
+
+    useEffect(() => {
+        if (lead) setLocalName(lead.name);
+    }, [lead?.id]);
+
+    useEffect(() => {
+        if (!lead && clinic?.id && leads.length === 0 && !loading) {
+            fetchBoardData(clinic.id);
+        }
+    }, [lead, clinic?.id, leads.length, loading, fetchBoardData]);
+
+    // --- DYNAMIC HEADER ---
+    useEffect(() => {
+        if (lead) {
+            // Defer to avoid render cycle issues
+            setTimeout(() => {
+                setHeaderContent(
+                    <div className="flex items-center justify-between w-full h-full relative">
+                        {/* Title & Breadcrumbs */}
+                        <div className="flex items-center gap-4">
+                            <h1 className="text-lg font-bold text-slate-900 font-space leading-none tracking-tight">Ficha do Lead</h1>
+
+                            <div className="h-5 w-px bg-slate-200" />
+
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold uppercase tracking-wide">
+                                <span className="hover:text-primary cursor-pointer transition-colors" onClick={() => navigate('/crm')}>CRM</span>
+                                <ChevronRight className="w-3 h-3 text-slate-300" />
+                                <span className="text-slate-900 font-bold max-w-[250px] truncate">{lead.name || "Carregando..."}</span>
+                            </div>
+                        </div>
+
+                        {/* Center: Stage Selector */}
+                        <div className="absolute left-1/2 -translate-x-1/2">
+                            <div className="flex items-center gap-2 bg-slate-50 p-0.5 pl-3 pr-1 rounded-lg border border-slate-200 shadow-sm group hover:border-primary/20 transition-all">
+                                <span className="text-[10px] font-bold font-space text-slate-400 uppercase tracking-wider">Etapa Atual</span>
+                                <Select value={lead.status} onValueChange={(v) => moveLead(lead.id, v as any)}>
+                                    <SelectTrigger className="h-7 border-none bg-white shadow-sm min-w-[160px] w-auto text-xs font-bold font-manrope focus:ring-0 whitespace-nowrap overflow-hidden">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent align="center">
+                                        {columns.map(col => (
+                                            <SelectItem key={col.id} value={col.id} className="text-xs font-bold font-manrope cursor-pointer">
+                                                <div className="flex items-center gap-2 whitespace-nowrap" style={{ color: col.rawColor || '#1e293b' }}>
+                                                    <div
+                                                        className={cn("w-2 h-2 rounded-full shrink-0", !col.rawColor && col.color.replace('border-', 'bg-').replace('-400', '-500'))}
+                                                        style={col.rawColor ? { backgroundColor: col.rawColor } : {}}
+                                                    />
+                                                    {col.title}
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-3">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-2 font-semibold font-manrope text-xs border-slate-200 text-slate-600 hover:text-primary hover:bg-primary/5 hover:border-primary/30 bg-white shadow-sm"
+                                onClick={() => {
+                                    navigate('/calendar', {
+                                        state: {
+                                            action: 'new_appointment',
+                                            leadId: lead.id
+                                        }
+                                    });
+                                }}
+                            >
+                                <Calendar className="w-3.5 h-3.5" /> Agendar
+                            </Button>
+
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="sm"
+                                            className="h-8 gap-2 font-semibold font-manrope text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200"
+                                            onClick={handleOpenQuickSale}
+                                        >
+                                            <DollarSign className="w-3.5 h-3.5" /> Venda Rápida
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-slate-800 text-white border-slate-700">
+                                        <p>Recebimento imediato. Registra venda e pagamento simultâneos.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                    </div >
+                );
+            }, 0);
+        }
+
+        // Cleanup
+        return () => setHeaderContent(null);
+    }, [lead, columns, services, moveLead, navigate, handleOpenQuickSale, setHeaderContent]);
+
+    if (loading || (!lead && leadId && leads.length === 0)) {
+        return <LeadDetailsSkeleton />;
+    }
+
+    if (!lead) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center gap-4 text-center bg-slate-50">
+                <div className="p-4 rounded-full bg-white shadow-sm">
+                    <Search className="w-8 h-8 text-slate-300" />
+                </div>
+                <div className="space-y-1">
+                    <h2 className="text-xl font-bold text-slate-800">Lead não encontrado</h2>
+                    <p className="text-sm text-slate-500">O lead que você procura não existe ou você não tem permissão.</p>
+                </div>
+                <Button variant="outline" onClick={() => navigate('/crm')}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Voltar para o Pipeline
+                </Button>
+            </div>
+        );
+    }
+
+
+
+    return (
+        <div className="flex h-full w-full bg-white overflow-hidden">
+            {/* 1. SIDEBAR ESQUERDA (30%) */}
+            <aside className="w-[320px] lg:w-[27%] min-w-[320px] border-r border-slate-200 bg-slate-50 flex flex-col overflow-y-auto shrink-0 select-text [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="flex flex-row items-center gap-4 p-5 bg-white border-b border-slate-200 relative">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate('/crm')}
+                        className="absolute left-1 top-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full h-6 w-6"
+                        title="Voltar"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                    </Button>
+
+                    {/* Botão de Opções (3 Pontinhos) */}
+                    <div className="absolute right-1 top-1">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-600">
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-600 cursor-pointer gap-2"
+                                    onClick={() => setShowDeleteDialog(true)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Excluir Lead
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+
+                    <Avatar className="h-16 w-16 ring-2 ring-slate-50 shadow-md shrink-0">
+                        <AvatarImage src={lead.avatar_url || lead.responsible_avatar} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-emerald-400 text-white font-black text-lg">
+                            {localName.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex flex-col gap-2 flex-1 items-start min-w-0">
+                        {/* INDICADOR DE CICLO DE VENDA + SLA ALERT */}
+                        {lead.created_at && (
+                            <div className="w-full">
+                                {(() => {
+                                    // 1. Calculate basic days
+                                    const start = new Date(lead.created_at);
+                                    const now = new Date();
+                                    const diffMs = Math.max(0, now.getTime() - start.getTime());
+                                    const daysOpen = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+                                    // 2. Find matching service target (Bridge)
+                                    // Tenta pelo ID primeiro (Mais seguro), depois pelo nome
+                                    const matchingService = services.find(s => s.id === lead.procedure_id) || services.find(s => s.name === lead.procedure);
+                                    const targetDays = matchingService?.target_sales_cycle_days;
+
+                                    // 3. Determine Status
+                                    const isClosed = lead.status === 'Venda Realizada';
+                                    const isLate = !isClosed && targetDays && daysOpen > targetDays;
+
+                                    // Only show if Late or Closed (or if you want to show 'Em negociação' always, remove condition. Request says 'Se o alerta existir')
+                                    // But previous code showed it always. Let's keep it but styling is compact.
+
+                                    return (
+                                        <div className={cn(
+                                            "px-2 py-1 rounded border flex items-center justify-center gap-1.5 shadow-sm transition-all w-full",
+                                            isClosed
+                                                ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                                                : isLate
+                                                    ? "bg-amber-50 border-amber-200 text-amber-600"
+                                                    : "bg-slate-50 border-slate-200 text-slate-500"
+                                        )}>
+                                            {isLate ? <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" /> : <Clock className="w-3 h-3 shrink-0" />}
+                                            <span className="text-[10px] font-medium font-manrope truncate leading-none pt-0.5">
+                                                {(() => {
+                                                    if (isClosed) {
+                                                        if (lead.sales_cycle_days !== undefined && lead.sales_cycle_days !== null) {
+                                                            const days = Math.floor(lead.sales_cycle_days);
+                                                            return `Fechado em ${days} d`;
+                                                        }
+                                                        // Legacy Fallback
+                                                        const end = lead.closed_at ? new Date(lead.closed_at) : new Date();
+                                                        const diffMsClosed = Math.max(0, end.getTime() - start.getTime());
+                                                        const calcDays = Math.floor(diffMsClosed / (1000 * 60 * 60 * 24));
+                                                        return `Fechado em ${calcDays} d`;
+                                                    }
+
+                                                    if (isLate) {
+                                                        return `Negociação Lenta = ${daysOpen} dias (Meta: ${targetDays} dias)`;
+                                                    }
+
+                                                    return `Em negociação há ${daysOpen} dias`;
+                                                })()}
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
+
+                        <div className="flex items-center flex-wrap gap-2 w-full">
+                            <span
+                                className="bg-slate-100 text-slate-500 font-bold text-[10px] px-2 py-0.5 rounded cursor-pointer hover:bg-slate-200 transition-colors"
+                                onClick={() => handleCopy(lead.id, "ID")}
+                            >
+                                #{lead.id.substring(0, 6).toUpperCase()}
+                            </span>
+
+                            {(lead.sevenn_score || 0) > 0 && (
+                                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-none px-2 py-0.5 h-auto text-[10px] font-bold font-manrope rounded">
+                                    Score {lead.sevenn_score}
+                                </Badge>
+                            )}
+
+                            {/* BOTÃO STATUS IA - Compacto */}
+                            <div
+                                className="flex items-center cursor-pointer select-none overflow-hidden rounded border border-slate-200 transition-all duration-300 hover:shadow-sm h-5"
+                                style={{ width: '100px' }}
+                                onClick={() => {
+                                    const newState = !isAiActive;
+                                    handleUpdateLead({ ai_status: newState ? 'active' : 'paused' });
+                                    setIsAiActive(newState);
+                                }}
+                            >
+                                {!isAiActive ? (
+                                    <>
+                                        <div className="w-[15%] bg-red-500 h-full flex items-center justify-center">
+                                            <PlayCircle className="w-2 h-2 text-white fill-current" />
+                                        </div>
+                                        <div className="w-[85%] bg-slate-50 h-full flex items-center justify-center">
+                                            <span className="text-[8px] font-black text-slate-500 tracking-tighter uppercase">Humano Atendendo</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="w-[80%] bg-emerald-500 h-full flex items-center justify-center">
+                                            <span className="text-[8px] font-black text-white tracking-tighter uppercase">IA em Atendimento</span>
+                                        </div>
+                                        <div className="w-[20%] bg-slate-50 h-full flex items-center justify-center">
+                                            <PauseCircle className="w-2 h-2 text-slate-400" />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-4 py-0 flex-1 overflow-y-auto custom-scrollbar">
+                    {/* SEÇÃO 2: DADOS PESSOAIS */}
+                    <div className="space-y-3">
+                        <h3 className="font-space text-[12px] font-semibold tracking-[0.06em] text-slate-700 uppercase flex items-center gap-2 border-t border-slate-200/70 pt-5 pb-2"><User className="w-3.5 h-3.5 text-slate-400" /> Dados Pessoais</h3>
+                        <div className="space-y-2">
+                            <div className="grid grid-cols-11 gap-3">
+                                <div className="group col-span-6">
+                                    <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase flex gap-1.5 items-center mb-1">
+                                        <User className="w-3 h-3 text-slate-400" /> Nome
+                                        <Copy className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 cursor-pointer transition-all ml-auto" onClick={() => handleCopy(localName, "Nome")} />
+                                    </span>
+                                    <input
+                                        className="bg-transparent font-manrope text-[15px] font-semibold text-slate-900 w-full outline-none border-b border-slate-200/70 hover:border-slate-300 focus:border-primary transition-all pb-1 truncate placeholder:text-slate-400"
+                                        value={localName}
+                                        onChange={(e) => setLocalName(e.target.value)}
+                                        onBlur={() => {
+                                            if (localName !== lead.name) {
+                                                handleUpdateLead({ name: localName });
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="group col-span-5">
+                                    <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase flex gap-1.5 items-center mb-1">
+                                        <Phone className="w-3 h-3 text-slate-400" /> Tel
+                                        <Copy className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 cursor-pointer transition-all ml-auto" onClick={() => handleCopy(lead.phone, "Telefone")} />
+                                    </span>
+                                    <div className="flex items-center border-b border-slate-200/70 hover:border-slate-300 focus-within:border-primary transition-all pb-1">
+                                        <span className="text-[13px] text-slate-400 mr-1 font-medium font-manrope">+55</span>
+                                        <input
+                                            className="bg-transparent font-manrope text-[15px] font-semibold text-slate-900 w-full outline-none leading-snug"
+                                            defaultValue={lead.phone?.replace('+55', '') || ''}
+                                            placeholder="(99) 99999-9999"
+                                            maxLength={15}
+                                            onInput={(e) => {
+                                                const input = e.currentTarget;
+                                                let v = input.value.replace(/\D/g, '');
+                                                if (v.length > 11) v = v.substring(0, 11);
+                                                v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+                                                v = v.replace(/(\d)(\d{4})$/, '$1-$2');
+                                                input.value = v;
+                                            }}
+                                            onBlur={(e) => {
+                                                let val = e.target.value.replace(/\D/g, '');
+                                                if (val) {
+                                                    // Ensure it starts with 55 if saving to DB, or just update sanitized
+                                                    if (val.length >= 10) {
+                                                        // Add +55 if not present and if you prefer standard DB format
+                                                        // But user request says: "keep format or sanitize"
+                                                        // Let's save standardized +55...
+                                                        const finalPhone = `+55${val}`;
+                                                        if (finalPhone !== lead.phone) {
+                                                            handleUpdateLead({ phone: finalPhone });
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <MessageCircle className="w-3.5 h-3.5 text-emerald-500 ml-1 cursor-pointer hover:scale-110 transition-transform" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-11 gap-3">
+                                <div className="group col-span-6">
+                                    <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase flex gap-1.5 items-center mb-1">
+                                        <User className="w-3 h-3 text-slate-400" /> CPF
+                                        <Copy className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 cursor-pointer transition-all ml-auto" onClick={() => handleCopy(lead.cpf || "", "CPF")} />
+                                    </span>
+                                    <input
+                                        type="text"
+                                        className="bg-transparent font-manrope text-[15px] font-medium text-slate-900 w-full outline-none border-b border-slate-200/70 hover:border-slate-300 focus:border-primary transition-all pb-1 leading-snug placeholder:text-slate-400"
+                                        defaultValue={lead.cpf || ''}
+                                        placeholder="000.000.000-00"
+                                        maxLength={14}
+                                        onInput={(e) => {
+                                            const input = e.currentTarget;
+                                            let v = input.value.replace(/\D/g, '');
+                                            if (v.length > 11) v = v.substring(0, 11);
+                                            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                                            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                                            v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                                            input.value = v;
+                                        }}
+                                        onBlur={(e) => {
+                                            const val = e.target.value;
+                                            if (val !== lead.cpf) {
+                                                handleUpdateLead({ cpf: val });
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="group col-span-5 relative">
+                                    <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase flex gap-1.5 items-center mb-1">
+                                        <MessageCircle className="w-3 h-3 text-slate-400" /> Email
+                                        <Copy className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 cursor-pointer transition-all ml-auto" onClick={() => handleCopy(localEmail, "Email")} />
+                                    </span>
+                                    <div className="relative group">
+                                        <input
+                                            className={cn(
+                                                "bg-transparent font-manrope text-[15px] font-medium text-slate-900 w-full outline-none border-b transition-all pb-1 leading-snug placeholder:text-slate-400",
+                                                emailError ? "border-red-400 text-red-600" : "border-slate-200/70 hover:border-slate-300 focus:border-primary"
+                                            )}
+                                            value={localEmail}
+                                            onChange={handleEmailChange}
+                                            onBlur={handleEmailBlur}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Tab' || e.key === 'Enter') {
+                                                    if (emailSuggestion) {
+                                                        e.preventDefault();
+                                                        applySuggestion();
+                                                    }
+                                                }
+                                            }}
+                                            placeholder="email@exemplo.com"
+                                        />
+                                        {emailSuggestion && (
+                                            <span
+                                                className="absolute left-0 top-0 font-manrope text-[15px] pointer-events-none opacity-30 whitespace-pre"
+                                                style={{ left: `${localEmail.length * 8}px` }} // Adjusted offset
+                                            >
+                                                {emailSuggestion}
+                                            </span>
+                                        )}
+                                        {emailError && (
+                                            <span className="absolute -bottom-4 left-0 text-[9px] text-red-500 font-bold uppercase tracking-tighter animate-in fade-in slide-in-from-top-1">Verifique o formato</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* SEÇÃO 3: ETIQUETAS */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between border-t border-slate-200/70 pt-5 pb-2">
+                            <h3 className="font-space text-[12px] font-semibold tracking-[0.06em] text-slate-700 uppercase flex items-center gap-2"><Tag className="w-3.5 h-3.5 text-slate-400" /> Etiquetas</h3>
+                            {clinic?.id && <ManageTagsDialog clinicId={clinic.id} />}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {lead.tags?.map(t => (
+                                <Badge key={t} variant="secondary" className="bg-white border text-slate-600 h-auto font-manrope text-[12px] font-semibold px-2.5 py-1 rounded-full group">
+                                    {t}
+                                    {profile?.role === 'superadmin' && (
+                                        <X
+                                            className="w-3 h-3 ml-1 text-slate-300 cursor-pointer hover:text-red-500 hidden group-hover:block"
+                                            onClick={() => {
+                                                const newTags = lead.tags?.filter(tag => tag !== t) || [];
+                                                handleUpdateLead({ tags: newTags });
+                                            }}
+                                        />
+                                    )}
+                                </Badge>
+                            ))}
+                            {profile?.role === 'superadmin' && (
+                                <div className="relative inline-block">
+                                    <div
+                                        className="flex items-center h-6 rounded-full text-slate-400 border border-dashed border-slate-300 hover:text-primary hover:border-primary px-2 font-manrope cursor-pointer bg-slate-50 hover:bg-white transition-all text-[10px]"
+                                        onClick={(e) => {
+                                            const container = e.currentTarget.nextElementSibling;
+                                            if (container) container.classList.toggle('hidden');
+                                            // Focus input
+                                            const input = container?.querySelector('input');
+                                            if (input) setTimeout(() => input.focus(), 50);
+                                        }}
+                                    >
+                                        + Tag
+                                    </div>
+                                    <div className="hidden absolute top-0 left-0 z-50 bg-white border border-slate-200 shadow-lg p-2 rounded-lg flex flex-col gap-2 min-w-[200px] animate-in fade-in zoom-in-50 duration-200">
+                                        <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                                            <input
+                                                className="text-xs outline-none w-full text-slate-700 font-manrope"
+                                                placeholder="Buscar etiqueta..."
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const val = e.currentTarget.value.trim();
+                                                        if (val) {
+                                                            const currentTags = lead.tags || [];
+                                                            // Only add if it exists in availableTags (busca/seleção mode)
+                                                            const exists = availableTags.some(at => at.name.toLowerCase() === val.toLowerCase());
+                                                            const tagName = availableTags.find(at => at.name.toLowerCase() === val.toLowerCase())?.name || val;
+
+                                                            if (exists && !currentTags.includes(tagName)) {
+                                                                handleUpdateLead({ tags: [...currentTags, tagName] });
+                                                                e.currentTarget.parentElement?.parentElement?.classList.add('hidden');
+                                                            } else if (!exists) {
+                                                                toast.error("Esta etiqueta não existe. Crie-a no painel de gestão.");
+                                                            }
+                                                        }
+                                                        e.currentTarget.value = '';
+                                                    }
+                                                    if (e.key === 'Escape') {
+                                                        e.currentTarget.parentElement?.parentElement?.classList.add('hidden');
+                                                    }
+                                                }}
+                                            />
+                                            {/* Removed Check icon as it's primarily for creation, now it's just selection via list or Enter for exact match */}
+                                        </div>
+
+                                        {/* Suggestions List */}
+                                        <div className="max-h-[150px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
+                                            {availableTags
+                                                .filter(t => !lead.tags?.includes(t.name))
+                                                .map(tag => (
+                                                    <div
+                                                        key={tag.id}
+                                                        className="text-[11px] font-manrope text-slate-600 px-2 py-1.5 hover:bg-slate-50 rounded cursor-pointer transition-colors flex items-center gap-2"
+                                                        onClick={(e) => {
+                                                            const currentTags = lead.tags || [];
+                                                            handleUpdateLead({ tags: [...currentTags, tag.name] });
+                                                            // Close popup
+                                                            const popup = e.currentTarget.closest('.absolute');
+                                                            if (popup) popup.classList.add('hidden');
+                                                        }}
+                                                    >
+                                                        <div className={cn(
+                                                            "w-2 h-2 rounded-full",
+                                                            tag.color ? `bg-${tag.color}-500` : "bg-slate-300"
+                                                        )} />
+                                                        {tag.name}
+                                                    </div>
+                                                ))
+                                            }
+                                            {availableTags.filter(t => !lead.tags?.includes(t.name)).length === 0 && (
+                                                <span className="text-[10px] text-slate-400 italic p-1 text-center">Nenhuma sugestão extra</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* SEÇÃO 4: NEGÓCIO */}
+                    <div className="space-y-3">
+                        <h3 className="font-space text-[12px] font-semibold tracking-[0.06em] text-slate-700 uppercase flex items-center gap-2 border-t border-slate-200/70 pt-5 pb-2"><DollarSign className="w-3.5 h-3.5 text-slate-400" /> Negócio</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase mb-1.5 block">Total Faturado (LTV)</span>
+                                <div className="flex items-center text-emerald-800 bg-emerald-50/50 px-2.5 py-1.5 rounded border border-emerald-100 shadow-sm">
+                                    <span className="text-[12px] font-semibold mr-1.5 font-manrope text-emerald-600/70">R$</span>
+                                    <span className="font-manrope text-[15px] font-bold">
+                                        {new Intl.NumberFormat('pt-BR').format(realLtv)}
+                                    </span>
+                                </div>
+                            </div>
+                            <div>
+                                <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase mb-1.5 block">Saldo Devedor</span>
+                                <div className={cn(
+                                    "flex items-center px-2.5 py-1.5 rounded border transition-all shadow-sm",
+                                    realDebt > 0 ? "text-rose-800 bg-rose-50 border-rose-100" : "text-slate-400 bg-slate-50/50 border-slate-100"
+                                )}>
+                                    <span className="text-[12px] font-semibold mr-1.5 font-manrope opacity-70">R$</span>
+                                    <span className="font-manrope text-[15px] font-bold">
+                                        {new Intl.NumberFormat('pt-BR').format(realDebt)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 pt-2">
+                            <div>
+                                <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase mb-1.5 block">Orçamento (Venda Atual)</span>
+                                <div className="flex items-center text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200">
+                                    <span className="text-[12px] font-semibold mr-1.5 font-manrope text-slate-400">R$</span>
+                                    <input
+                                        className="font-manrope bg-transparent w-full text-[15px] font-semibold outline-none leading-snug"
+                                        value={localBudget}
+                                        onChange={(e) => setLocalBudget(formatInteger(e.target.value))}
+                                        onBlur={() => {
+                                            const numericVal = parseInt(localBudget.replace(/\D/g, ""));
+                                            if (!isNaN(numericVal) && numericVal !== lead.budget) {
+                                                handleUpdateLead({ budget: numericVal });
+                                            } else if (localBudget === "" && lead.budget !== undefined) {
+                                                handleUpdateLead({ budget: undefined });
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-3 pt-2">
+                            <div>
+                                <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase mb-1 block">Procedimento</span>
+                                <Select
+                                    value={localProcedureId || lead.procedure_id || undefined}
+                                    onValueChange={async (v) => {
+                                        // 1. Atualiza a variável visual IMEDIATAMENTE (Isso segura o valor no dropdown)
+                                        // Se esta linha der erro, certifique-se que criou o const [localProcedureId, setLocalProcedureId] lá em cima.
+                                        // Se não tiver criado, pode ignorar esta linha, mas o dropdown pode voltar visualmente para o antigo.
+                                        if (typeof setLocalProcedureId === 'function') {
+                                            setLocalProcedureId(v);
+                                        }
+
+                                        // 2. Lógica de salvar no Banco (MANTENHA ISSO)
+                                        const selectedService = services.find(s => s.id === v);
+                                        const newName = selectedService?.name || "Procedimento Geral";
+
+                                        const { error } = await supabase
+                                            .from('leads')
+                                            .update({
+                                                procedure_id: v,
+                                                procedure: newName
+                                            })
+                                            .eq('id', lead.id);
+
+                                        if (error) {
+                                            console.error("Erro:", error);
+                                            toast.error("Erro ao atualizar.");
+                                        } else {
+                                            toast.success("Procedimento atualizado!");
+
+                                            // 3. TENTATIVA DE REFRESH SUAVE (Opcional)
+                                            // Se você tiver uma função chamada 'fetchLead' ou 'getLead' no seu código,
+                                            // descomente a linha abaixo para atualizar o resto da tela sem reload.
+                                            // fetchLead(); 
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger className="font-manrope w-full h-9 border-slate-200/70 bg-white hover:bg-slate-50 text-[15px] font-medium pl-2 pr-2 text-slate-900 justify-between">
+                                        <SelectValue placeholder="Selecione o procedimento" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {services && services.length > 0 ? (
+                                            services.map((service) => (
+                                                <SelectItem key={service.id} value={service.id}>
+                                                    {service.name}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="no-services" disabled>
+                                                Nenhum serviço cadastrado
+                                            </SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase mb-1 block">Origem</span>
+                                <Select defaultValue={lead.source} onValueChange={(v) => handleUpdateLead({ source: v })}>
+                                    <SelectTrigger
+                                        className={cn(
+                                            "font-manrope w-full h-9 border-slate-200/70 text-[13px] font-bold pl-3 pr-2 justify-between transition-colors",
+                                            getLeadSourceInfo(lead.source).color,
+                                            getLeadSourceInfo(lead.source).bgColor,
+                                            getLeadSourceInfo(lead.source).borderColor
+                                        )}
+                                    >
+                                        <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Instagram" className="text-pink-600 focus:bg-pink-50 focus:text-pink-700">Instagram</SelectItem>
+                                        <SelectItem value="Meta Ads" className="text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700">Meta Ads</SelectItem>
+                                        <SelectItem value="Google Ads" className="text-blue-600 focus:bg-blue-50 focus:text-blue-700">Google Ads</SelectItem>
+                                        <SelectItem value="Indicação" className="text-orange-600 focus:bg-orange-50 focus:text-orange-700">Indicação</SelectItem>
+                                        <SelectItem value="Presencial" className="text-slate-600 focus:bg-slate-50 focus:text-slate-700">Presencial</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <span className="font-manrope text-[12px] font-medium text-slate-500 uppercase mb-1 block">Médico Responsável</span>
+                                <Select
+                                    value={lead.doctor_id || undefined}
+                                    onValueChange={(v) => {
+                                        handleUpdateLead({
+                                            doctor_id: v === 'unassigned' ? null as any : v
+                                        });
+                                    }}
+                                >
+                                    <SelectTrigger className="font-manrope w-full h-9 border-slate-200/70 bg-white hover:bg-slate-50 text-[15px] font-medium pl-2 pr-2 text-slate-900 justify-between">
+                                        <SelectValue placeholder="Selecione o Médico" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="unassigned" className="text-slate-500 italic">Sem médico</SelectItem>
+                                        {professionals && professionals.filter(p => p.id).map((prof) => (
+                                            <SelectItem key={prof.id} value={prof.id}>
+                                                {prof.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* SEÇÃO 6: NOTAS CRÍTICAS */}
+                    <div className="space-y-2 mt-auto pb-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-space text-[12px] font-semibold tracking-[0.06em] text-slate-700 uppercase flex items-center gap-2 border-t border-slate-200/70 pt-5 pb-2"><FileText className="w-3.5 h-3.5 text-slate-400" /> Notas Críticas</h3>
+                            {!isEditingCriticalNotes && (
+                                <div
+                                    className="cursor-pointer p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-all mt-3"
+                                    onClick={() => {
+                                        setTempCriticalNotes(criticalNotes);
+                                        setIsEditingCriticalNotes(true);
+                                    }}
+                                    title="Editar"
+                                >
+                                    <Pencil className="w-3 h-3" />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={cn(
+                            "bg-yellow-50 border border-yellow-200 rounded-lg p-3 min-h-[80px] transition-all",
+                            isEditingCriticalNotes ? "ring-2 ring-primary/20 shadow-sm bg-white" : ""
+                        )}>
+                            {isEditingCriticalNotes ? (
+                                <div className="space-y-3">
+                                    <textarea
+                                        value={tempCriticalNotes}
+                                        onChange={(e) => setTempCriticalNotes(e.target.value)}
+                                        className="w-full bg-transparent font-manrope text-[13px] text-slate-700 outline-none resize-none placeholder:text-yellow-600/40 leading-relaxed min-h-[60px]"
+                                        placeholder="Adicione notas críticas importantes..."
+                                        autoFocus
+                                        rows={3}
+                                    />
+                                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                        <span
+                                            className="text-[10px] font-bold text-slate-400 cursor-pointer hover:text-red-500 hover:bg-red-50 py-1.5 px-2.5 rounded-md flex items-center gap-1.5 transition-colors border border-transparent hover:border-red-100"
+                                            onClick={() => {
+                                                setTempCriticalNotes(criticalNotes);
+                                                setIsEditingCriticalNotes(false);
+                                            }}
+                                        >
+                                            <X className="w-3 h-3" /> Cancelar
+                                        </span>
+                                        <span
+                                            className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer py-1.5 px-3 rounded-md flex items-center gap-1.5 shadow-sm transition-all"
+                                            onClick={() => {
+                                                setCriticalNotes(tempCriticalNotes);
+                                                setIsEditingCriticalNotes(false);
+                                            }}
+                                        >
+                                            <Check className="w-3 h-3" /> Salvar
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="font-manrope text-[13px] text-yellow-900 whitespace-pre-wrap leading-relaxed">
+                                    {criticalNotes || <span className="opacity-40 italic font-normal text-xs">Clique no lápis para adicionar...</span>}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            {/* 2. ÁREA DIREITA (70%) */}
+            <main className="flex-1 flex flex-col min-w-0 bg-white relative">
+                {/* Header */}
+
+
+
+                {/* Tabs Content */}
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 bg-slate-50/30">
+                    <div className="px-6 border-b bg-white relative z-10 w-full overflow-x-auto scrollbar-hide">
+                        <TabsList className="bg-transparent h-12 w-full justify-start gap-8 min-w-max p-0">
+                            <TabsTrigger value="chat" className="h-12 rounded-none border-b-[3px] border-transparent data-[state=active]:border-primary data-[state=active]:text-primary px-0 font-manrope text-[13px] font-semibold tracking-wide text-slate-500 hover:text-slate-700 transition-colors">
+                                <MessageSquare className="w-3.5 h-3.5 mr-2 mb-0.5" /> Chat
+                            </TabsTrigger>
+                            <TabsTrigger value="insights" className="h-12 rounded-none border-b-[3px] border-transparent data-[state=active]:border-primary data-[state=active]:text-primary px-0 font-manrope text-[13px] font-semibold tracking-wide text-slate-500 hover:text-slate-700 transition-colors">
+                                <Sparkles className="w-3.5 h-3.5 mr-2 mb-0.5" /> Insights IA
+                            </TabsTrigger>
+                            <TabsTrigger value="records" className="h-12 rounded-none border-b-[3px] border-transparent data-[state=active]:border-primary data-[state=active]:text-primary px-0 font-manrope text-[13px] font-semibold tracking-wide text-slate-500 hover:text-slate-700 transition-colors">
+                                <FileText className="w-3.5 h-3.5 mr-2 mb-0.5" /> Prontuário
+                            </TabsTrigger>
+                            <TabsTrigger value="documents" className="h-12 rounded-none border-b-[3px] border-transparent data-[state=active]:border-primary data-[state=active]:text-primary px-0 font-manrope text-[13px] font-semibold tracking-wide text-slate-500 hover:text-slate-700 transition-colors">
+                                <FileSignature className="w-3.5 h-3.5 mr-2 mb-0.5" /> Documentos
+                            </TabsTrigger>
+                            <TabsTrigger value="gallery" className="h-12 rounded-none border-b-[3px] border-transparent data-[state=active]:border-primary data-[state=active]:text-primary px-0 font-manrope text-[13px] font-semibold tracking-wide text-slate-500 hover:text-slate-700 transition-colors">
+                                <ImageIcon className="w-3.5 h-3.5 mr-2 mb-0.5" /> Galeria
+                            </TabsTrigger>
+                            <TabsTrigger value="finance" className="h-12 rounded-none border-b-[3px] border-transparent data-[state=active]:border-primary data-[state=active]:text-primary px-0 font-manrope text-[13px] font-semibold tracking-wide text-slate-500 hover:text-slate-700 transition-colors">
+                                <DollarSign className="w-3.5 h-3.5 mr-2 mb-0.5" /> Financeiro
+                            </TabsTrigger>
+                        </TabsList>
+                    </div>
+
+                    <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden relative mt-0 data-[state=active]:flex data-[state=inactive]:hidden">
+                        {/* Sub-header Chat Toggle - Absolute Centered Top */}
+                        <div className="absolute top-2 left-0 right-0 z-20 flex justify-center pointer-events-none">
+                            <div className="bg-white/95 backdrop-blur border rounded-full p-1 shadow-sm pointer-events-auto flex gap-1 shadow-slate-200/50">
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className={cn("h-7 rounded-full font-manrope text-[11px] font-bold uppercase tracking-wide px-4 transition-all", chatView === 'conversation' ? "bg-slate-900 text-white hover:bg-slate-800 shadow-md" : "text-slate-500 hover:bg-slate-100")}
+                                    onClick={() => setChatView('conversation')}
+                                >
+                                    Conversa
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className={cn("h-7 rounded-full font-manrope text-[11px] font-bold uppercase tracking-wide px-4 transition-all", chatView === 'history' ? "bg-slate-900 text-white hover:bg-slate-800 shadow-md" : "text-slate-500 hover:bg-slate-100")}
+                                    onClick={() => setChatView('history')}
+                                >
+                                    Histórico
+                                </Button>
+                            </div>
+                        </div>
+                        {chatView === 'conversation' ? (
+                            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+                                {!activeChatId ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/50 space-y-4">
+                                        <div className="p-4 bg-white rounded-full shadow-sm">
+                                            <MessageSquare className="w-8 h-8 text-slate-300" />
+                                        </div>
+                                        <div className="text-center space-y-1">
+                                            <h3 className="text-sm font-bold text-slate-700">Nenhuma conversa selecionada</h3>
+                                            <p className="text-xs text-slate-500 max-w-[200px]">Selecione uma conversa para visualizar ou iniciar o atendimento.</p>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            className="font-manrope text-xs bg-indigo-600 hover:bg-indigo-700"
+                                            onClick={() => setActiveChatId('demo-chat')}
+                                        >
+                                            <MessageCircle className="w-3.5 h-3.5 mr-2" />
+                                            Visualizar Conversa
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30 pb-28 scrollbar-hide flex flex-col">
+                                            <div className="text-center font-manrope text-[11px] font-bold text-slate-300 uppercase tracking-widest my-4">Hoje</div>
+                                            <div className="flex gap-3 max-w-[85%]">
+                                                <Avatar className="h-8 w-8 bg-primary/10 border border-primary/20"><AvatarImage src="/bot-avatar.png" /><AvatarFallback className="text-primary text-xs font-bold">IA</AvatarFallback></Avatar>
+                                                <div className="bg-white border rounded-2xl rounded-tl-none p-4 shadow-sm font-manrope text-sm text-slate-600 leading-relaxed">
+                                                    Olá! Sou a assistente virtual da Sevenn Clinic. Como posso ajudar você hoje? 😄
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-3 max-w-[85%] ml-auto flex-row-reverse">
+                                                <Avatar className="h-8 w-8 bg-slate-200"><AvatarImage src={lead.avatar_url} /><AvatarFallback className="text-slate-500 text-xs font-bold">VC</AvatarFallback></Avatar>
+                                                <div className="bg-primary/5 border border-primary/10 rounded-2xl rounded-tr-none p-4 shadow-sm font-manrope text-sm text-slate-800 leading-relaxed">
+                                                    Gostaria de saber mais sobre a harmonização facial. Quais os valores?
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-3 max-w-[85%]">
+                                                <Avatar className="h-8 w-8 bg-primary/10 border border-primary/20"><AvatarImage src="/bot-avatar.png" /><AvatarFallback className="text-primary text-xs font-bold">IA</AvatarFallback></Avatar>
+                                                <div className="bg-white border rounded-2xl rounded-tl-none p-4 shadow-sm font-manrope text-sm text-slate-600 leading-relaxed">
+                                                    Nossos procedimentos de harmonização são personalizados! Para um orçamento exato, recomendamos uma avaliação. Gostaria de agendar?
+                                                </div>
+                                            </div>
+                                            <div ref={messagesEndRef} className="mt-auto" />
+
+                                            {isConversationClosed && (
+                                                <div
+                                                    className="mt-6 bg-slate-800 text-white text-[10px] py-2 px-4 text-center z-30 flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-700 transition-colors rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2"
+                                                    onClick={() => setIsConversationClosed(false)}
+                                                >
+                                                    <span className="uppercase tracking-widest font-bold font-manrope">🔒 Conversa Fechada - <span className="underline decoration-slate-500">Clique aqui para reabrir</span></span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="absolute bottom-0 left-0 right-0 bg-white border-t px-4 pt-3 pb-2 flex flex-col gap-2 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                            {/* ⚡ RESPOSTAS RÁPIDAS */}
+                                            <div className="flex items-center justify-between overflow-x-auto pb-1 scrollbar-hide">
+                                                <div className="flex items-center gap-2 shrink-0 pr-3 mr-1 border-r border-slate-100">
+                                                    <Zap className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                                                    <span className="font-manrope text-[9px] font-black text-slate-400 uppercase tracking-widest">Respostas Rápidas</span>
+                                                </div>
+                                                <div className="flex gap-2 flex-1">
+                                                    {quickActions.map((action, idx) => (
+                                                        <Button
+                                                            key={idx}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 rounded-full font-manrope text-[10px] font-bold border-slate-200 hover:border-primary hover:text-primary transition-all shrink-0 bg-white"
+                                                            onClick={() => setMsg(action.text)}
+                                                        >
+                                                            <action.icon className="h-3 w-3 mr-1.5 opacity-60" />
+                                                            {action.label}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className={cn(
+                                                        "h-7 rounded-full font-manrope text-[10px] font-bold border-slate-200 transition-all shrink-0 ml-4 hover:bg-green-50 hover:text-green-600 hover:border-green-200",
+                                                        isConversationClosed && "bg-green-50 text-green-600 border-green-200"
+                                                    )}
+                                                    onClick={() => setIsConversationClosed(!isConversationClosed)}
+                                                >
+                                                    <CheckCircle className="h-3 w-3 mr-1.5" />
+                                                    {isConversationClosed ? 'Resolvida' : 'Resolver'}
+                                                </Button>
+                                            </div>
+
+                                            <div className="flex gap-2 items-center">
+                                                <div className="flex items-center gap-1">
+                                                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-slate-400 hover:text-primary rounded-full"><Smile className="h-5 w-5" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-slate-400 hover:text-primary rounded-full"><Paperclip className="h-5 w-5" /></Button>
+                                                </div>
+                                                <div className="relative flex-1">
+                                                    <Input
+                                                        placeholder={isConversationClosed ? "Conversa fechada. Reabra para digitar." : "Digite uma mensagem para assumir o controle..."}
+                                                        disabled={isConversationClosed}
+                                                        className="font-manrope pr-24 border-slate-200 bg-slate-50 focus:bg-white h-11 transition-all rounded-xl"
+                                                        value={msg}
+                                                        onChange={e => setMsg(e.target.value)}
+                                                    />
+                                                </div>
+                                                <Button
+                                                    size="icon"
+                                                    disabled={isConversationClosed}
+                                                    className="h-11 w-11 shrink-0 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 rounded-xl"
+                                                >
+                                                    <Send className="h-5 w-5 text-white ml-0.5" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="flex-1 overflow-y-auto p-8 relative">
+                                <div className="h-8"></div> {/* Spacer for toggle */}
+                                <div className="max-w-2xl mx-auto pl-8 border-l-2 border-slate-100 space-y-8 relative">
+                                    {lead.stage_history?.map((h, i) => (
+                                        <div key={i} className="relative">
+                                            <div className="absolute -left-[41px] top-0 h-5 w-5 rounded-full bg-white border-4 border-slate-200 shadow-sm z-10"></div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="font-manrope text-[10px] font-black uppercase text-slate-400 bg-slate-50 w-fit px-2 py-0.5 rounded tracking-wider">{new Date(h.date).toLocaleDateString()}</span>
+                                                <div className="p-4 bg-white border rounded-xl shadow-sm mt-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Activity className="w-4 h-4 text-primary" />
+                                                        <span className="font-manrope font-bold text-sm text-slate-800">{h.action}</span>
+                                                    </div>
+                                                    <p className="font-manrope text-xs text-slate-500">Ação registrada automaticamente pelo sistema.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {!lead.stage_history && (
+                                        <div className="text-center py-10 opacity-50">
+                                            <History className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                                            <p className="font-manrope text-xs font-bold uppercase text-slate-400">Nenhum histórico disponível</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </TabsContent>
+
+                    {/* INSIGHTS (Antigo Resumo) */}
+                    <TabsContent value="insights" className="flex-1 overflow-y-auto pt-4 px-8 pb-8 mt-0 bg-slate-50/50 data-[state=inactive]:hidden">
+                        <div className="max-w-4xl mx-auto space-y-6">
+                            {/* HEADER: DATA DA ANÁLISE */}
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-space text-[16px] font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+                                        <Sparkles className="w-4 h-4 text-purple-600" /> Painel de Inteligência
+                                    </h3>
+                                    <p className="font-manrope text-[10px] text-slate-500 mt-0.5 ml-6">
+                                        *Insights e Análise gerada por inteligência Artificial.
+                                    </p>
+                                </div>
+
+                                <span className="font-manrope text-[10px] font-mono text-slate-500">
+                                    {lastAnalysisTime ? `Última análise: ${lastAnalysisTime.toLocaleString()}` : 'Aguardando dados...'}
+                                </span>
+                            </div>
+
+
+                            {/* 1. GRID SUPERIOR: CARD UNIFICADO + PRÓXIMO PASSO */}
+                            <div className="grid grid-cols-2 gap-6">
+
+                                {/* A. CARD UNIFICADO (Sentimento + Intenção) */}
+                                <div className="bg-white rounded-xl border shadow-sm relative overflow-hidden">
+                                    <div className="grid grid-cols-2 divide-x divide-slate-100 h-full">
+                                        {/* Lado Esquerdo: SENTIMENTO */}
+                                        <div className="p-4 flex flex-col justify-center items-center text-center gap-2 relative">
+                                            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-slate-50", dossierData ? "bg-blue-50" : "bg-slate-50")}>
+                                                {dossierData ? <dossierData.sentimentIcon className={cn("w-5 h-5", dossierData.sentimentColor)} /> : <Search className="w-4 h-4 text-slate-300" />}
+                                            </div>
+                                            <div>
+                                                <span className="font-space text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">Sentimento</span>
+                                                <span className={cn("font-manrope text-sm font-bold truncate block", dossierData ? "text-slate-800" : "text-slate-300")}>
+                                                    {dossierData ? dossierData.sentiment : 'Indefinido'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Lado Direito: INTENÇÃO DE COMPRA */}
+                                        <div className="p-4 flex flex-col justify-center relative">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="font-space text-[10px] font-bold uppercase text-slate-400 tracking-wider">Intenção</span>
+                                                {dossierData && (
+                                                    <span className="font-manrope text-xs font-black text-slate-800">{dossierData.intent}%</span>
+                                                )}
+                                            </div>
+                                            <div className="relative pt-1">
+                                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-slate-300 to-slate-400 transition-all duration-1000"
+                                                        style={{
+                                                            width: `${dossierData ? dossierData.intent : 0}%`,
+                                                            backgroundImage: dossierData ? 'linear-gradient(to right, #fbbf24, #10b981)' : ''
+                                                        }}
+                                                    />
+                                                </div>
+                                                {dossierData && (
+                                                    <p className="font-manrope text-[9px] text-slate-400 mt-1.5 text-right">
+                                                        <span className="font-bold text-slate-600">{dossierData.consciousness}</span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* B. PRÓXIMO PASSO RECOMENDADO */}
+                                <div className="bg-white p-5 rounded-xl border shadow-sm flex flex-col justify-center">
+                                    <h4 className="font-space text-[12px] font-bold uppercase text-slate-600 mb-3 tracking-wider">Próximo Passo Recomendado</h4>
+                                    <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                        <Calendar className="w-5 h-5 text-blue-600 shrink-0" />
+                                        <div className="flex flex-col">
+                                            <span className="font-manrope text-xs font-bold text-blue-900">Agendar Avaliação Presencial</span>
+                                            <span className="font-manrope text-[10px] text-blue-600 leading-tight">Alta probabilidade de conversão.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 2. CORPO CENTRAL (Análise Seveen AI Dossiê + Objeções) */}
+                            <div className="bg-white p-8 rounded-2xl border shadow-sm relative overflow-hidden flex flex-col justify-center">
+                                <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none"><Sparkles className="w-64 h-64" /></div>
+                                <div className="mb-6 space-y-1">
+                                    <h4 className="font-space text-[16px] font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+                                        <FileText className="w-3 h-3" /> Análise Sevenn AI
+                                    </h4>
+                                    <p className="font-manrope text-[10px] text-slate-500 font-medium ml-5">
+                                        * A análise é renovada automaticamente ao mudar para próxima etapa (exceto Venda Realizada, Descarte e Nutrição).
+                                    </p>
+                                </div>
+
+                                {dossierData ? (
+                                    <div className="space-y-6 relative z-10 animate-in fade-in duration-700">
+                                        <div>
+                                            <h5 className="font-space text-[11px] font-bold uppercase text-green-500 mb-2">Análise Geral</h5>
+                                            <p className="font-manrope text-sm text-slate-600 leading-relaxed font-medium">
+                                                {dossierData.summary}
+                                            </p>
+                                        </div>
+
+                                        {dossierData.objection && (
+                                            <div className="bg-red-50/50 border border-red-100 rounded-lg p-4">
+                                                <h5 className="font-space text-[11px] font-bold uppercase text-red-500 mb-2 flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div> Objeções Identificadas
+                                                </h5>
+                                                <p className="font-manrope text-sm text-slate-700 leading-relaxed">
+                                                    {dossierData.objection}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <Lock className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                                        <p className="font-manrope text-sm text-slate-400">Análise disponível a partir da etapa <span className="font-bold text-slate-500">Orçamento</span>.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 3. BLOCO INFERIOR (Sugestão Manual & Créditos) */}
+                            <div className={cn("rounded-2xl border p-1 transition-all duration-300", isGeneratingStrategy ? "bg-purple-50 border-purple-200" : "bg-slate-50 border-slate-200")}>
+                                <div className="bg-white rounded-xl p-6 shadow-sm">
+                                    <div className="flex items-center justify-between mb-4 border-b pb-4 border-slate-100">
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn("p-2 rounded-lg", isGeneratingStrategy ? "bg-purple-100 text-purple-600 animate-pulse" : "bg-slate-100 text-slate-500")}>
+                                                <Sparkles className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-space text-[14px] font-semibold text-slate-900">Estratégia de Resposta</h4>
+                                                <p className="font-manrope text-[11px] text-green-600 font-semibold translate-y-[-1px]">
+                                                    {aiCredits > 0
+                                                        ? `${aiCredits} créditos disponíveis hoje`
+                                                        : <span className="text-red-500 font-bold">Créditos diários esgotados. Volte amanhã.</span>
+                                                    }
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <Button
+                                            disabled={aiCredits <= 0 || isGeneratingStrategy}
+                                            onClick={handleUseCredit}
+                                            className={cn(
+                                                "rounded-full font-manrope font-semibold text-[12px] h-8 shadow-md transition-all",
+                                                aiCredits > 0
+                                                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-purple-200"
+                                                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                                            )}
+                                        >
+                                            {isGeneratingStrategy ? (
+                                                <><RefreshCw className="w-3.5 h-3.5 mr-2 animate-spin" /> Gerando...</>
+                                            ) : (
+                                                <><Sparkles className="w-3.5 h-3.5 mr-2 fill-current" /> Gerar Nova Estratégia</>
+                                            )}
+                                        </Button>
+                                    </div>
+
+                                    {/* CONTEÚDO DA RESPOSTA */}
+                                    <div className="min-h-[100px] relative">
+                                        {isGeneratingStrategy ? (
+                                            <div className="space-y-3 p-2 animate-pulse">
+                                                <div className="h-4 bg-slate-100 rounded w-3/4"></div>
+                                                <div className="h-4 bg-slate-100 rounded w-full"></div>
+                                                <div className="h-4 bg-slate-100 rounded w-5/6"></div>
+                                                <div className="h-8 bg-slate-50 rounded w-1/3 mt-4"></div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {/* Exemplo de resultado gerado */}
+                                                <div className={cn("transition-all duration-500", activeTab === 'insights' ? "opacity-100" : "opacity-0")}>
+                                                    <p className="font-manrope text-[14px] text-slate-700 leading-relaxed mb-6">
+                                                        "Olá {lead.name}, tudo bem? Notei que você tem interesse em harmonização e vi que tem um perfil super alinhado com nossos resultados naturais. Que tal agendarmos uma avaliação para você conhecer nossa tecnologia exclusiva?"
+                                                    </p>
+
+                                                    <Button
+                                                        variant="secondary"
+                                                        className="font-manrope h-9 gap-2 text-[12px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 w-full justify-center border border-slate-200"
+                                                        onClick={() => copyAndGoToChat(`Olá ${lead.name}, tudo bem? Notei que você tem interesse em harmonização e vi que tem um perfil super alinhado com nossos resultados naturais. Que tal agendarmos uma avaliação para você conhecer nossa tecnologia exclusiva?`)}
+                                                    >
+                                                        <MessageSquare className="w-4 h-4 ml-0.5" /> Copiar e ir para o Chat
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    {/* PRONTUÁRIO - MEDICAL RECORDS */}
+                    <TabsContent value="records" className="flex-1 flex flex-col mt-0 data-[state=inactive]:hidden overflow-hidden">
+                        <MedicalRecordTab leadId={lead?.id || ""} clinicId={lead?.clinic_id || ""} />
+                    </TabsContent>
+
+                    {/* DOCUMENTS - NEW TAB */}
+                    <TabsContent value="documents" className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden">
+                        {lead && <DocumentsTab leadId={lead.id} clinicId={lead.clinic_id} leadName={lead.name} />}
+                    </TabsContent>
+
+
+                    {/* GALLERY TAB */}
+                    <TabsContent value="gallery" className="flex-1 overflow-hidden mt-0 data-[state=active]:flex data-[state=inactive]:hidden flex-col">
+                        <LeadGalleryTab
+                            leadId={leadId}
+                            onSendToChat={(url) => {
+                                setMsg(`[Imagem: ${url}]`);
+                                setActiveTab("chat");
+                            }}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="finance" className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden flex-col bg-slate-50/50">
+                        <LeadFinancialTab />
+                    </TabsContent>
+                </Tabs>
+
+            </main>
+
+            {/* Sync Modal */}
+            <Dialog open={syncModalOpen} onOpenChange={setSyncModalOpen}>
+                <DialogContent className="font-manrope sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-slate-800">
+                            <RefreshCw className="w-5 h-5 text-indigo-600" />
+                            Sincronização de Agenda
+                        </DialogTitle>
+                        <DialogDescription className="pt-2 text-slate-600">
+                            Identificamos um agendamento ativo para este paciente. Deseja atualizar as informações no calendário também?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:justify-between mt-4">
+                        <Button variant="outline" onClick={() => handleSyncAction(false)} className="w-full text-slate-600">
+                            Não, apenas na ficha
+                        </Button>
+                        <Button onClick={() => handleSyncAction(true)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                            <CheckCircle className="w-4 h-4" />
+                            Sim, atualizar ambos
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Quick Sale Modal */}
+            <Dialog open={isQuickSaleModalOpen} onOpenChange={setIsQuickSaleModalOpen}>
+                <DialogContent className="font-manrope sm:max-w-md bg-white border-none shadow-2xl">
+                    <DialogHeader className="border-b border-slate-100 pb-4">
+                        <DialogTitle className="flex items-center gap-2 text-slate-900 text-lg">
+                            <div className="bg-emerald-100 p-2 rounded-full">
+                                <DollarSign className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            Venda Rápida
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-600">
+                            Use esta ação para concluir a venda deste lead (sem agendamento) ou regularizar pagamentos pendentes. Ao confirmar, <span className="font-bold text-emerald-500">a Venda será registrada e o Lead será movido automaticamente </span> para etapa de Venda Realizada no seu CRM.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-4 space-y-4">
+                        {/* Valor */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold uppercase text-slate-500 tracking-wide">Valor da Venda (R$)</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-slate-400 font-bold">R$</span>
+                                <Input
+                                    type="number"
+                                    className="pl-9 font-bold text-lg text-slate-800 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+                                    placeholder="0.00"
+                                    value={quickSaleValue}
+                                    onChange={(e) => setQuickSaleValue(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        {/* Pagamento */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold uppercase text-slate-500 tracking-wide">Pagamento</label>
+                                <Select value={quickSaleMethod} onValueChange={setQuickSaleMethod}>
+                                    <SelectTrigger className="font-semibold text-slate-700">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="pix">Pix</SelectItem>
+                                        <SelectItem value="money">Dinheiro</SelectItem>
+                                        <SelectItem value="credit">Cartão de Crédito</SelectItem>
+                                        <SelectItem value="debit">Cartão de Débito</SelectItem>
+                                        <SelectItem value="boleto">Boleto Bancário</SelectItem>
+                                        <SelectItem value="partnership">Parceria</SelectItem>
+                                        <SelectItem value="other">Outro / A definir</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Parcelas (Condicional) */}
+                            {(quickSaleMethod === 'credit') && (
+                                <div className="space-y-1.5 animate-in fade-in slide-in-from-left-2">
+                                    <label className="text-xs font-bold uppercase text-slate-500 tracking-wide">Parcelas</label>
+                                    <Select
+                                        value={String(quickSaleInstallments)}
+                                        onValueChange={(val) => setQuickSaleInstallments(Number(val))}
+                                    >
+                                        <SelectTrigger className="font-semibold text-slate-700">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Array.from({ length: 12 }, (_, i) => i + 1).map(num => (
+                                                <SelectItem key={num} value={String(num)}>{num}x</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Observações */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold uppercase text-slate-500 tracking-wide">Observações</label>
+                            <textarea
+                                className={cn(
+                                    "w-full min-h-[80px] rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none transition-all resize-none font-medium placeholder:text-slate-400",
+                                    (quickSaleMethod === 'other' || quickSaleMethod === 'partnership') && !quickSaleObs.trim() ? "border-amber-400 ring-1 ring-amber-100" : "border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
+                                )}
+                                placeholder={(quickSaleMethod === 'other' || quickSaleMethod === 'partnership') ? "Descreva os detalhes (Obrigatório)..." : "Detalhes adicionais sobre a venda..."}
+                                value={quickSaleObs}
+                                onChange={(e) => setQuickSaleObs(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="border-t border-slate-100 pt-4">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsQuickSaleModalOpen(false)}
+                            disabled={isProcessingSale}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleFinalizeSale}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={
+                                isProcessingSale ||
+                                !quickSaleValue ||
+                                ((quickSaleMethod === 'other' || quickSaleMethod === 'partnership') && !quickSaleObs.trim())
+                            }
+                        >
+                            {isProcessingSale ? (
+                                <><RefreshCw className="w-4 h-4 animate-spin" /> Processando</>
+                            ) : (
+                                <><CheckCircle className="w-4 h-4" /> Finalizar Venda</>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5" />
+                            Confirmar Exclusão
+                        </DialogTitle>
+                        <DialogDescription className="pt-3">
+                            Você tem certeza que deseja excluir o lead <strong>{lead?.name}</strong>?
+                            <br /><br />
+                            Esta ação é irreversível e todos os dados relacionados (histórico, atividades, documentos) serão perdidos.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteDialog(false)}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteLead}
+                            className="gap-2"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Excluir Lead
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
+
+

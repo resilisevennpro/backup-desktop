@@ -1,0 +1,54 @@
+(deslizar foto Camisa renata + editar mensagem replicou renata)
+
+
+
+
+ETAPA ----
+
+
+Etapa de Novo Lead (aceitar ou ocultar)
+
+
+
+AGENDA -------------
+
+
+
+
+OUTROS ---------
+
+- upgrade modal de "previa do lead" no Kanban + ultima mensagem do chat
+
+- Importar Pacientes (conferir Modelo de importação + etapa/funil a importar)
+
+- Double check em downgrade de Planos (perde os dados ou não?)
+
+- slug de pipelines está como won > venda realizada na url
+
+OUTROS MENOS IMPORTANTE ----
+
+- excluir variáveis do env.test
+
+
+- Otimizar Header dinâmico CRM ou outros
+Vamos otimizar o header da página de (Crm.tsx) - **APENAS NA VERSÃO MOBILE**.Como será a otimização: Os kpis devem estar dentro de um espaço que é expansivo para baixo com clique em uma seta pra baixo, e essa seta deve ficar do lado esquerdo do circulo de atualizar (veja a imagem).
+
+
+- Adicionar recaptcha ou 2 fatores na pagina login
+
+- % de horários preenchidos na agenda (horário comercial)
+
+
+
+-----------------FIM------------------------------FIM------------------------------FIM-------------
+
+
+
+
+
+------------------------CORRIJIR SEVENN CLINIC 360------------------------CORRIJIR SEVENN CLINIC 360------------------------CORRIJIR SEVENN CLINIC 360
+
+
+#ecf5f1 — verde mais claro
+#e0f2e9 — verde levemente mais visível
+#d4ebdf — verde moderado

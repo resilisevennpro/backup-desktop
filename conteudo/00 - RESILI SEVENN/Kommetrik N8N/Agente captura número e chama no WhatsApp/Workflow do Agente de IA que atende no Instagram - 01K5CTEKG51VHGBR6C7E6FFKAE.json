@@ -1,0 +1,2401 @@
+{
+  "name": "AGENTE DE IA INSTAGRAM-WHATSAPP",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3c5ccbc9-69d1-4b13-a7c3-e6945bc8c655",
+              "name": "data",
+              "value": "={{ $('Webhook').item.json.body[\"message[add][0][attachment][link]\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8b287eec-20bb-4aec-b871-58b99ee30d1c",
+      "name": "Edit Fields3",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        48
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "text": "Descreva todo o conteudo da imagem. Responda sem acento, sem hifens",
+        "inputType": "base64",
+        "options": {}
+      },
+      "id": "46e2fba9-0715-4fcc-ba70-cec300f87b66",
+      "name": "OpenAI1",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        608,
+        48
+      ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "6bc22322-3fb1-49c0-9480-e189680ff719",
+      "name": "transcribe voice",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        400,
+        592
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "c0e434dd-1268-421d-b81b-3a5e90ed9550",
+                    "leftValue": "={{ $('Webhook').first().json.body[\"message[add][0][attachment][type]\"] }}",
+                    "rightValue": "picture",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook').first().json.body[\"message[add][0][attachment][type]\"] }}",
+                    "rightValue": "voice",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9958071b-8c05-466f-b5d6-6f635c0a9ef5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "text"
+        }
+      },
+      "id": "225b5b5d-5031-4194-81b5-3ac992b042f9",
+      "name": "Switch3",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -64,
+        352
+      ],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5.1 - IMAGEM",
+        "height": 480,
+        "width": 820,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        -32
+      ],
+      "typeVersion": 1,
+      "id": "1e293ed5-a83a-4769-b024-37efb46d4a1d",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5.2 - ÁUDIO",
+        "height": 280,
+        "width": 820,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        464
+      ],
+      "typeVersion": 1,
+      "id": "4884f29b-7fc1-4df1-8db3-4c7c80886783",
+      "name": "Sticky Note16"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').item.json.body[\"message[add][0][attachment][link]\"] }}",
+        "options": {}
+      },
+      "id": "ee1720e5-840e-40ea-b811-74cb1740e1f6",
+      "name": "BAIXA O ÁUDIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        592
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8d88c137-383f-4307-b3cc-1f6a560ea67b",
+              "name": "contato_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}",
+              "type": "string"
+            },
+            {
+              "id": "7e2f520e-4952-425b-82ca-792cc46680d4",
+              "name": "message",
+              "value": "={{ $('Salva mensagem no banco').item.json.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "19ab9ede-0dbf-459a-bfa8-3a4aaae3df5f",
+      "name": "MENSAGEM DO CONTATO",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1456,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 6 - MENSAGEM DO CONTATO\nNesse trecho do Workflow, utilizamos a tabela \"messages\", do Postgres, para armazenar temporariamente as mensagens que acabaram de ser recebidas. O nó \"ESPERA MENSAGENS\" determina por quanto tempo essas mensagens serão armazenadas. Desta forma, caso o lead envie mais do que uma mensagem na mesma interação, as diversas mensagens serão mescladas e encaminhadas em conjunto para o input do agente.",
+        "height": 1028,
+        "width": 1000
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1008,
+        -32
+      ],
+      "typeVersion": 1,
+      "id": "8c6b6724-516f-4ade-9fe1-ffbcf3c834bf",
+      "name": "Sticky Note17"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fdcf2e57-188a-4d02-9844-84f7803890ef",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        592
+      ],
+      "id": "247021b1-e1f7-4699-b69d-c2953642a0cf",
+      "name": "Transcrição de Áudio"
+    },
+    {
+      "parameters": {},
+      "id": "f0a6af89-cfc3-421b-917f-6a9aeb4b4b6d",
+      "name": "No Operation, do nothing3",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b7a68827-7747-41ff-8426-6c9eb9eb4785",
+              "name": "listaMensagens",
+              "value": "={{ $json.messages.join(', ') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2080,
+        288
+      ],
+      "id": "6edbacaa-fcd6-4eb0-a4fd-de69a07a8f6e",
+      "name": "Todas as Mensagens"
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5.3 - TEXTO",
+        "height": 220,
+        "width": 820,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        768
+      ],
+      "typeVersion": 1,
+      "id": "2f3f39e9-1ad4-40fa-a7d2-1eefb4164f79",
+      "name": "Sticky Note18"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        48
+      ],
+      "id": "ae5f51fd-af59-41f9-a143-9fd38bc1adb9",
+      "name": "HTTP Request1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "messages",
+          "mode": "list",
+          "cachedResultName": "messages"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "contact_id",
+              "value": "={{ $('Webhook').first().json.body[\"message[add][0][contact_id]\"] }}"
+            }
+          ]
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1456,
+        544
+      ],
+      "id": "fa7b4305-fb75-4606-bc25-ed53ee7bf8ba",
+      "name": "Postgres - Busca Mensagens",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const postgres_messages = $input.all();\nconst messages = [];\n\nfor (const el of postgres_messages) {\n  messages.push(el.json.message);\n}\n\nreturn { messages };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        64
+      ],
+      "id": "a15399dc-aa70-4344-969c-5d41a13ada21",
+      "name": "Junta Mensagens"
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "messages",
+          "mode": "list",
+          "cachedResultName": "messages"
+        },
+        "deleteCommand": "delete",
+        "where": {
+          "values": [
+            {
+              "column": "contact_id",
+              "value": "={{ $('Webhook').first().json.body[\"message[add][0][contact_id]\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2080,
+        496
+      ],
+      "id": "c69e17a5-4842-40a6-82a0-b2d9067e0caf",
+      "name": "Postgres - DELETA MENSAGENS",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5 - DEFINE O TIPO DE MENSAGEM E ORGANIZA PARA O AGENTE",
+        "height": 1012,
+        "width": 264,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -128,
+        -32
+      ],
+      "typeVersion": 1,
+      "id": "beebfb82-6f04-4d5a-bdf8-73615e73d61f",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5696,
+        384
+      ],
+      "id": "cf610616-587c-47d9-8d85-8c339761a8d3",
+      "name": "Wait2",
+      "webhookId": "4c4187b2-128c-4107-9361-8789cda25e6a"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "text",
+        "options": {}
+      },
+      "id": "32cf0b1f-4d84-4a19-bd1f-e37346b1c2af",
+      "name": "Separa as mensagens",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        4464,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "8c700900-57a0-4ab3-a93d-8d99074a1895",
+      "name": "Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        4704,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4880,
+        304
+      ],
+      "id": "25bab8ec-2a9b-4f07-85e9-00c14f2b32e7",
+      "name": "Mensagem"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ia.kommetrik.com.br/api/executions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('CONFIGURAÇÃO IA').first().json.tokenKommetrik }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $('Webhook').first().json.body[\"account[_links][self]\"] }}"
+            },
+            {
+              "name": "kommo_account_id",
+              "value": "={{ $('Webhook').first().json.body['account[id]'] }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][chat_id]'] }}"
+            },
+            {
+              "name": "entity_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}"
+            },
+            {
+              "name": "element_type",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][element_type]'] }}"
+            },
+            {
+              "name": "user_name",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][name]'] }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "author_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][id]'] }}"
+            },
+            {
+              "name": "talk_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][talk_id]'] }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][contact_id]'] }}"
+            },
+            {
+              "name": "token_kommo",
+              "value": "={{ $('CONFIGURAÇÃO IA').first().json.kommoToken }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5696,
+        192
+      ],
+      "id": "8ebd7845-aba4-4f97-8519-cd9f4dd93fd0",
+      "name": "Envia mensagem na Kommo"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        5024,
+        96
+      ],
+      "id": "2b510444-238f-4ab0-87b9-4569ec3ad289",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "699a472e-2084-4dc6-a9b7-7dbccf5d6da6",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5104,
+        304
+      ],
+      "id": "cc3e1e33-b2ca-4c07-aff9-1b290382a217",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "content": "## Envio de Mensagem na Kommo",
+        "height": 612,
+        "width": 1744,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4128,
+        -32
+      ],
+      "id": "b6f75498-5d34-4168-b42e-6f196ebbb229",
+      "name": "Sticky Note23"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "21fd20d7-f940-4a66-91d5-5ea4c031bb50",
+              "leftValue": "={{ $('MENSAGEM DO CONTATO').first().json.message }}",
+              "rightValue": "={{ $('Postgres - Busca Mensagens').last().json.message}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "2a7d4c1f-eb84-4411-8f25-2ac47e54366c",
+      "name": "SE A ÚLTIMA MSG REGISTRADA FOR IGUAL A MSG DO WEBHOOK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1632,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "51cd744b-9f7b-4c92-aa3c-b05016448dfe",
+              "name": "text",
+              "value": "=ATENÇÃO: o usuário enviou uma mensagem. Abaixo está a descrição da imagem e a legenda, caso exista.\n\nDescrição de imagem: {{ $('TRANSCRIÇÃO IMAGEM').item.json.text }} \n\nLegenda:  {{ $('Webhook').item.json.body[\"message[add][0][text]\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        272
+      ],
+      "id": "08ad2020-d76f-45c0-9975-9edda8dda7e8",
+      "name": "LEGENDA IMAGEM"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fdcf2e57-188a-4d02-9844-84f7803890ef",
+              "name": "text",
+              "value": "={{ $json.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        336,
+        272
+      ],
+      "id": "b2d3d45a-7904-4fb8-b8c4-489804b6bfb6",
+      "name": "TRANSCRIÇÃO IMAGEM"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fbb73a9d-5624-4260-b5f9-75eb1e6e86ee",
+              "name": "text",
+              "value": "={{ $('Webhook').item.json.body[\"message[add][0][text]\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        832
+      ],
+      "id": "a0f19931-475d-4c94-956f-fff32d099486",
+      "name": "TEXTO"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "messages",
+          "mode": "list",
+          "cachedResultName": "messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $('Webhook').first().json.body[\"message[add][0][contact_id]\"] }}",
+            "message": "={{ $json.text }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1216,
+        144
+      ],
+      "id": "073a0718-ee0b-4933-9f94-5ab90ef9fee2",
+      "name": "Salva mensagem no banco",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": "=2"
+      },
+      "id": "bd152b17-f68c-46f4-8fe2-428c5216fab1",
+      "name": "ESPERA MENSAGENS",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1632,
+        144
+      ],
+      "webhookId": "c76490a3-cf87-4760-8d19-c2d3104a54a2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2960,
+        528
+      ],
+      "id": "8e5e3505-4c51-4a8f-a38d-821fccffcc34",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').first().json.body['message[add][0][contact_id]'] }}",
+        "tableName": "n8n_lua_chat",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        3136,
+        528
+      ],
+      "id": "d080d7ba-a58d-42d2-b18f-18391126d3d5",
+      "name": "Postgres Chat Memory1",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "44c324b3-e99e-474b-a95f-7c1c47093f3f",
+              "name": "agora",
+              "value": "={{ $now }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2368,
+        64
+      ],
+      "id": "0b90d69a-3d5a-4734-8e13-a7ce90e5503e",
+      "name": "dataAgora"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Código para nó de Código no n8n\n// Converte ISO date para formato \"Dia DD/MM, HH:MM\" e gera saudação\n// Acessa o valor do campo 'agora' do item atual\nconst isoDate = $input.item.json.agora;\n// Cria objeto Date a partir da string ISO\nconst date = new Date(isoDate);\n// Subtrai 3 horas para ajustar o fuso horário\ndate.setHours(date.getHours() - 3);\n// Extrai dia, mês, hora e minuto\nconst dia = date.getDate().toString().padStart(2, '0');\nconst mes = (date.getMonth() + 1).toString().padStart(2, '0'); // +1 porque getMonth() retorna 0-11\nconst hora = date.getHours().toString().padStart(2, '0');\nconst minuto = date.getMinutes().toString().padStart(2, '0');\n// Formata no padrão desejado\nconst dataFormatada = `Dia ${dia}/${mes}, ${hora}:${minuto}`;\n\n// Gera saudação baseada na hora\nlet boasVindas;\nconst horaNumero = date.getHours();\n\nif (horaNumero >= 5 && horaNumero < 12) {\n  boasVindas = \"Bom dia\";\n} else if (horaNumero >= 12 && horaNumero < 17) {\n  boasVindas = \"Boa tarde\";\n} else {\n  boasVindas = \"Boa noite\";\n}\n\n// Retorna o resultado\nreturn {\n  json: {\n    dataFormatada: dataFormatada,\n    boasVindas: boasVindas\n  }\n};\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        64
+      ],
+      "id": "c2f88aab-699c-4620-aaf8-c238b03a2efd",
+      "name": "formataData"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_lua_chat",
+          "mode": "list",
+          "cachedResultName": "n8n_lua_chat"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2368,
+        288
+      ],
+      "id": "65c9e3c8-ccad-45b2-83bb-c97e2ae245a2",
+      "name": "puxaHistorico",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifica se items existe e não está vazio\nif (!items || items.length === 0 || !items[0].json) {\n  return [{ json: { markdown: \"\" } }];\n}\n\nlet markdownHistory = \"\";\nfor (const item of items) {\n  // Verifica se o item tem a estrutura esperada\n  if (item?.json?.message) {\n    const message = item.json.message;\n    const prefix = message.type === \"ai\" ? \"## CADU: \" : \"## CLIENTE: \";\n    markdownHistory += `${prefix}${message.content}\\n\\n`;\n  }\n}\n\nreturn [\n  {\n    json: {\n      markdown: markdownHistory.trim()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        288
+      ],
+      "id": "f47fcf3e-e82d-49c5-8c67-6109875422c8",
+      "name": "formataHistorico"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{(() => {\n  const text = $json.text?.trim() || '';\n  const imageRegex = /(https?:\\/\\/[^\\s]+?\\.(jpg|jpeg|png|gif|bmp|webp))/gi;\n  return imageRegex.test(text);\n})()}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "e297a32b-fd94-43b0-8788-bf144296c3d4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Imagem"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Texto"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        5344,
+        96
+      ],
+      "id": "c0121e3e-72b1-4b4e-a2f3-b20485dd4f57",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ia.kommetrik.com.br/api/executions/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('CONFIGURAÇÃO IA').first().json.tokenKommetrik }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $('Webhook').first().json.body[\"account[_links][self]\"] }}"
+            },
+            {
+              "name": "kommo_account_id",
+              "value": "={{ $('Webhook').first().json.body['account[id]'] }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][chat_id]'] }}"
+            },
+            {
+              "name": "entity_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}"
+            },
+            {
+              "name": "element_type",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][element_type]'] }}"
+            },
+            {
+              "name": "user_name",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][name]'] }}"
+            },
+            {
+              "name": "author_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][id]'] }}"
+            },
+            {
+              "name": "talk_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][talk_id]'] }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][contact_id]'] }}"
+            },
+            {
+              "name": "token_kommo",
+              "value": "={{ $('CONFIGURAÇÃO IA').first().json.kommoToken }}"
+            },
+            {
+              "name": "file_url",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5696,
+        0
+      ],
+      "id": "89597476-2fed-4772-9e79-c9a2fd9509ee",
+      "name": "Envia Imagem na Kommo - Imagem",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b3fbbf0a-1257-45cc-88ff-58f78f3ba3bd",
+              "name": "prompt",
+              "value": "=## SESSÕES DINÂMICAS\n\n### DATA - HORA ATUAL\n{{ $('formataData').first().json.dataFormatada }}\n\n### BOAS VINDAS\n\n**REGRA IMPORTANTE:** Só dar boas vindas na PRIMEIRA mensagem da conversa.\n\nStatus atual: {{ $('buscaSaudacao').item.json.saudacao }}\n\n**Se saudacao = false:** \n- Iniciar com: \"{{ $('formataData').first().json.boasVindas }}\"\n- Esta é a primeira interação, seja acolhedor\n\n**Se saudacao = true:** \n- NÃO repetir boas vindas\n- Continuar a conversa normalmente\n- Responder diretamente à pergunta do lead\n\n**NUNCA repita \"Boa tarde\" ou cumprimentos se já foi dado boas vindas anteriormente.**\n\n---\n\n# Prompt do Agente Virtual Instagram - Carros Bacanas\n\n## 🎭 IDENTIDADE & PERSONALIDADE\n\nVocê é **Carlos**, consultor de vendas da **Carros Bacanas**, concessionária localizada em **Osasco**, especializada em atender clientes da região há mais de 8 anos.\n\n**CONTEXTO:** Você atende exclusivamente leads que chegam via **Instagram**. Seu objetivo é identificar qual carro desperta o interesse do lead e, após essa identificação, direcionar a conversa para o WhatsApp.\n\n**Tom de Voz:**\n* Simpático, divertido e envolvente\n* Descontraído, mas profissional  \n* Use emojis com moderação (1-2 por mensagem)\n* Trate sempre pelo primeiro nome do cliente\n* Sempre se refira à empresa como \"nós\" ou \"a gente\"\n* Pode usar gírias leves e piadas no contexto\n* JAMAIS use palavrões ou linguagem inadequada\n\n**Objetivo Principal:**\nIdentificar o carro de interesse do lead e direcionar para continuidade do atendimento via WhatsApp.\n\n---\n\n## 🎬 FLUXO DE ATENDIMENTO INSTAGRAM\n\n### 1. ABERTURA AMIGÁVEL\n\n\"Oi! Tudo bem? Aqui é o Carlos da Carros Bacanas! 😊 Qual seu nome?\"\n\n### 2. IDENTIFICAÇÃO DO INTERESSE\n\n**Estratégia:** Descobrir qual carro chamou atenção do lead\n\n\"[Nome], que legal ter você aqui! Qual dos nossos carros te interessou? Foi algum específico que você viu no nosso Instagram?\"\n\n**Se não souber especificar:**\n\"Sem problemas! Você tá procurando que tipo de carro? Automático, manual? Hatch, sedan, SUV? Me conta aí!\"\n\n### 3. APRESENTAÇÃO DO CARRO\n\nAssim que identificar o interesse, apresente o veículo:\n\n\"Ah, o [modelo]! Ótima escolha, [Nome]! 🚗 \n\n**[Apresentar informações básicas do veículo do banco de dados]**\n\nÉ exatamente esse tipo de carro que você tava procurando?\"\n\n### 4. DIRECIONAMENTO PARA WHATSAPP\n\n**⚠️ REGRA CRUCIAL:** Só direcionar para WhatsApp APÓS identificar um carro específico de interesse.\n\n**Quando o lead confirmar interesse no carro:**\n\n\"Perfeito, [Nome]! Pra te passar todos os detalhes e fotos desse [modelo], nossa equipe vai te chamar no WhatsApp. É mais prático pra gente te mandar as fotos, fazer simulação de pagamento e tirar todas suas dúvidas! \n\nPode me passar seu número? A gente te chama em alguns minutos! 📱\"\n\n### 5. FINALIZAÇÃO\n\nApós receber o número:\n\n\"Show, [Nome]! Já anotei seu número aqui. Nossa equipe vai te chamar no WhatsApp em alguns minutos com todas as informações do [modelo]. Vai ser um prazer te atender! 😊\"\n\n---\n\n## 🎯 ESTRATÉGIAS DE ENGAJAMENTO\n\n### Para Leads Indecisos:\n* Mostre opções do nosso estoque\n* Pergunte sobre necessidades específicas (família, trabalho, primeiro carro)\n* Use nosso banco de dados para sugerir carros adequados\n\n### Para Leads Interessados:\n* Confirme o interesse no carro específico\n* Destaque pontos fortes do veículo\n* Direcione IMEDIATAMENTE para WhatsApp\n\n### Para Leads que Não Engajam:\nApós 2 tentativas sem resposta clara:\n\"[Nome], vou encerrar nosso chat por aqui. Quando quiser saber mais sobre nossos carros, é só chamar! Fico à disposição aqui no Instagram da Carros Bacanas! 😊\"\n\n---\n\n## 🚫 O QUE NÃO FAZER NO INSTAGRAM\n\n* **NÃO** tente fechar venda pelo Instagram\n* **NÃO** entre em detalhes de financiamento pelo Instagram  \n* **NÃO** envie muitas informações técnicas pelo Instagram\n* **NÃO** peça WhatsApp antes de identificar o carro de interesse\n* **NÃO** insista se o lead não quiser passar o número\n\n---\n\n## 🤝 DIRETRIZES DE RELACIONAMENTO\n\n**Construção de Confiança:**\n* Destaque nossos 8 anos de experiência\n* Reforce que somos especializados na região de Osasco\n* Enfatize que no WhatsApp terá atendimento completo\n* Seja transparente sobre o processo\n\n**Gerenciamento de Expectativas:**\n* Deixe claro que o WhatsApp é onde acontece o atendimento detalhado\n* Explique que lá receberá fotos, vídeos e simulações\n* Reforce que é mais prático para ambos\n\n---\n\n## 🛠 TOOLS DISPONÍVEIS\n\nEsta seção lista todas as ferramentas (tools) que o agente pode acionar durante o atendimento, suas funções específicas e os gatilhos para acionamento.\n\n### 🔹 **chamaWhatsApp**\n\n**Função:** \nDireciona o lead para continuidade do atendimento via WhatsApp após identificação do carro de interesse.\n\n**Gatilhos para acionamento:**\n- Lead confirmar interesse em um carro específico do nosso estoque\n- Lead aceitar receber informações detalhadas no WhatsApp  \n- Lead fornecer número de telefone para contato\n- Lead demonstrar intenção de prosseguir com atendimento mais detalhado\n\n**Quando NÃO acionar:**\n- Lead ainda não identificou carro de interesse\n- Lead apenas fazendo perguntas gerais\n- Lead não demonstrou interesse em continuar conversa\n\n---\n\n# BANCO DE DADOS\n\n### 🚗 Honda Civic LXR 2.0 Automático 2019\n* **Ano:** 2019\n* **Motorização:** 2.0 Flex, câmbio automático\n* **Quilometragem:** 52.000 km\n* **Condição:** Excelente estado, único dono\n* **Destaques:** Econômico, confortável e com boa performance na estrada\n* **Preço médio:** R$ 89.900\n* **Local:** Loja Carros Bacanas – Osasco\n\n### 🚙 Jeep Renegade Longitude 1.8 Flex 2020\n* **Ano:** 2020\n* **Motorização:** 1.8 Flex, câmbio automático de 6 marchas\n* **Quilometragem:** 64.000 km\n* **Condição:** Bem conservado, revisões feitas em concessionária\n* **Destaques:** Espaçoso, completo e com ótimo custo-benefício para SUV\n* **Preço médio:** R$ 97.500\n* **Local:** Loja Carros Bacanas – Osasco\n\n---\n\n## 📝 EXEMPLO DE CONVERSA\n\n**Carlos:** \"Oi! Tudo bem? Aqui é o Carlos da Carros Bacanas! 😊 Qual seu nome?\"\n\n**Lead:** \"Oi! Sou a Maria\"\n\n**Carlos:** \"Maria, que legal ter você aqui! Qual dos nossos carros te interessou? Foi algum específico que você viu no nosso Instagram?\"\n\n**Lead:** \"Vi aquele Honda Civic\"\n\n**Carlos:** \"Ah, o Civic! Ótima escolha, Maria! 🚗 \n\nTemos um Honda Civic LXR 2.0 Automático 2019, com 52.000 km, automático, muito econômico e confortável. Excelente estado!\n\nÉ exatamente esse tipo de carro que você tava procurando?\"\n\n**Lead:** \"Sim! Quero saber mais\"\n\n**Carlos:** \"Perfeito, Maria! Pra te passar todos os detalhes e fotos desse Civic, nossa equipe vai te chamar no WhatsApp. É mais prático pra gente te mandar as fotos, fazer simulação de pagamento e tirar todas suas dúvidas! \n\nPode me passar seu número? A gente te chama em alguns minutos! 📱\"",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2528,
+        528
+      ],
+      "id": "52eb7926-9eb3-4d02-866f-da35af3841f4",
+      "name": "prompt"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Acessa a string do nó \"formataHistorico\"\nconst historico = $node[\"formataHistorico\"].json.markdown || \"\";\n\n// Lista de saudações que queremos identificar\nconst saudacoes = [\"boa tarde\", \"bom dia\", \"boa noite\"];\n\n// Verifica se alguma saudação aparece no histórico (ignorando maiúsculas/minúsculas)\nconst saudacaoEncontrada = saudacoes.some(saudacao =>\n  historico.toLowerCase().includes(saudacao)\n);\n\n// Retorna um novo objeto com o campo \"saudacao\"\nreturn [\n  {\n    json: {\n      saudacao: saudacaoEncontrada\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        528
+      ],
+      "id": "9a403b21-e480-4bd6-9433-81f09ca84d34",
+      "name": "buscaSaudacao"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1,
+      "position": [
+        3280,
+        528
+      ],
+      "id": "707b67fd-9a90-4ee6-8e7a-7f35353c868d",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('AI Agent').item.json.output }}",
+        "options": {
+          "systemMessage": "=Aqui está o prompt adaptado para **concessionária (vendedor de carros)**, pronto para usar:\n\n---\n\n# AGENTE FORMATADOR DE MENSAGENS WHATSAPP — CONCESSIONÁRIA\n\n## FUNÇÃO PRINCIPAL\n\nVocê é um especialista em **formatação de texto para WhatsApp** de uma concessionária. Sua única função é analisar o texto de output do vendedor/atendente e **inserir quebras estratégicas usando apenas o caractere `&`** para melhorar a legibilidade e a naturalidade das mensagens.\n\n## REGRAS FUNDAMENTAIS\n\n### ❌ PROIBIÇÕES ABSOLUTAS\n\n* **NUNCA** altere, modifique, remova ou adicione **qualquer** palavra ou conteúdo do texto original.\n* **NUNCA** mude a ordem das informações.\n* **NUNCA** corrija erros de português ou reformule frases.\n* **NUNCA** adicione emojis, pontuação ou qualquer caractere além de `&`.\n* **NUNCA** remova `&` já existentes.\n* **NUNCA** insira `&` no meio de uma URL, número, valor (ex.: `R$ 85.900`), placa, telefone ou código.\n\n### ✅ ÚNICA AÇÃO PERMITIDA\n\n* **Adicionar APENAS o caractere `&`** para criar quebras de mensagem.\n* As quebras devem ocorrer **apenas entre linhas ou antes de blocos/títulos** — **nunca** no meio de uma linha.\n\n## CRITÉRIOS PARA QUEBRAS (`&`)\n\n### SEMPRE QUEBRAR ANTES DE:\n\n* **Títulos e subtítulos** de concessionária (ex.: “Sobre o carro”, “Condições”, “Financiamento”, “Troca/Usado”, “Garantia”, “Disponibilidade”, “Test drive”, “Localização e horários”).\n* **Início de listas** (itens de série, opcionais, documentos para financiamento).\n* **Novos tópicos**: especificações técnicas, preço à vista, condições de financiamento, avaliação do usado, observações legais.\n* **Chamadas para ação** (ex.: “Quer agendar um test drive?”, “Posso avaliar seu usado agora?”).\n* **Blocos de informações distintas** do mesmo veículo:\n  * Especificações (ano/modelo, km, motor, câmbio, cor)\n  * Preços e condições (à vista, entrada, parcelas, taxa)\n  * Garantia/Laudo/Histórico (revisões, único dono, laudo cautelar, IPVA/transferência)\n\n### MANTER JUNTOS (NÃO QUEBRAR ENTRE):\n\n* **Especificações técnicas relacionadas do mesmo veículo** (ano/modelo, km, motor, câmbio, cor) — apresentar como um bloco único.\n* **Preço + condições do mesmo veículo** (à vista, entrada, parcelas, taxa, validade).\n* **Itens de série/opcionais** listados em sequência (mantê-los no mesmo bloco).\n* **Observações legais** (estoque sujeito a alteração, sujeito à aprovação de crédito, validade da oferta).\n* **Assinatura do vendedor** (nome + cargo + telefone/WhatsApp + horário/loja).\n\n### QUEBRAS OPCIONAIS (usar bom senso):\n\n* Após **blocos muito longos** (mais de 6–8 linhas) para facilitar leitura.\n* **Entre veículos diferentes** (modelos/versões/cores distintos).\n* Antes de **perguntas diretas** ao cliente.\n* Entre **serviços distintos** (seguro, acessórios, garantia estendida, financiamento).\n* Entre **filiais/endereços** diferentes.\n\n## ESTRUTURA IDEAL DE MENSAGEM\n\n* **Mensagem curta:** 1–3 linhas de informação relacionada.\n* **Mensagem média:** 4–6 linhas sobre o mesmo tópico.\n* **Mensagem longa:** 7–10 linhas (evitar ultrapassar).\n\n## PROCESSO DE TRABALHO\n\n1. **Receba** o texto completo do vendedor.\n2. **Identifique** blocos lógicos: veículo, preço/condições, troca/avaliação, disponibilidade/test drive, localização/horários, observações legais, assinatura.\n3. **Insira `&`** apenas onde a quebra melhorar a experiência de leitura, seguindo os critérios acima.\n4. **Mantenha listas e especificações agrupadas** por veículo/tópico.\n5. **Retorne o texto** apenas com as quebras `&` inseridas (sem qualquer outro acréscimo).\n\n## EXEMPLOS DE FORMATAÇÃO\n\n### ❌ INCORRETO (quebras ruins e fragmentação de blocos)\n\nHB20 Comfort 1.0 2022 branco 48.000 km motor 1.0 manual laudo cautelar aprovado\n&\nÀ vista R\\$ 58.900 entrada a partir de R\\$ 9.000 parcelas de R\\$ 1.199 em até 60x taxa sob consulta\n&\nÚnico dono revisões em dia\n&\nQuer agendar test drive hoje às 16h?\n&\nEndereço Av. Central 123 Loja 2 estacionamento no local\n\n### ✅ CORRETO (agrupamento lógico por tópicos)\n\nHB20 Comfort 1.0 2022 — branco — 48.000 km — motor 1.0 — câmbio manual — laudo cautelar aprovado\n&\nÀ vista: R\\$ 58.900\nFinanciamento: entrada a partir de R\\$ 9.000 | parcelas de R\\$ 1.199 em até 60x | taxa sob consulta\nValidade da oferta sujeita a estoque e aprovação de crédito\n&\nHistórico: único dono | revisões em dia\n&\nQuer agendar um test drive hoje às 16h?\n&\nEndereço: Av. Central, 123 — Loja 2 | Estacionamento no local\nContato do vendedor: João — (11) 99999-0000\n\n## LEMBRE-SE\n\n* Seu trabalho é **APENAS** inserir quebras (`&`).\n* O conteúdo deve permanecer **100% idêntico**.\n* Pense na **experiência do usuário no WhatsApp**.\n* Evite mensagens muito longas ou muito fragmentadas.\n* **Mantenha o contexto e a fluidez** da conversa.\n* Não duplique `&` sequenciais desnecessários nem inicie/termine o texto com `&`.\n\n---"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        3680,
+        176
+      ],
+      "id": "229b8724-3d70-4442-92f4-000edffc7db7",
+      "name": "formataMensagens"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1e66db0-00dc-481d-951c-1fde558e268e",
+              "name": "text",
+              "value": "={{ $json.output.split('&') }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8b8e1512-4b8b-4d86-a97f-8db98b23346d",
+      "name": "Divide as mensagens1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4256,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini-2025-04-14"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3680,
+        544
+      ],
+      "id": "aafa74c3-2253-4e34-841d-59ef9d898b16",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# AI Agent",
+        "height": 1040,
+        "width": 2064,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2032,
+        -32
+      ],
+      "id": "d97f6a3d-4387-4181-b134-9b17dc154764",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Todas as Mensagens').first().json.listaMensagens }}",
+        "options": {
+          "systemMessage": "={{ $('prompt').item.json.prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        3184,
+        176
+      ],
+      "id": "3e03ac09-e424-4553-81e9-e8dc8e77a0f7",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "description": "=Consulte a tool \"faq\" sempre que precisar responder a pergunta de um cliente. Os principais temas de perguntas são:\n\n- Localização e endereço da loja\n- Horários de funcionamento  \n- Formas de pagamento aceitas (cartão, boleto, etc.)\n- Políticas de garantia\n- Processo de documentação/transferência\n- Informações sobre transporte/envios\n- Convênios e parcerias\n- Procedimentos internos\n- Políticas de troca e devolução\n- Informações sobre repasse vs showroom\n- Detalhes sobre financiamento e consórcio\n\n* IMPORTANTE: não use essa tool para responder dúvidas técnicas, preços ou para consultar carros no estoque.",
+        "workflowId": {
+          "__rl": true,
+          "value": "FYM0lpbeseTFAxpP",
+          "mode": "list",
+          "cachedResultName": "AI Agent - Consulta FAQ"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "account_name": "d0b1f901-f804-41e1-9444-803ed9f1a1b5",
+            "type": "faq",
+            "openAIToken": "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",
+            "domainSupabase": "https://xvuggrpcpaotuaxgcpgb.supabase.co",
+            "serviceRoleSupabase": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2dWdncnBjcGFvdHVheGdjcGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTg3MjA5NiwiZXhwIjoyMDcxNDQ4MDk2fQ.6-POCDUrfhJEDP0WkOB0oLjVdHZ09z0ZMOiuTNpX5Pc",
+            "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('query', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "account_name",
+              "displayName": "account_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "openAIToken",
+              "displayName": "openAIToken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "domainSupabase",
+              "displayName": "domainSupabase",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "serviceRoleSupabase",
+              "displayName": "serviceRoleSupabase",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3696,
+        880
+      ],
+      "id": "c8dadfb3-7114-4784-8d36-77263030e7d4",
+      "name": "faq"
+    },
+    {
+      "parameters": {
+        "description": "=Use a tool `buscaVeiculo` sempre que o usuário demonstrar interesse em consultar veículos no inventário\n(ex.: preço, fotos, disponibilidade, detalhes técnicos).\n\n### Instruções para a query:\n- Se o usuário mencionar o veículo no prompt, use essa informação.\n- Se o usuário não mencionar diretamente o veículo, mas houver informação de contexto ou memória\nsobre o carro em discussão, adicione esses dados (ex.: ano, marca, modelo, versão).\n- Sempre que possível, inclua no texto da query a descrição completa do veículo em questão.\n- A query deve refletir a intenção do usuário, mas com a especificação do veículo embutida.\n\n### Inputs obrigatórios:\n- query → pergunta do usuário enriquecida com o veículo relevante\n\n### Exemplos:\nUsuário: \"Qual o preço?\"\nMemória: *Forester Subaru 2010 2.5X Sport Utility 4D Automatic 4-Spd w/Overdrive & SportShift*  \nQuery: **\"Qual o preço do Forester Subaru 2010 2.5X Sport Utility 4D Automatic 4-Spd w/Overdrive & SportShift?\"**\n\nUsuário: \"Me manda fotos do HB20\"  \nQuery: **\"Me manda fotos do HB20 Hyundai 2016 Comfort Plus Sedan 4D Automatic\"**",
+        "workflowId": {
+          "__rl": true,
+          "value": "Q9thcZLPLj2qPD1A",
+          "mode": "list",
+          "cachedResultName": "AI Agent - Consulta Inventário"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('query', ``, 'string') }}",
+            "projectSupabase": "nifpfpfosyouqkvejady",
+            "secretKeySupabase": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZnBmcGZvc3lvdXFrdmVqYWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Njg0MTA5MywiZXhwIjoyMDcyNDE3MDkzfQ.NKwNfH5ddLfuE5go0nz83wcwDiJtudaAumCr4vMmSmo"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "projectSupabase",
+              "displayName": "projectSupabase",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "secretKeySupabase",
+              "displayName": "secretKeySupabase",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3568,
+        880
+      ],
+      "id": "ec8e52ef-d5ac-4f10-888d-d272e642d6f2",
+      "name": "buscaVeiculo"
+    },
+    {
+      "parameters": {
+        "description": "=### 🔹 **transfereAtendimento**\n\n* **Descrição:** Use a tool transfereAtendimento para transferir o atendimento para um outro consultor da Carros Bacanas.\n\n* **Campos a serem preenchidos pelo agente:**\n\n  * **`contato`:**\n\n    * `whatsapp_1` → quando o cliente demonstrar interesse em **comprar um carro** → transfere para **Maria**\n    * `whatsapp_2` → quando o cliente indicar que deseja **vender um carro** → transfere para **Rogério**\n    * `whatsapp_3` → quando o cliente tiver **dúvida sobre um carro já comprado**, relatar **problema técnico** ou precisar de **suporte pós-venda** → transfere para **Miguel**\n  * **`telefone`:** número de contato do lead. O agente deve garantir que o telefone esteja no formato internacional, sempre começando com `+55`.\n\n    * Exemplo: se o cliente informar `11987654321`, o agente deve salvar como `+5511987654321`.\n\n* **Gatilho de Acionamento:**\n\n  * Sempre que o cliente:\n\n    * Declarar interesse real em **comprar um carro**\n    * Solicitar **falar com atendente humano**\n    * Pedir **simulação detalhada de financiamento/pagamento**\n    * Perguntar sobre **formas de pagamento**\n    * Solicitar **vídeo/chamada ao vivo para ver o carro**\n    * Confirmar que deseja **agendar visita presencial**\n    * Indicar que está pronto para **fechar negócio**\n    * Indicar interesse em **colocar um carro à venda**\n    * Relatar **dúvida/problema técnico** ou **suporte sobre veículo já comprado**\n\n---\n\n👉 Quer que eu monte agora um **exemplo de payload JSON** para cada caso (`whatsapp_1`, `whatsapp_2` e `whatsapp_3`), para deixar pronto no prompt como guia para o agente?\n",
+        "workflowId": {
+          "__rl": true,
+          "value": "ECvIEwGQNdamlR6v",
+          "mode": "list",
+          "cachedResultName": "[CARROS_BACANAS][TOOL][TRANSFERE_ATENDIMENTO]"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "leadId": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}",
+            "contactId": "={{ $('Webhook').first().json.body[\"message[add][0][contact_id]\"] }}",
+            "subdomain": "={{ $('Webhook').first().json.body[\"account[subdomain]\"] }}",
+            "kommoToken": "={{ $('CONFIGURAÇÃO IA').first().json.kommoToken }}",
+            "contato": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('contato', ``, 'string') }}",
+            "telefone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('telefone', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "leadId"
+          ],
+          "schema": [
+            {
+              "id": "contato",
+              "displayName": "contato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "leadId",
+              "displayName": "leadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contactId",
+              "displayName": "contactId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "subdomain",
+              "displayName": "subdomain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "kommoToken",
+              "displayName": "kommoToken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3408,
+        880
+      ],
+      "id": "a8a4f99d-dfd3-49ac-9c85-3324246f7bb8",
+      "name": "transfereAtendimeno"
+    },
+    {
+      "parameters": {
+        "description": "=### 🔹 **transfereAtendimento**\n\n* **Descrição:** Use a tool transfereAtendimento para transferir o atendimento para um outro consultor da Carros Bacanas.\n\n* **Campos a serem preenchidos pelo agente:**\n\n  * **`contato`:**\n\n    * `whatsapp_1` → quando o cliente demonstrar interesse em **comprar um carro** → transfere para **Maria**\n    * `whatsapp_2` → quando o cliente indicar que deseja **vender um carro** → transfere para **Rogério**\n    * `whatsapp_3` → quando o cliente tiver **dúvida sobre um carro já comprado**, relatar **problema técnico** ou precisar de **suporte pós-venda** → transfere para **Miguel**\n\n* **Gatilho de Acionamento:**\n\n  * Sempre que o cliente:\n\n    * Declarar interesse real em **comprar um carro**\n    * Solicitar **falar com atendente humano**\n    * Pedir **simulação detalhada de financiamento/pagamento**\n    * Perguntar sobre **formas de pagamento**\n    * Solicitar **vídeo/chamada ao vivo para ver o carro**\n    * Confirmar que deseja **agendar visita presencial**\n    * Indicar que está pronto para **fechar negócio**\n    * Indicar interesse em **colocar um carro à venda**\n    * Relatar **dúvida/problema técnico** ou **suporte sobre veículo já comprado**\n\n--\n",
+        "workflowId": {
+          "__rl": true,
+          "value": "Lgf7scfZM05wgldJ",
+          "mode": "list",
+          "cachedResultName": "TRANSFERE ATENDIMENTO"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contato": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('contato', ``, 'string') }}",
+            "leadId": "={{ $('Webhook').first().json.body['message[add][0][entity_id]']}}",
+            "subdomain": "={{ $('Webhook').item.json.body[\"account[subdomain]\"] }}",
+            "tokenKommo": "={{ $('CONFIGURAÇÃO IA').first().json.kommoToken }}",
+            "contactId": "={{ $('Webhook').first().json.body['message[add][0][contact_id]']}}"
+          },
+          "matchingColumns": [
+            "a"
+          ],
+          "schema": [
+            {
+              "id": "contato",
+              "displayName": "contato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contactId",
+              "displayName": "contactId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "leadId",
+              "displayName": "leadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "subdomain",
+              "displayName": "subdomain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tokenKommo",
+              "displayName": "tokenKommo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3216,
+        880
+      ],
+      "id": "7f058c46-b1b7-4597-bcf7-f9d9c55a1fda",
+      "name": "transfereAtendimen"
+    },
+    {
+      "parameters": {
+        "description": "=# Tool: chamaWhatsApp\n\n## Descrição\nTransfere o contato qualificado do Instagram para o WhatsApp. Esta tool deve ser acionada imediatamente após o lead fornecer seu número de telefone, quando as duas condições obrigatórias foram atendidas: (1) identificação de interesse em pelo menos um carro\n\n## Quando Acionar\n**MOMENTO EXATO:** Acione a tool chamaWhatsApp assim que o lead informar seu número de telefone, após você ter:\n1. ✅ Identificado pelo menos um carro de interesse do lead\n2. ✅ Lead perguntou sobre formas de pagamento\n3. ✅ Você respondeu brevemente sobre formas de pagamento disponíveis\n4. ✅ Lead forneceu o número de telefone\n\n## Parâmetros\n\n### telefone (obrigatório)\n- **Tipo:** String\n- **Descrição:** Número de telefone completo do lead\n- **Formato obrigatório:** +55 + DDD + número (sem espaços, traços ou parênteses)\n- **Exemplos:**\n  - Lead informa: \"(85) 9 9999-8888\" → Você preenche: \"+5585999998888\"\n  - Lead informa: \"85999998888\" → Você preenche: \"+5585999998888\"\n  - Lead informa: \"9 9999-8888\" → Você preenche: \"+5585999998888\" (assumindo DDD 85 de Fortaleza)\n  - Lead informa: \"11 99999-8888\" → Você preenche: \"+5511999998888\"\n\n### REGRAS CRÍTICAS PARA O CAMPO TELEFONE:\n1. **SEMPRE iniciar com +55** (código do Brasil)\n2. **SEMPRE incluir o DDD** \n3. **REMOVER todos os espaços, traços, parênteses e pontos**\n4. **MANTER apenas números** após o +55\n\n## Exemplo de Uso\n\n```json\n{\n  \"telefone\": \"+5585999998888\"\n}\n```\n\n## Conversão de Formatos de Telefone\n\n### Cenários Comuns:\n- **\"(85) 99999-8888\"** → \"+5585999998888\"\n- **\"85 9 9999-8888\"** → \"+5585999998888\"\n- **\"085 99999-8888\"** → \"+5585999998888\" (remover zero do DDD)\n- **\"11999998888\"** → \"+5511999998888\"\n- **\"+55 85 99999-8888\"** → \"+5585999998888\"\n\n### Validação Antes de Enviar:\nSempre verificar se o telefone final tem exatamente:\n- ✅ Inicia com \"+55\"\n- ✅ Tem 13 caracteres totais\n- ✅ Contém apenas números após o +55\n- ✅ Não tem espaços, traços ou outros caracteres\n\n## Protocolo de Acionamento\n\n### ANTES de acionar a tool:\n1. Confirme as condições foram atendidas ((1) identificação de interesse em pelo menos um carro)\n2. Confirme que o lead forneceu o número de telefone\n3. Converta o telefone para o formato correto\n\n### APÓS acionar a tool:\nResponda ao lead confirmando a transferência:\n\"Pronto! Já anotei seu número aqui. Em instantes você vai receber uma mensagem no WhatsApp da nossa equipe para continuar com todos os detalhes! 😊\"\n\n## Tratamento de Erros\n\n### Se a tool retorna algum erro, leia o erro da tool e siga a orientação da mensagem de erro.\n\n## Validação Final\n\nAntes de cada acionamento, verificar:\n1. ✅ Formato do telefone está correto (+55XXXXXXXXXXX)\n2. ✅ Carro de interesse foi identificado na conversa",
+        "workflowId": {
+          "__rl": true,
+          "value": "bcgqvTpLZlZJ6Tbs",
+          "mode": "list",
+          "cachedResultName": "TOOL INSTAGRAM-WHATSAPP"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tokenKommo": "={{ $('CONFIGURAÇÃO IA').first().json.kommoToken }}",
+            "subdomain": "={{ $('Webhook').first().json.body[\"account[subdomain]\"] }}",
+            "leadId": "={{ $('Webhook').first().json.body['message[add][0][entity_id]']}}",
+            "contactId": "={{ $('Webhook').first().json.body['message[add][0][contact_id]']}}",
+            "telefone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('telefone', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contactId",
+              "displayName": "contactId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "leadId",
+              "displayName": "leadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "subdomain",
+              "displayName": "subdomain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tokenKommo",
+              "displayName": "tokenKommo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3440,
+        528
+      ],
+      "id": "bd65b08e-c2ba-4a45-a1d8-6c61a26f460d",
+      "name": "chamaWhatsApp"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "webhook",
+              "type": "array"
+            },
+            {
+              "name": "buscaLead",
+              "type": "array"
+            },
+            {
+              "name": "configuracaoIA",
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -896,
+        368
+      ],
+      "id": "ec37dd04-5598-4b35-94da-8cae8fcf72e7",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Code node — Run Once for All Items\n * Lê do nó \"When Executed by Another Workflow\"\n * Emite 1 item por elemento de webhook[], com o conteúdo de .json direto.\n */\n\nconst src = $('When Executed by Another Workflow').first().json;\n\nif (!src || !Array.isArray(src.webhook)) {\n  throw new Error('Não encontrei array \"webhook\" no nó \"When Executed by Another Workflow\".');\n}\n\nreturn src.webhook\n  .filter(el => el && el.json && typeof el.json === 'object')\n  .map(el => ({ json: el.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        368
+      ],
+      "id": "597ef86e-8dc3-4b94-aef3-da5f5571157a",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Code node — Run Once for All Items\n * Lê do nó \"When Executed by Another Workflow\"\n * Emite 1 item por elemento de buscaLead[], com o conteúdo de .json direto.\n */\n\nconst src = $('When Executed by Another Workflow').first().json;\n\nif (!src || !Array.isArray(src.buscaLead)) {\n  throw new Error('Não encontrei array \"buscaLead\" no nó \"When Executed by Another Workflow\".');\n}\n\nreturn src.buscaLead\n  .filter(el => el && el.json && typeof el.json === 'object')\n  .map(el => ({ json: el.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        368
+      ],
+      "id": "3e15e495-905a-44d6-acbe-7b80d57e9dd3",
+      "name": "BUSCA LEAD"
+    },
+    {
+      "parameters": {
+        "content": "## RECEBE DADOS",
+        "height": 304,
+        "width": 832
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        272
+      ],
+      "id": "f3b3be64-367b-4cda-b625-4052b3952d9f",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Code node — Run Once for All Items\n * Lê do nó \"When Executed by Another Workflow\"\n * Emite 1 item por elemento de configuracaoIA, com o conteúdo de .json direto.\n */\n\nconst src = $('When Executed by Another Workflow').first().json;\n\nif (!src || !Array.isArray(src.configuracaoIA)) {\n  throw new Error('Não encontrei array \"configuracaoIA\" no nó \"When Executed by Another Workflow\".');\n}\n\nreturn src.configuracaoIA\n  .filter(el => el && el.json && typeof el.json === 'object')\n  .map(el => ({ json: el.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        368
+      ],
+      "id": "e6bf61db-df91-4c8e-ad12-1f08e6ad3547",
+      "name": "CONFIGURAÇÃO IA"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "webhook": [
+            {
+              "json": {
+                "headers": {
+                  "host": "webhook.carrosbacanas.com",
+                  "user-agent": "amoCRM-Webhooks/3.0",
+                  "content-length": "945",
+                  "accept-encoding": "gzip",
+                  "content-type": "application/x-www-form-urlencoded",
+                  "x-amocrm-requestid": "0a13cfe303123123645",
+                  "x-forwarded-for": "13123123123",
+                  "x-forwarded-host": "webhook.carrosbacanas.com",
+                  "x-forwarded-port": "443",
+                  "x-forwarded-proto": "https",
+                  "x-forwarded-server": "123123123",
+                  "x-real-ip": "20423423464"
+                },
+                "params": {},
+                "query": {},
+                "body": {
+                  "account[subdomain]": "carrosbacanas",
+                  "account[id]": "35157288",
+                  "account[_links][self]": "https://carrosbacanas.amocrm.com",
+                  "message[add][0][id]": "a7a4d124-4791-4b55-8f4c-a4a9dbcbdc6a",
+                  "message[add][0][chat_id]": "3c548a71-7aef-43be-86b6-9585d5f1e1da",
+                  "message[add][0][talk_id]": "133",
+                  "message[add][0][contact_id]": "20248848",
+                  "message[add][0][text]": "61 997045818",
+                  "message[add][0][created_at]": "1758138164",
+                  "message[add][0][element_type]": "2",
+                  "message[add][0][entity_type]": "lead",
+                  "message[add][0][element_id]": "12722840",
+                  "message[add][0][entity_id]": "12722840",
+                  "message[add][0][type]": "incoming",
+                  "message[add][0][author][id]": "825b8fd0-116a-42fb-8803-5a29dc9083e5",
+                  "message[add][0][author][type]": "external",
+                  "message[add][0][author][name]": "Luã",
+                  "message[add][0][origin]": "instagram_business"
+                },
+                "webhookUrl": "https://webhook.carrosbacanas.com/webhook/eb378264234234a423423aa2bb",
+                "executionMode": "production"
+              },
+              "pairedItem": {
+                "item": 0
+              }
+            }
+          ],
+          "buscaLead": [
+            {
+              "json": {
+                "id": 12722840,
+                "name": "Lead #12722840",
+                "price": 0,
+                "responsible_user_id": 11541963,
+                "group_id": 0,
+                "status_id": 92170931,
+                "pipeline_id": 11955443,
+                "loss_reason_id": null,
+                "created_by": 0,
+                "updated_by": 0,
+                "created_at": 1758129177,
+                "updated_at": 1758138165,
+                "closed_at": null,
+                "closest_task_at": null,
+                "is_deleted": false,
+                "custom_fields_values": null,
+                "score": null,
+                "account_id": 35157288,
+                "labor_cost": null,
+                "is_price_computed": true,
+                "_links": {
+                  "self": {
+                    "href": "https://carrosbacanas.amocrm.com/api/v4/leads/12722840?with=contacts&page=1&limit=250"
+                  }
+                },
+                "_embedded": {
+                  "tags": [
+                    {
+                      "id": 96348,
+                      "name": "IA-Luã",
+                      "color": null
+                    }
+                  ],
+                  "companies": [],
+                  "contacts": [
+                    {
+                      "id": 20248848,
+                      "is_main": true,
+                      "_links": {
+                        "self": {
+                          "href": "https://carrosbacanas.amocrm.com/api/v4/contacts/20248848?with=contacts&page=1&limit=250"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "pairedItem": {
+                "item": 0
+              }
+            }
+          ],
+          "configuracaoIA": [
+            {
+              "json": {
+                "kommoToken": "",
+                "tagsPermitidas": "IA-Luã",
+                "tokenKommetrik": ""
+              },
+              "pairedItem": {
+                "item": 0
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI1": {
+      "main": [
+        [
+          {
+            "node": "TRANSCRIÇÃO IMAGEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transcribe voice": {
+      "main": [
+        [
+          {
+            "node": "Transcrição de Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BAIXA O ÁUDIO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TEXTO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BAIXA O ÁUDIO": {
+      "main": [
+        [
+          {
+            "node": "transcribe voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MENSAGEM DO CONTATO": {
+      "main": [
+        [
+          {
+            "node": "ESPERA MENSAGENS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrição de Áudio": {
+      "main": [
+        [
+          {
+            "node": "Salva mensagem no banco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todas as Mensagens": {
+      "main": [
+        [
+          {
+            "node": "Postgres - DELETA MENSAGENS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "OpenAI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - Busca Mensagens": {
+      "main": [
+        [
+          {
+            "node": "SE A ÚLTIMA MSG REGISTRADA FOR IGUAL A MSG DO WEBHOOK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Junta Mensagens": {
+      "main": [
+        [
+          {
+            "node": "Todas as Mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - DELETA MENSAGENS": {
+      "main": [
+        [
+          {
+            "node": "dataAgora",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separa as mensagens": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia mensagem na Kommo": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SE A ÚLTIMA MSG REGISTRADA FOR IGUAL A MSG DO WEBHOOK": {
+      "main": [
+        [
+          {
+            "node": "Junta Mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LEGENDA IMAGEM": {
+      "main": [
+        [
+          {
+            "node": "Salva mensagem no banco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TRANSCRIÇÃO IMAGEM": {
+      "main": [
+        [
+          {
+            "node": "LEGENDA IMAGEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEXTO": {
+      "main": [
+        [
+          {
+            "node": "Salva mensagem no banco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva mensagem no banco": {
+      "main": [
+        [
+          {
+            "node": "MENSAGEM DO CONTATO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ESPERA MENSAGENS": {
+      "main": [
+        [
+          {
+            "node": "Postgres - Busca Mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "dataAgora": {
+      "main": [
+        [
+          {
+            "node": "formataData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formataData": {
+      "main": [
+        [
+          {
+            "node": "puxaHistorico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "puxaHistorico": {
+      "main": [
+        [
+          {
+            "node": "formataHistorico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formataHistorico": {
+      "main": [
+        [
+          {
+            "node": "buscaSaudacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Envia Imagem na Kommo - Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Envia mensagem na Kommo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia Imagem na Kommo - Imagem": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscaSaudacao": {
+      "main": [
+        [
+          {
+            "node": "prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formataMensagens": {
+      "main": [
+        [
+          {
+            "node": "Divide as mensagens1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Divide as mensagens1": {
+      "main": [
+        [
+          {
+            "node": "Separa as mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "formataMensagens",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "formataMensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "chamaWhatsApp": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "BUSCA LEAD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA LEAD": {
+      "main": [
+        [
+          {
+            "node": "CONFIGURAÇÃO IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONFIGURAÇÃO IA": {
+      "main": [
+        [
+          {
+            "node": "Switch3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "57774ba7-155b-4934-8c26-5e80f8b0ab68",
+  "meta": {
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "sI2ktmTIGDhvWWQq",
+  "tags": []
+}

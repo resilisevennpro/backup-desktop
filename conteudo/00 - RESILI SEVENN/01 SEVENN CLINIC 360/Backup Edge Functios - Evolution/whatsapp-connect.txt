@@ -1,0 +1,728 @@
+// QR Code conexão whatsapp web Evolution
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  try {
+    const {
+      clinic_id,
+      method,
+      phone,
+      action,
+      connection_name,
+      integration_id,
+      instanceName: reqInstanceName,
+      page
+    } = await req.json()
+
+    if (!clinic_id) throw new Error("clinic_id é obrigatório.")
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    )
+
+    // O Supabase injeta essas variáveis automaticamente na Edge Function
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Ela já existe aqui, não precisa setar no terminal!
+    )
+
+    const evolutionUrl = Deno.env.get('EVOLUTION_API_URL')
+    const evolutionKey = Deno.env.get('EVOLUTION_API_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    if (!evolutionUrl || !evolutionKey) throw new Error("Chaves da Evolution ausentes.")
+
+    // URL do Webhook: Aponta para a Edge Function whatsapp-webhook
+    const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`
+
+    // DIAGNÓSTICO: Logar a versão da Evolution para saber os endpoints suportados
+    try {
+      const infoReq = await fetch(`${evolutionUrl}/`, { headers: { 'apikey': evolutionKey } });
+      const infoText = await infoReq.text();
+      console.log(`[DIAGNOSTICO] Informações da Evolution: ${infoText}`);
+    } catch (e: any) {
+      console.log(`[DIAGNOSTICO] Não foi possível ler versão/root: ${e.message}`);
+    }
+
+    // --- FLUXO STATUS: Verifica se a conexão foi aberta ---
+    if (action === 'status') {
+      console.log(`[DEBUG] Verificando status para: ${reqInstanceName}`);
+
+      const stateReq = await fetch(`${evolutionUrl}/instance/connectionState/${reqInstanceName}`, {
+        headers: { 'apikey': evolutionKey }
+      });
+      const stateRes = await stateReq.json();
+      console.log(`[DEBUG] Estado da instância: ${stateRes.instance?.state}`);
+
+      if (stateRes.instance?.state === 'open') {
+        // Obter status atual para saber se é a primeira vez
+        const { data: currConn } = await supabaseAdmin
+          .from('whatsapp_connections')
+          .select('status')
+          .eq('id', integration_id)
+          .single();
+
+        const isNewlyConnected = currConn?.status === 'pending';
+
+        // Verificação extra: Se já está conectado mas não há chats no banco, também importa
+        const { count: chatCount } = await supabaseAdmin
+          .from('chats')
+          .select('*', { count: 'exact', head: true })
+          .eq('whatsapp_instance_id', integration_id);
+
+        const shouldImport = isNewlyConnected || (chatCount === 0);
+
+        const { error: updateError } = await supabaseAdmin
+          .from('whatsapp_connections')
+          .update({ status: 'connected' })
+          .eq('id', integration_id);
+
+        if (!updateError) {
+          console.log("[DEBUG] ✅ Status atualizado para connected!");
+
+          // IMPORTAÇÃO DOS 50 CONTATOS RECENTES
+          if (shouldImport) {
+            console.log("[IMPORT] Importação disparada! Invocando action=import em background...");
+            try {
+              // Chama a própria função para rodar a importação pesada em background (não aguardamos)
+              fetch(`${supabaseUrl}/functions/v1/whatsapp-connect`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                },
+                body: JSON.stringify({
+                  action: 'import',
+                  clinic_id,
+                  integration_id,
+                  instanceName: reqInstanceName
+                })
+              }).catch(e => console.error("[IMPORT-BG] Erro disparando background fetch:", e));
+            } catch (e) {
+              console.error("[IMPORT] Erro crítico disparando importação: ", e);
+            }
+          }
+
+          return new Response(JSON.stringify({ success: true, connected: true }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        } else {
+          console.error("[DEBUG] ❌ Erro no update do banco:", updateError);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, connected: false }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // --- FLUXO IMPORT: Força a importação dos 50 chats mais recentes ---
+    if (action === 'import') {
+      if (!integration_id || !reqInstanceName) throw new Error("integration_id e instanceName são obrigatórios para importação.")
+
+      console.log(`[IMPORT] Forçando importação para instância: ${reqInstanceName}`);
+
+      try {
+        let findReq = await fetch(`${evolutionUrl}/chat/find/${reqInstanceName}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+          body: JSON.stringify({ where: {}, limit: 1000 })
+        });
+
+        if (!findReq.ok) {
+          console.log(`[IMPORT] POST /chat/find falhou com ${findReq.status}. Tentando POST /chat/findChats...`);
+          findReq = await fetch(`${evolutionUrl}/chat/findChats/${reqInstanceName}`, {
+            method: 'POST',
+            headers: { 'apikey': evolutionKey }
+          });
+        }
+
+        if (findReq.ok) {
+          const chatsStr = await findReq.text();
+          let chatsData = [];
+          try {
+            const parsed = JSON.parse(chatsStr);
+            chatsData = parsed.records || parsed.data || parsed;
+          } catch (e) {
+            console.error("[IMPORT] Erro ao parsear chats: ", e);
+            return new Response(JSON.stringify({ success: false, error: "Falha ao parsear resposta da Evolution" }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400
+            });
+          }
+
+          if (Array.isArray(chatsData)) {
+            // Ordenar por data mais recente
+            chatsData.sort((a, b) => {
+              const dateA = a.updatedAt || 0;
+              const dateB = b.updatedAt || 0;
+              return new Date(dateB).getTime() - new Date(dateA).getTime();
+            });
+
+
+            // Buscar id e nome da etapa 'Novo Lead' para criar leads automaticamente
+            let newLeadStageId = null;
+            let newLeadStatus = 'Novo Lead';
+            const { data: stage } = await supabaseAdmin
+              .from('pipeline_stages')
+              .select('id, name')
+              .eq('clinic_id', clinic_id)
+              .ilike('name', '%novo lead%')
+              .maybeSingle();
+
+            if (stage) {
+              newLeadStageId = stage.id;
+              newLeadStatus = stage.name;
+            } else {
+              // Fallback pra primeira etapa
+              const { data: anyStage } = await supabaseAdmin.from('pipeline_stages').select('id, name').eq('clinic_id', clinic_id).order('order_index', { ascending: true }).limit(1).maybeSingle();
+              if (anyStage) {
+                newLeadStageId = anyStage.id;
+                newLeadStatus = anyStage.name;
+              }
+            }
+
+            let importedCount = 0;
+            const sixtyDaysAgo = new Date();
+            sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+            let apiCalls = 0;
+
+            // Filtro Top-Level para 60 dias: Apenas processa contatos que foram atualizados nos últimos 60 dias
+            const recentChats = chatsData.filter((c: any) => {
+              const chatDateVal = c.updatedAt || c.mtime || (c.lastMessage?.messageTimestamp ? (c.lastMessage.messageTimestamp * 1000) : null) || Date.now();
+              const chatDate = new Date(chatDateVal).getTime();
+              return chatDate >= sixtyDaysAgo.getTime();
+            });
+
+            for (let i = 0; i < recentChats.length; i++) {
+              if (req.signal.aborted) {
+                console.log("[IMPORT] Abortado pelo cliente.");
+                break;
+              }
+              if (importedCount >= 100) break; // Maximum 100 contatos válidos
+
+              const ch = recentChats[i];
+              const remoteJid = ch.remoteJid || ch.id;
+
+              // Pula grupos, status, e outros que não sejam pessoa/business
+              if (!remoteJid || !remoteJid.endsWith('@s.whatsapp.net')) continue;
+
+              const customerNumber = remoteJid.split('@')[0];
+              const unreadCount = ch.unreadCount || 0;
+
+              // ============ Processamento Rápido do Lead/Chat ============
+
+              let customerName = ch.pushName || ch.name;
+              let profilePic = ch.profilePicUrl || null;
+
+              if (!customerName || customerName === customerNumber || !profilePic) {
+                try {
+                  const profileReq = await fetch(`${evolutionUrl}/chat/fetchProfile/${reqInstanceName}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+                    body: JSON.stringify({ number: customerNumber }),
+                    signal: req.signal
+                  });
+                  if (profileReq.ok) {
+                    const profileRes = await profileReq.json();
+                    if (profileRes?.name && (!customerName || customerName === customerNumber)) customerName = profileRes.name;
+                    if (profileRes?.profilePictureUrl && !profilePic) profilePic = profileRes.profilePictureUrl;
+                  }
+                } catch (e) { }
+              }
+              if (!customerName) customerName = customerNumber; // Fallback
+
+              const lastMsg = ch.lastMessage;
+              const lastMsgText = lastMsg?.message?.conversation
+                || lastMsg?.message?.extendedTextMessage?.text
+                || lastMsg?.conversation
+                || lastMsg?.text
+                || "Nova Conversa";
+
+              // 2. Criar/Buscar Lead
+              let { data: lead } = await supabaseAdmin
+                .from('leads')
+                .select('id')
+                .eq('clinic_id', clinic_id)
+                .eq('phone', customerNumber)
+                .maybeSingle();
+
+              if (!lead) {
+                const { data: newLead } = await supabaseAdmin
+                  .from('leads')
+                  .insert({
+                    clinic_id: clinic_id,
+                    name: customerName,
+                    phone: customerNumber,
+                    pipeline_stage_id: newLeadStageId,
+                    status: newLeadStatus,
+                    avatar_url: profilePic,
+                    source: 'Whatsapp'
+                  })
+                  .select('id').single();
+                lead = newLead;
+              } else {
+                // Caso o lead já exista mas não tenha foto, atualizamos
+                await supabaseAdmin.from('leads').update({
+                  avatar_url: profilePic
+                }).eq('id', lead.id);
+              }
+
+              // 3. Criar/Atualizar Chat
+              let chatId = null;
+              const { data: existingChat } = await supabaseAdmin
+                .from('chats')
+                .select('id')
+                .eq('clinic_id', clinic_id)
+                .eq('customer_number', customerNumber)
+                .maybeSingle();
+
+              if (!existingChat) {
+                const { data: insertedChat, error: insertError } = await supabaseAdmin
+                  .from('chats')
+                  .insert({
+                    clinic_id: clinic_id,
+                    lead_id: lead?.id,
+                    whatsapp_instance_id: integration_id,
+                    customer_number: customerNumber,
+                    customer_name: customerName,
+                    customer_avatar: profilePic,
+                    last_message: lastMsgText,
+                    conversation_status: unreadCount > 0 ? 'open' : 'closed',
+                    unread_count: unreadCount,
+                    updated_at: new Date(ch.updatedAt ? ch.updatedAt : Date.now()).toISOString()
+                  }).select('id').single();
+
+                if (insertError) continue;
+                chatId = insertedChat.id;
+              } else {
+                chatId = existingChat.id;
+                await supabaseAdmin.from('chats').update({
+                  lead_id: lead?.id,
+                  customer_name: customerName,
+                  customer_avatar: profilePic,
+                  last_message: lastMsgText,
+                  unread_count: unreadCount,
+                  updated_at: new Date(ch.updatedAt ? ch.updatedAt : Date.now()).toISOString()
+                }).eq('id', existingChat.id);
+              }
+
+              importedCount++;
+
+            }
+            return new Response(JSON.stringify({ success: true, imported: importedCount }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          } else {
+            console.error("[IMPORT] Resposta da Evolution não é um array válido:", chatsData);
+            return new Response(JSON.stringify({ success: false, error: "Formato de chats inválido da Evolution" }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400
+            });
+          }
+        } else {
+          console.error(`[IMPORT] Falha na Evolution API: ${findReq.status} ${findReq.statusText}`);
+          return new Response(JSON.stringify({ success: false, error: `Falha na Evolution: ${findReq.status}` }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          });
+        }
+      } catch (e: any) {
+        console.error("[IMPORT] Erro crítico na importação forçada: ", e);
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        });
+      }
+    }
+
+    // --- FLUXO IMPORT-HISTORY (PAGINADO E GLOBAL) ---
+    if (action === 'import-history') {
+      const pageNum = page || 1;
+
+      if (!integration_id || !reqInstanceName) throw new Error("integration_id e instanceName são obrigatórios para import-history.");
+      console.log(`[IMPORT-HIST] Buscando Página ${pageNum} de histórico global para: ${reqInstanceName}`);
+
+      try {
+        // Filtramos diretamente na query: só chats pessoais (@s.whatsapp.net), sem grupos
+        // Limit 300 (não 1000) porque base64:true pode tornar respostas muito grandes com mídias
+        const msgsReq = await fetch(`${evolutionUrl}/chat/findMessages/${reqInstanceName}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+          body: JSON.stringify({
+            where: {},
+            limit: 300,
+            page: pageNum,
+            order: "DESC",
+            base64: true
+          }),
+          signal: req.signal
+        });
+
+        if (!msgsReq.ok) {
+          const errText = await msgsReq.text();
+          console.error(`[IMPORT-HIST] Erro Evolution: ${msgsReq.status} - ${errText}`);
+          return new Response(JSON.stringify({ success: false, error: `Falha na Evolution (${msgsReq.status}): ${errText}` }), { headers: corsHeaders, status: 400 });
+        }
+
+        const msgsData = await msgsReq.json();
+        console.log(`[IMPORT-HIST] Página ${pageNum} recebida. Estrutura detectada:`, Object.keys(msgsData));
+
+        let mMessagesList: any[] = [];
+        let totalRecords = 0;
+        let totalPages = 1;
+
+        if (Array.isArray(msgsData)) {
+          mMessagesList = msgsData;
+        } else if (msgsData && typeof msgsData === 'object') {
+          // A Evolution pode retornar os dados direto no root ou dentro de um objeto 'messages'
+          const target = msgsData.messages || msgsData;
+
+          mMessagesList = target.records || target.data || (Array.isArray(target) ? target : []);
+          totalRecords = target.total || target.totalCount || target.count || 0;
+          totalPages = target.pages || target.totalPages || (totalRecords > 0 ? Math.ceil(totalRecords / 300) : 1);
+
+          // Fallback final: se não temos totalPages mas temos records, pelo menos a página atual existe
+          if (totalPages === 0 && mMessagesList.length > 0) totalPages = pageNum;
+        }
+
+        if (mMessagesList.length === 0) {
+          return new Response(JSON.stringify({ success: true, completed: true, reason: "Nenhuma mensagem encontrada neste lote." }), { headers: corsHeaders });
+        }
+
+        const { data: allChats, error: allChatsErr } = await supabaseAdmin
+          .from('chats')
+          .select('id, lead_id, customer_number')
+          .eq('clinic_id', clinic_id)
+          .eq('whatsapp_instance_id', integration_id);
+
+        if (allChatsErr) console.error("[IMPORT-HIST] Erro ao buscar chats:", allChatsErr);
+        console.log(`[IMPORT-HIST] Cache de Chats carregado: ${allChats?.length || 0} chats locais.`);
+
+        const chatsMap = new Map();
+        if (allChats) {
+          allChats.forEach(c => {
+            // Note: lead_id pode vir direto se não usarmos inner join ou se a relação estiver ok
+            const lId = typeof c.lead_id === 'object' ? c.lead_id?.id : c.lead_id;
+            chatsMap.set(c.customer_number, { chat_id: c.id, lead_id: lId });
+          });
+        }
+
+        // Log da estrutura da primeira mensagem para diagnóstico
+        if (mMessagesList.length > 0) {
+          console.log('[IMPORT-HIST] Estrutura da primeira mensagem (diagnóstico):', JSON.stringify(mMessagesList[0]).substring(0, 600));
+        }
+
+        let oldestDateMs = Date.now();
+        let insertedCount = 0;
+        const messagesToInsertDraft = [];
+
+        for (const m of mMessagesList) {
+          if (req.signal.aborted) {
+            console.log("[IMPORT-HIST] Abortado pelo cliente.");
+            break;
+          }
+
+          // Grupos já filtrados na query — apenas sanity check
+          const remoteJid = m.key?.remoteJid || m.remoteJid || m.chatId || null;
+          if (!remoteJid || !remoteJid.endsWith('@s.whatsapp.net')) continue;
+
+          const anyTimestamp = m.messageTimestamp || m.timestamp || m.key?.timestamp;
+          if (anyTimestamp) {
+            const anyDateMs = anyTimestamp.toString().length === 10 ? Number(anyTimestamp) * 1000 : Number(anyTimestamp);
+            if (anyDateMs < oldestDateMs) oldestDateMs = anyDateMs;
+          }
+
+          const customerNumber = remoteJid.split('@')[0];
+          const chatInfo = chatsMap.get(customerNumber);
+
+          if (!chatInfo || !chatInfo.lead_id) continue; // Só importa mensagens de quem já é um Lead Ativo!
+
+          const mTimestamp = m.messageTimestamp || m.timestamp || m.key?.timestamp;
+          const msgDateMs = mTimestamp ? (mTimestamp.toString().length === 10 ? Number(mTimestamp) * 1000 : Number(mTimestamp)) : Date.now();
+
+          const msgDate = new Date(msgDateMs);
+          const isFromMe = m.key?.fromMe ?? m.fromMe ?? false;
+
+          // Extração de conteúdo
+          const msg = m.message;
+          let textContent = "Nova Conversa";
+          const isAudio = !!msg?.audioMessage;
+          const isImage = !!msg?.imageMessage;
+          const isVideo = !!msg?.videoMessage;
+          const isMedia = isAudio || isImage || isVideo;
+          if (msg) {
+            if (msg.conversation) textContent = msg.conversation;
+            else if (msg.extendedTextMessage?.text) textContent = msg.extendedTextMessage.text;
+            else if (msg.imageMessage) textContent = msg.imageMessage.caption ? `📷 ${msg.imageMessage.caption}` : "📷 Foto";
+            else if (msg.videoMessage) textContent = msg.videoMessage.caption ? `🎥 ${msg.videoMessage.caption}` : "🎥 Vídeo";
+            else if (msg.audioMessage) textContent = "🎤 Áudio";
+            else if (msg.documentMessage) textContent = msg.documentMessage.fileName || msg.documentMessage.caption || "📄 Arquivo";
+            else if (msg.stickerMessage) textContent = "🎨 Figurinha";
+            else if (msg.locationMessage) textContent = "📍 Localização";
+            else if (msg.contactMessage) textContent = "👤 Contato";
+          }
+
+          // Processar mídia: base64 vem embutido no findMessages quando base64: true é enviado
+          let mediaUrl: string | null = null;
+          if (isMedia) {
+            const base64Raw: string | undefined = m.base64 || m.message?.base64;
+            if (base64Raw) {
+              try {
+                const mimetype = isAudio ? 'audio/ogg; codecs=opus' : isImage ? 'image/jpeg' : 'video/mp4';
+                const base64Data = base64Raw.includes(',') ? base64Raw.split(',')[1] : base64Raw;
+                const ext = isAudio ? 'opus' : isImage ? 'jpg' : 'mp4';
+                const msgExternalId = m.key?.id || String(Date.now() + Math.random());
+                const filePath = `${reqInstanceName}/${customerNumber}/${msgExternalId}.${ext}`;
+
+                const binaryStr = atob(base64Data);
+                const bytes = new Uint8Array(binaryStr.length);
+                for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+                const { error: uploadError } = await supabaseAdmin.storage
+                  .from('lead-images')
+                  .upload(filePath, bytes, { contentType: mimetype, upsert: true });
+
+                if (!uploadError) {
+                  const { data: signedData, error: signedError } = await supabaseAdmin.storage
+                    .from('lead-images')
+                    .createSignedUrl(filePath, 60 * 60 * 24 * 14); // 14 dias
+                  if (!signedError && signedData) {
+                    mediaUrl = signedData.signedUrl;
+                    console.log(`[IMPORT-HIST-MEDIA] Upload ok: ${filePath}`);
+                  }
+                } else {
+                  console.error(`[IMPORT-HIST-MEDIA] Erro upload: ${uploadError.message}`);
+                }
+              } catch (e: any) {
+                console.error(`[IMPORT-HIST-MEDIA] Erro ao processar base64 (${e.name}): ${e.message}`);
+              }
+            }
+          }
+
+          messagesToInsertDraft.push({
+            chat_id: chatInfo.chat_id,
+            lead_id: chatInfo.lead_id,
+            clinic_id: clinic_id,
+            whatsapp_instance_id: integration_id,
+            external_id: m.key?.id || String(Date.now() + Math.random()),
+            content: textContent,
+            sender: isFromMe ? 'staff' : 'user',
+            direction: isFromMe ? 'clinica' : 'paciente',
+            status: isFromMe ? 'sent' : 'received',
+            metadata: mediaUrl ? { ...m, url: mediaUrl } : m,
+            created_at: msgDate.toISOString()
+          });
+        }
+
+        // Batch Insert
+        if (messagesToInsertDraft.length > 0) {
+          const extIds = messagesToInsertDraft.map(m => m.external_id);
+          const { data: existingExtIds } = await supabaseAdmin.from('messages').select('external_id').in('external_id', extIds);
+          const existingSet = new Set(existingExtIds?.map((e: any) => e.external_id) || []);
+          const finalMessages = messagesToInsertDraft.filter(m => !existingSet.has(m.external_id));
+
+          if (finalMessages.length > 0) {
+            await supabaseAdmin.from('messages').insert(finalMessages);
+            insertedCount = finalMessages.length;
+          }
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          inserted: insertedCount,
+          oldestDate: new Date(oldestDateMs).toISOString(),
+          currentPage: pageNum,
+          totalPages: totalPages,
+          hasMore: pageNum < totalPages
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (e: any) {
+        console.error("[IMPORT-HIST] Erro: ", e);
+        return new Response(JSON.stringify({ success: false, error: e.stack || e.message || String(e), rawError: e }), { headers: corsHeaders, status: 400 });
+      }
+    }
+
+    // --- FLUXO FIX-WEBHOOK: Configura o webhook em instâncias já conectadas ---
+    if (action === 'fix-webhook') {
+      if (!reqInstanceName) throw new Error("instanceName é obrigatório para fix-webhook.")
+
+      console.log(`[FIX] Configurando webhook para instância: ${reqInstanceName}`);
+
+      const webhookPayload = {
+        enabled: true,
+        url: webhookUrl,
+        webhook_by_events: false,
+        events: [
+          "MESSAGES_UPSERT",
+          "MESSAGES_DELETE",
+          "MESSAGES_UPDATE",
+          "SEND_MESSAGE",
+          "CONNECTION_UPDATE",
+          "PRESENCE_UPDATE"
+        ]
+      };
+
+      const fixReq = await fetch(`${evolutionUrl}/webhook/set/${reqInstanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+        body: JSON.stringify(webhookPayload)
+      });
+
+      const fixRes = await fixReq.json();
+
+      return new Response(JSON.stringify({ success: fixReq.ok, data: fixRes }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: fixReq.ok ? 200 : 400
+      });
+    }
+
+    // --- FLUXO DISCONNECT: Remove a instância na Evolution e no Banco ---
+    if (action === 'disconnect') {
+      if (!integration_id || !reqInstanceName) throw new Error("integration_id e instanceName são obrigatórios para desconectar.")
+
+      // Tenta fazer Logout e Delete na Evolution
+      try {
+        await fetch(`${evolutionUrl}/instance/logout/${reqInstanceName}`, {
+          method: 'DELETE',
+          headers: { 'apikey': evolutionKey }
+        });
+
+        // Pausa de 2 segundos para a Evolution processar o logout
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        await fetch(`${evolutionUrl}/instance/delete/${reqInstanceName}`, {
+          method: 'DELETE',
+          headers: { 'apikey': evolutionKey }
+        });
+      } catch (e) {
+        console.error("Erro ao remover na Evolution:", e);
+      }
+
+      // Remove definitivamente do banco de dados (Admin para garantir autoridade total)
+      const { error: deleteError } = await supabaseAdmin
+        .from('whatsapp_connections')
+        .delete()
+        .eq('id', integration_id);
+
+      if (deleteError) {
+        console.error("Erro ao deletar registro no banco:", deleteError);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    }
+
+    // --- FLUXO DE CRIAÇÃO (Sempre via QR Code) ---
+    console.log(`[CREATE] Iniciando criação para clinic_id: ${clinic_id}`);
+
+    // 1. Gera nome único para a instância
+    // Usamos admin aqui para garantir que a clínica seja encontrada mesmo se o JWT do usuário estiver com problemas no bypass
+    const { data: clinic, error: clinicErr } = await supabaseAdmin.from('clinics').select('name').eq('id', clinic_id).single();
+    if (clinicErr) console.error("[CREATE] Erro ao buscar clínica:", clinicErr);
+
+    const rawName = clinic?.name || 'clinica';
+    const safeName = rawName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const instanceName = `${safeName}_${clinic_id.split('-')[0]}_${Date.now().toString().slice(-4)}`;
+
+    console.log(`[CREATE] Payload gerado para instância: ${instanceName} no Webhook: ${webhookUrl}`);
+
+    // 2. Cria instância na Evolution API
+    // Payload ajustado para Evolution v2 (versão 2.3.7 detectada no log)
+    const bodyPayload = {
+      instanceName: instanceName.trim(),
+      integration: "WHATSAPP-BAILEYS",
+      qrcode: true,
+      syncFullHistory: true,
+      webhook: {
+        enabled: true,
+        url: webhookUrl,
+        byEvents: false,
+        base64: true,
+        events: [
+          "MESSAGES_UPSERT",
+          "MESSAGES_DELETE",
+          "MESSAGES_UPDATE",
+          "SEND_MESSAGE",
+          "CONNECTION_UPDATE",
+          "PRESENCE_UPDATE"
+        ]
+      }
+    };
+
+    console.log(`[CREATE] Payload v2 enviado:`, JSON.stringify(bodyPayload));
+
+    const createReq = await fetch(`${evolutionUrl}/instance/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionKey
+      },
+      body: JSON.stringify(bodyPayload)
+    });
+
+    const createResText = await createReq.text();
+    console.log(`[CREATE] Resposta bruta v2: ${createResText}`);
+
+    let createRes;
+    try {
+      createRes = JSON.parse(createResText);
+    } catch (e) {
+      throw new Error(`Resposta inválida da Evolution: ${createResText}`);
+    }
+    if (!createReq.ok) {
+      throw new Error(`Erro na Evolution: ${JSON.stringify(createRes)}`)
+    }
+
+    // 3. Regra da Unicidade: Remove registros "pending" anteriores desta clínica
+    await supabaseAdmin
+      .from('whatsapp_connections')
+      .delete()
+      .eq('clinic_id', clinic_id)
+      .eq('status', 'pending');
+
+    // 4. Insere novo registro na whatsapp_connections
+    const { data: integrationData, error: insertError } = await supabaseClient
+      .from('whatsapp_connections')
+      .insert({
+        clinic_id,
+        instance_name: instanceName,
+        connection_name,
+        phone_number: phone ? phone.replace(/\D/g, '') : '',
+        status: 'pending'
+      })
+      .select('id')
+      .single();
+
+    if (insertError) throw insertError;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        integration_id: integrationData.id,
+        instanceName,
+        qrCode: createRes.qrcode?.base64 || createRes.base64 || null
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    )
+
+
+
+  } catch (error: any) {
+    return new Response(JSON.stringify({ success: false, error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 })
+  }
+})

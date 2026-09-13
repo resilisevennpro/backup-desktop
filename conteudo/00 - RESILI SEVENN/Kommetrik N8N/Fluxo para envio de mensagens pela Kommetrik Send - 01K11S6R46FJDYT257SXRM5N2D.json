@@ -1,0 +1,657 @@
+{
+  "name": "[COMUNIDADE_KOMMETRIK][ENVIO_DE_IMAGENS][V1]",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# 📸 “Envio de imagens pela Kommetrik Send V1”\n",
+        "height": 144,
+        "width": 504,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -720,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "7b53fed1-253a-4335-a712-f7060ece24fb",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Todas as Mensagens').first().json.listaMensagens }}",
+        "options": {
+          "systemMessage": "={{ $('roteia e classifica').first().json.prompt }}\n\nQuando o usuário falar:  \"Quero arroz\", envie: https://tempodecozimento.com.br/wp-content/uploads/2023/12/Arroz.png\n\nQuando o usuário falar:  \"Quero pinguim\", envie: https://static.todamateria.com.br/upload/pi/ng/pinguim01-cke.jpg"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -48,
+        48
+      ],
+      "id": "3d07a86b-e8d2-4ddf-a514-1883c3b89383",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -48,
+        256
+      ],
+      "id": "6961d6be-5300-42df-ad4c-15b9308a08ec",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').first().json.body['message[add][0][contact_id]'] }}",
+        "tableName": "glauber",
+        "contextWindowLength": 40
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        256
+      ],
+      "id": "a829eb01-d05f-4bd0-b3db-a97961cc80fe",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.output }}"
+            },
+            {
+              "content": "=<objetivo>\nVocê irá receber um texto que NÃO deve ser respondido.  \nSua única função é FORMATAR esse texto de acordo com as instruções detalhadas no bloco <formato_resposta>.\n</objetivo>\n\n<regras>\n- Nunca, em hipótese alguma, interaja com o conteúdo da mensagem recebida.\n- Nunca responda perguntas, nem comente, nem se dirija ao remetente.\n- Não faça nenhum tipo de saudação, explicação, agradecimento ou continuação da conversa.\n- Sua única responsabilidade é retornar uma estrutura JSON como especificado.\n- Se você fizer qualquer coisa além disso, estará violando o seu propósito.\n\nVocê é um formator, não um assistente de conversa.\n</regras>\n\nRetorne uma collection com JSON com as mensagens. Cada posição deverá ser uma mensagem que está separada por \\n\\n. \n\nAs urls das imagens deverão estar sozinhas em uma posição só dela. Deverá ter 1 url por posição. Não numere os links, sempre retorne somente o link. \n\nFaça o split pela string \"\\n\\n\".\n\n<exemplo_1>\nExemplo de retorno caso tenha link de imagem (que termina com .png, .jpg, .jpeg)\n\nmessages : [\n\t\"Mensagem 1\\nContinuação da Mensagem 1\\nOutra Continuação da mensagem 1\",\n\t\"Mensagem 2\",\n\t\"https://link1.com.br\",\n\t\"Mensagem 4\"\n]\n\nJamais envie links que não estejam no prompt de usuário.\n</exemplo_1>\n\n<exemplo_2>\nExemplo de retorno caso não tenha link de imagem (que termina com .png, .jpg, .jpeg) no prompt de usuário\n\nmessages : [\n\t\"Mensagem 1\",\n\t\"Mensagem 2\",\n\t\"Mensagem 3\"\n]\n</exemplo_2>\n\n</formato_resposta>\n\nSempre retorne com textos em codificação charset UTF-8\nNunca responda aos textos, apenas formate como específicado acima",
+              "role": "system"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        416,
+        48
+      ],
+      "id": "d34cfeee-19c6-4574-a98a-1388df3637fd",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Agente (com prompt) para enviar as imagens",
+        "height": 560,
+        "width": 1312
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        -80
+      ],
+      "id": "342aaa70-4d75-4fff-83fc-e705b7191859",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1e66db0-00dc-481d-951c-1fde558e268e",
+              "name": "text",
+              "value": "={{ $json.message.content.messages }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fd802053-2409-43ef-a79c-653842e326e7",
+      "name": "Divide as mensagens",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        848,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# Conecte no seu Split Out",
+        "height": 128,
+        "width": 336,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        -80
+      ],
+      "id": "749103c8-0198-400d-8d9a-d8d03d6194e0",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Coloque esse fluxo substituindo pelo \"Envio de Mensagem na Kommo\" ⚠ após o SplitOut ⚠",
+        "height": 544,
+        "width": 1344
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        -80
+      ],
+      "id": "67efce99-7f89-4d36-8f9d-014a7700fc03",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "amount": 2.52
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2672,
+        224
+      ],
+      "id": "0159123e-9420-4573-9e4a-c65639d8faf7",
+      "name": "Wait2",
+      "webhookId": "dc58a54f-0480-49d7-b42d-f6cc9d466ecb"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "10ad1d1f-d308-42c4-807a-92adc67069db",
+      "name": "Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1616,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        208
+      ],
+      "id": "726c0be6-be43-4037-914b-4c8c59d38f45",
+      "name": "Mensagem"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ia.kommetrik.com.br/api/executions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('CONFIGURAÇAO IA').first().json.Token_Kommetrik }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $('Webhook').first().json.body[\"account[_links][self]\"] }}"
+            },
+            {
+              "name": "kommo_account_id",
+              "value": "={{ $('Webhook').first().json.body['account[id]'] }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][chat_id]'] }}"
+            },
+            {
+              "name": "entity_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}"
+            },
+            {
+              "name": "element_type",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][element_type]'] }}"
+            },
+            {
+              "name": "user_name",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][name]'] }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "author_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][id]'] }}"
+            },
+            {
+              "name": "talk_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][talk_id]'] }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][contact_id]'] }}"
+            },
+            {
+              "name": "token_kommo",
+              "value": "={{ $('Kommo2').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2384,
+        224
+      ],
+      "id": "b7232984-6ea8-4346-b96c-2e5059d0e0e3",
+      "name": "Envia mensagem na Kommo"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        0
+      ],
+      "id": "77424b92-9e64-4b31-bc35-5dc210af25b9",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{(() => {\n  const text = $json.text;\n  const imageRegex = /(https?:\\/\\/[^\\s]+?\\.(jpg|jpeg|png|gif|bmp|webp))/gi;\n  return imageRegex.test(text);\n})()}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "e297a32b-fd94-43b0-8788-bf144296c3d4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Imagem"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Texto"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2128,
+        208
+      ],
+      "id": "34cd8c52-a23d-45b0-86f7-bfc78977040d",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "content": "# Lembre-se de conectar novamente suas credenciais (tokens) nos nós de \"Envia mensagem na Kommo\"",
+        "height": 432,
+        "width": 336,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2896,
+        -80
+      ],
+      "id": "b649021f-da30-4b1e-93c0-1bfcad9af79a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "699a472e-2084-4dc6-a9b7-7dbccf5d6da6",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1952,
+        208
+      ],
+      "id": "3e109924-56e3-4ca8-9f17-0ed2b7fbf3d9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ia.kommetrik.com.br/api/executions/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('CONFIGURAÇAO IA').first().json.Token_Kommetrik }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $('Webhook').first().json.body[\"account[_links][self]\"] }}"
+            },
+            {
+              "name": "kommo_account_id",
+              "value": "={{ $('Webhook').first().json.body['account[id]'] }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][chat_id]'] }}"
+            },
+            {
+              "name": "entity_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}"
+            },
+            {
+              "name": "element_type",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][element_type]'] }}"
+            },
+            {
+              "name": "user_name",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][name]'] }}"
+            },
+            {
+              "name": "file_url",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "author_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][id]'] }}"
+            },
+            {
+              "name": "talk_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][talk_id]'] }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][contact_id]'] }}"
+            },
+            {
+              "name": "token_kommo",
+              "value": "={{ $('CONFIGURAÇAO IA').first().json.kommo_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2384,
+        0
+      ],
+      "id": "75648e28-175f-4ba8-ba92-9e01298e0336",
+      "name": "Envia Imagem na Kommo"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Divide as mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia mensagem na Kommo": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Envia Imagem na Kommo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Envia mensagem na Kommo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia Imagem na Kommo": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "79779f12-af7d-4e91-9dc9-ae27a2753a12",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "vVKq3slrnHYV6ssz",
+  "tags": [
+    {
+      "createdAt": "2025-07-12T19:04:59.708Z",
+      "updatedAt": "2025-07-12T19:04:59.708Z",
+      "id": "8jkMHCqDt1tGreZO",
+      "name": "kommetrik comunidade"
+    }
+  ]
+}

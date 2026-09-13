@@ -1,0 +1,173 @@
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FileText, MessageCircle, Clock, ExternalLink } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+
+interface PendingDoc {
+    id: string;
+    title: string;
+    status: 'pending' | 'awaiting_signature';
+    sent_at: string;
+    created_at?: string;
+    lead_id: string;
+    leads: {
+        id?: string;
+        name: string;
+        mobile?: string;
+        phone?: string;
+    } | null;
+    public_token?: string;
+    expires_at?: string;
+}
+
+export function PendingSignaturesWidget() {
+    const { clinic } = useAuth();
+    const [docs, setDocs] = useState<PendingDoc[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchPendingDocs = async () => {
+        if (!clinic?.id) return;
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('clinic_documents')
+                .select('*, leads!inner(name, mobile, phone)') // !inner garante que só traga docs com leads válidos
+                .eq('clinic_id', clinic.id)
+                .eq('status', 'awaiting_signature')
+                .order('created_at', { ascending: true }); // Mostra os mais antigos (urgentes) primeiro
+
+            if (error) throw error;
+
+            // Debug
+            console.log('Docs pendentes Dashboard:', data);
+
+            setDocs(data || []);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPendingDocs();
+    }, [clinic?.id]);
+
+    const handleWhatsApp = (doc: PendingDoc) => {
+        const token = doc.public_token;
+        if (!token) {
+            toast.error("Documento sem link gerado.");
+            return;
+        }
+
+        const lead = doc.leads;
+        if (!lead) {
+            toast.error("Lead não encontrado.");
+            return;
+        }
+
+        const link = `${window.location.origin}/assinatura/${token}`;
+        const phone = (lead.mobile || lead.phone || "").replace(/\D/g, "");
+        const formattedPhone = phone.startsWith('55') ? phone : `55${phone}`;
+
+        const message = `Olá ${lead.name}, lembrete para assinar seu documento: ${doc.title}. Link: ${link}`;
+
+        const url = `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
+    if (!loading && docs.length === 0) {
+        return (
+            <Card className="border-none shadow-sm bg-white mt-8">
+                <CardHeader>
+                    <CardTitle className="text-lg font-bold flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-slate-400" />
+                        Assinaturas Pendentes
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                        <p className="text-lg font-medium">Nenhuma assinatura pendente 🎉</p>
+                        <p className="text-sm">Todos os documentos estão em dia.</p>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="border-none shadow-sm bg-white mt-8">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="text-lg font-bold flex items-center gap-2 text-slate-800">
+                        <FileText className="w-5 h-5 text-amber-500" />
+                        Assinaturas Pendentes de Pacientes
+                    </CardTitle>
+                    <CardDescription>
+                        Acompanhe e cobre documentos enviados que ainda não foram assinados.
+                    </CardDescription>
+                </div>
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                    {docs.length} Pendentes
+                </Badge>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Data de Envio</TableHead>
+                            <TableHead>Paciente</TableHead>
+                            <TableHead>Documento</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Ação</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {loading ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center py-8 text-slate-500">Carregando...</TableCell>
+                            </TableRow>
+                        ) : (
+                            docs.map((doc) => (
+                                <TableRow key={doc.id}>
+                                    <TableCell className="text-slate-600 font-medium text-xs">
+                                        <div className="flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {new Date(doc.sent_at || String(doc['created_at'])).toLocaleDateString('pt-BR')}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="font-semibold text-slate-800">
+                                        {doc.leads?.name || 'Lead sem nome'}
+                                    </TableCell>
+                                    <TableCell className="text-slate-600 truncate max-w-[200px]" title={doc.title}>
+                                        {doc.title}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px]">
+                                            Aguardando
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 gap-1.5 text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                            onClick={() => handleWhatsApp(doc)}
+                                        >
+                                            <MessageCircle className="w-3.5 h-3.5" /> Cobrar
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}

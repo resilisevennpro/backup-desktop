@@ -1,0 +1,1695 @@
+{
+  "name": "[IA_MODULAR][METRIK][ROTEAMENTO]",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "={{ $('tag').first().json.body[\"account[_links][self]\"] }}/api/v4/contacts/{{ $('tag').first().json.body[\"message[add][0][contact_id]\"] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('tag').item.json[\"kommo token\"] }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5472,
+        784
+      ],
+      "id": "0073a5e2-f7e7-4465-83c5-0ae80b1844a8",
+      "name": "BUSCA CONTATO"
+    },
+    {
+      "parameters": {
+        "jsCode": "// tenta pegar do BUSCA LEAD, depois do (RETENTATIVA), depois do próprio input\nconst get = (name) => {\n  try {\n    const it = $(name).first();\n    return it?.json ?? null;\n  } catch (e) { return null; }\n};\n\nconst lead =\n  get('BUSCA LEAD') ??\n  get('BUSCA LEAD (RETENTATIVA)') ??\n  $json?.['busca lead'] ??        // pelo seu print, o input chega assim\n  $json ??                        // último recurso\n  null;\n\nreturn { data: lead };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5472,
+        544
+      ],
+      "id": "e9c288d9-18c4-4d95-9085-5338fe9b8e57",
+      "name": "DADOS DO LEAD"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('tag').item.json.body[\"account[_links][self]\"] }}/api/v4/leads/pipelines",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('tag').item.json[\"kommo token\"] }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5472,
+        992
+      ],
+      "id": "f9457820-fbbd-4092-902e-1e564404f842",
+      "name": "BUSCA FUNIS DE VENDAS E ESTÁGIOS1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega os pipelines e o lead atual\nconst pipelines = $('tag').first().json.pipelines;\nconst lead = $('tag').first().json[\"busca lead\"];\n\n// Busca o pipeline atual pelo ID do lead\nconst pipelineAtual = pipelines.find(p => p.id === lead.pipeline_id);\n\n// Se encontrou o pipeline, busca o estágio atual\nconst statusAtual = pipelineAtual?._embedded?.statuses.find(s => s.id === lead.status_id);\n\n// Retorna o nome do funil e do estágio\nreturn [\n  {\n    json: {\n      pipeline_id: lead.pipeline_id,\n      pipeline_nome: pipelineAtual?.name || 'Desconhecido',\n      status_id: lead.status_id,\n      estagio_nome: statusAtual?.name || 'Desconhecido'\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5472,
+        1264
+      ],
+      "id": "429855de-afdb-401a-9f63-f0992d62d637",
+      "name": "BUSCA FUNIL DO LEAD"
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 4 - Define dados do lead e busca contato",
+        "height": 1140,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -5536,
+        352
+      ],
+      "id": "53fdc10a-0493-4b2d-9ff1-113f7cd4092f",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "options": {
+          "fileName": "file.ogg",
+          "mimeType": "application/ogg"
+        }
+      },
+      "id": "06540089-0b11-4371-a00a-a80dd750f6de",
+      "name": "Convert to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -4656,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3c5ccbc9-69d1-4b13-a7c3-e6945bc8c655",
+              "name": "data",
+              "value": "={{ $('Webhook').item.json.body[\"message[add][0][attachment][link]\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "412b1f76-efba-45d5-b226-a35800e05663",
+      "name": "Edit Fields3",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4848,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "c94907cf-0a2b-453e-bf0e-c3a0bf29b8d5",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        -4480,
+        448
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HYo5JyZgShFrCOZo",
+          "name": "[SUSTENTARE][DAYANA][OPEN_AI]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "text": "Descreva todo o conteudo da imagem. Responda sem acento, sem hifens",
+        "inputType": "base64",
+        "options": {}
+      },
+      "id": "80d020a5-4014-4215-a7a7-f4749c645c9d",
+      "name": "OpenAI1",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        -4304,
+        784
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HYo5JyZgShFrCOZo",
+          "name": "[SUSTENTARE][DAYANA][OPEN_AI]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "41a410dc-7ef9-44d3-b62f-3c29f3f6a564",
+      "name": "transcribe voice",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -4576,
+        1088
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "ead847ea-debe-4c53-bc85-e658f6f79321",
+                    "leftValue": "={{ $('tag').item.json.body[\"message[add][0][attachment][type]\"] }}",
+                    "rightValue": "file",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "document"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "c0e434dd-1268-421d-b81b-3a5e90ed9550",
+                    "leftValue": "={{ $('tag').item.json.body[\"message[add][0][attachment][type]\"] }}",
+                    "rightValue": "picture",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('tag').item.json.body[\"message[add][0][attachment][type]\"] }}",
+                    "rightValue": "voice",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9958071b-8c05-466f-b5d6-6f635c0a9ef5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "text"
+        }
+      },
+      "id": "c0b6defe-e24c-47e3-9297-029a2a6cffe3",
+      "name": "Switch3",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -5168,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3c5ccbc9-69d1-4b13-a7c3-e6945bc8c655",
+              "name": "data",
+              "value": "={{ $('Webhook').item.json.body.data.message.base64 }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fd20fa4b-c562-4426-8bfd-1d646e09b30f",
+      "name": "CONTEÚDO BASE64 DOCUMENTO",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4864,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5.2 - IMAGEM",
+        "height": 300,
+        "width": 1060,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -4944,
+        688
+      ],
+      "typeVersion": 1,
+      "id": "f6cb041a-70c9-49a7-835a-e274337a1ff3",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5.3 - ÁUDIO",
+        "height": 200,
+        "width": 1060,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -4944,
+        1024
+      ],
+      "typeVersion": 1,
+      "id": "251133f0-08a7-4d94-953a-0fe158eb6dc8",
+      "name": "Sticky Note16"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('tag').item.json.body[\"message[add][0][attachment][link]\"] }}",
+        "options": {}
+      },
+      "id": "d180e202-bdea-4e8d-98d5-9e0ba1d5df42",
+      "name": "BAIXA O ÁUDIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4784,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8d88c137-383f-4307-b3cc-1f6a560ea67b",
+              "name": "contato_id",
+              "value": "={{ $('BUSCA CONTATO').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "7e2f520e-4952-425b-82ca-792cc46680d4",
+              "name": "mensagem",
+              "value": "={{ $json.text || $('tag').item.json.body['message[add][0][text]'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ea97a23f-ad82-4f65-8441-624e2d7c6536",
+      "name": "MENSAGEM DO CONTATO",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3760,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 6 - MENSAGEM DO CONTATO",
+        "height": 1128,
+        "width": 760
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -3840,
+        352
+      ],
+      "typeVersion": 1,
+      "id": "c6e2439e-3ab3-443a-a25f-d361bfecda21",
+      "name": "Sticky Note17"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fdcf2e57-188a-4d02-9844-84f7803890ef",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4368,
+        1088
+      ],
+      "id": "2195d4b5-eb1f-4c10-b00e-f3e300e77f1a",
+      "name": "Transcrição de Áudio"
+    },
+    {
+      "parameters": {
+        "amount": "=1"
+      },
+      "id": "42271e2b-ca1e-48f6-95f2-e58809343e78",
+      "name": "Wait4",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -3568,
+        480
+      ],
+      "webhookId": "4af5f537-7678-429d-947b-6b2299e48268"
+    },
+    {
+      "parameters": {},
+      "id": "97982416-4446-456d-86bd-8c98df1ec8e0",
+      "name": "No Operation, do nothing3",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -3648,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "21fd20d7-f940-4a66-91d5-5ea4c031bb50",
+              "leftValue": "={{ $('MENSAGEM DO CONTATO').last().json.mensagem }}",
+              "rightValue": "={{ $('tag').item.json.body['message[add][0][text]'] }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "afbab272-1759-4e3e-9785-9daff2d9917d",
+      "name": "SE A ÚLTIMA MSG REGISTRADA FOR IGUAL A MSG DO WEBHOOK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3568,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b7a68827-7747-41ff-8426-6c9eb9eb4785",
+              "name": "listaMensagens",
+              "value": "={{ $json.messages.reverse().join(', ') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3280,
+        608
+      ],
+      "id": "a1b3273d-dd86-49a3-aa97-9dc85820352d",
+      "name": "Todas as Mensagens"
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5.4 - TEXTO",
+        "height": 220,
+        "width": 1060,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -4944,
+        1264
+      ],
+      "typeVersion": 1,
+      "id": "4ca6f639-9671-449e-a639-a7a65d612d87",
+      "name": "Sticky Note18"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pipelines = $('tag').first().json.pipelines\nconst lead = $('tag').first().json['busca lead']\n\nconst pipeline_atual = pipelines.find(el => el.id === lead.pipeline_id)\nconst status_atual = pipeline_atual._embedded.statuses.find(el => el.id === lead.status_id)\n\nreturn {\n  pipeline_atual,\n  status_atual\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3280,
+        1056
+      ],
+      "id": "799000a3-6fa3-4130-9615-3073d0ae940a",
+      "name": "Funil e Status Atual do Lead"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4560,
+        784
+      ],
+      "id": "23748365-97cd-4b0a-b3c4-a34645357dd0",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "messages",
+          "mode": "list",
+          "cachedResultName": "messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $('tag').item.json.body['message[add][0][contact_id]'] }}",
+            "message": "={{ $json.text || $json.content}}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -4096,
+        784
+      ],
+      "id": "71d3506e-5680-4701-a94f-5cd18bc0110f",
+      "name": "Salva mensagem no banco - arquivo",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "messages",
+          "mode": "list",
+          "cachedResultName": "messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "contact_id": "={{ $('tag').item.json.body['message[add][0][contact_id]'] }}",
+            "message": "={{ $('tag').item.json.body['message[add][0][text]'] }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -4128,
+        1312
+      ],
+      "id": "e082a36a-c80f-4fc1-8309-5dd184f28a7d",
+      "name": "Salva mensagem no banco - texto",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "messages",
+          "mode": "list",
+          "cachedResultName": "messages"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "contact_id",
+              "value": "={{ $('tag').item.json.body['message[add][0][contact_id]'] }}"
+            }
+          ]
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -3744,
+        784
+      ],
+      "id": "58f3178d-3a28-43ab-b632-de8e220e6c2c",
+      "name": "Postgres - Busca Mensagens",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const postgres_messages = $input.all();\nconst messages = [];\n\nfor (const el of postgres_messages) {\n  messages.push(el.json.message);\n}\n\nreturn { messages };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3280,
+        416
+      ],
+      "id": "bee968c0-15ef-4cfb-88f7-134b4cacb1a6",
+      "name": "Junta Mensagens"
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "messages",
+          "mode": "list",
+          "cachedResultName": "messages"
+        },
+        "deleteCommand": "delete",
+        "where": {
+          "values": [
+            {
+              "column": "contact_id",
+              "value": "={{ $('tag').first().json.body['message[add][0][contact_id]'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -3280,
+        800
+      ],
+      "id": "33e19aac-4b6a-455f-ad0e-ed0e53aa6eb3",
+      "name": "Postgres - DELETA MENSAGENS",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputs = $input.all();\n\nlet prompt = '';\nlet mensagem = '';\n\nfor (const item of inputs) {\n  if (item.json.prompt_content) prompt = item.json.prompt_content;\n  if (item.json.listaMensagens) mensagem = item.json.listaMensagens;\n}\n\nreturn [\n  {\n    json: {\n      prompt_content: prompt,\n      listaMensagens: mensagem\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3280,
+        1280
+      ],
+      "id": "4e337795-516f-4dfd-9788-ff3eeabe61d7",
+      "name": "busca prompt correto",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5 - DEFINE O TIPO DE MENSAGEM E ORGANIZA PARA O AGENTE",
+        "height": 1140,
+        "width": 280,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -5264,
+        352
+      ],
+      "typeVersion": 1,
+      "id": "8f6b8a4b-80b0-4573-97bd-ce2aa0acd4c9",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## PASSO 5.1 - DOCUMENTO",
+        "height": 300,
+        "width": 1060,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -4944,
+        352
+      ],
+      "typeVersion": 1,
+      "id": "b975a198-6fae-4527-9309-48cf3e707ce3",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "## ROTEAMENTO DE AGENTE",
+        "height": 1128,
+        "width": 880,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        352
+      ],
+      "id": "509d1945-8456-4399-9a25-3a4e8ce84cfa",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## LEAD COM TAG DE ACIONAMENTO",
+        "height": 280,
+        "width": 320,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -5888,
+        352
+      ],
+      "id": "9f347ac1-f1db-45fa-acc4-1a2ff7c7f9e0",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "jsCode": "/***** CONFIGURAÇÃO *****/\nconst TAGS_DE_INTERESSE = [\n  '1',\n  'ATENDIMENTO',\n  '3',\n  // adicione aqui novas tags, sempre em MAIÚSCULO\n];\n\n/***** PEGA O LEAD *****/\n// Busca SEMPRE o primeiro item que saiu do node \"DADOS DO LEAD\"\nconst lead = $items('DADOS DO LEAD')[0].json;\n\n/***** EXTRAI AS TAGS *****/\nconst tags =\n  lead._embedded?.tags ??\n  lead.data?._embedded?.tags ??  // se vier embrulhado em \"data\"\n  [];\n\nconst normaliza = (t) => (t?.name ?? '').trim().toUpperCase();\nconst tagNames = tags.map(normaliza);\n\n/***** CRIA AS FLAGS DINÂMICAS *****/\nconst saida = {\n  ...$json,   // mantém os campos originais do item corrente\n  tagNames,   // array com todos os nomes normalizados\n};\n\n// Gera automaticamente uma flag booleana pra cada tag de interesse\nTAGS_DE_INTERESSE.forEach((tag) => {\n  const chave = `has${tag}`;              // ex.: \"hasBPC\"\n  saida[chave] = tagNames.includes(tag);  // true / false\n});\n\n// Exemplos extras de info que você pode querer\nsaida.tagPrincipal = TAGS_DE_INTERESSE.find((t) => tagNames.includes(t)) ?? null;\nsaida.quantidadeTags = tagNames.length;\n\n/***** DEVOLVE *****/\nreturn saida;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2944,
+        688
+      ],
+      "id": "4602c64a-ddfb-4b9d-b95f-f9ca426b0c76",
+      "name": "Define a TAG (Use somente se for tags)1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e4ecc2a4-aaf7-47e0-9ad8-36c1b939d85f",
+                    "leftValue": "={{ $json.has1 }}",
+                    "rightValue": "BPC",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TAG - 1"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "44221569-9c71-41b3-a1ca-8cb0a173d64c",
+                    "leftValue": "={{ $json.hasATENDIMENTO }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=TAG - 2"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "62ec4d1c-c336-49b8-8a5e-48d4e8ff69b1",
+                    "leftValue": "={{ $json.has3 }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TAG - 3"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -2768,
+        656
+      ],
+      "id": "dca5e097-02ed-4308-a37d-bfac99d0f5e9",
+      "name": "Roteamento1"
+    },
+    {
+      "parameters": {
+        "content": "### Use somente o no \"Define a TAG\" em caso de tags. Se o seu projeto precisar da utilização de apenas um único prompt é só conectar diretamente o nó \"busca funil do lead\" direto no \"Switch3\"",
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2992,
+        448
+      ],
+      "id": "b1c6630a-2e3d-4e74-9f5f-1fec026756e7",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -2432,
+        1200
+      ],
+      "id": "c81cf2b8-e568-4ad5-a3a2-143445d89a19",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "fXWotCNuj7YJopbb",
+          "mode": "list",
+          "cachedResultName": "[IA_MODULAR][METRIK][AGENTES_ESPECIALISTAS]"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "body": "={{ $('tag').first().json.body }}",
+            "kommo token": "={{ $('tag').first().json[\"kommo token\"] }}",
+            "busca campos": "={{ $('tag').first().json[\"busca campos\"] }}",
+            "pipelines": "={{ $('tag').first().json.pipelines }}",
+            "busca lead": "={{ $('tag').first().json[\"busca lead\"] }}",
+            "mensagens": "={{ $('Todas as Mensagens').first().json.listaMensagens }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "kommo token",
+              "displayName": "kommo token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "busca campos",
+              "displayName": "busca campos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pipelines",
+              "displayName": "pipelines",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "busca lead",
+              "displayName": "busca lead",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mensagens",
+              "displayName": "mensagens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -2432,
+        672
+      ],
+      "name": "agente 2",
+      "id": "a39ac6b4-0390-496b-aa13-2ef864e48a86"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "body",
+              "type": "any"
+            },
+            {
+              "name": "kommo token",
+              "type": "any"
+            },
+            {
+              "name": "busca campos",
+              "type": "any"
+            },
+            {
+              "name": "pipelines",
+              "type": "any"
+            },
+            {
+              "name": "busca lead",
+              "type": "any"
+            }
+          ]
+        }
+      },
+      "id": "fd194114-e42f-4a71-99d9-195cc8b3dc8a",
+      "typeVersion": 1.1,
+      "name": "tag",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -5792,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "fXWotCNuj7YJopbb",
+          "mode": "list",
+          "cachedResultName": "[IA_MODULAR][METRIK][AGENTES_ESPECIALISTAS]"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "body": "={{ $('tag').first().json.body }}",
+            "kommo token": "={{ $('tag').first().json[\"kommo token\"] }}",
+            "busca campos": "={{ $('tag').first().json[\"busca campos\"] }}",
+            "pipelines": "={{ $('tag').first().json.pipelines }}",
+            "busca lead": "={{ $('tag').first().json[\"busca lead\"] }}",
+            "mensagens": "={{ $('Todas as Mensagens').first().json.listaMensagens }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "kommo token",
+              "displayName": "kommo token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "busca campos",
+              "displayName": "busca campos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pipelines",
+              "displayName": "pipelines",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "busca lead",
+              "displayName": "busca lead",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mensagens",
+              "displayName": "mensagens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -2432,
+        432
+      ],
+      "name": "agente ",
+      "id": "82de2d93-0899-46b3-b4b5-023e5eb4c5fd"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "fXWotCNuj7YJopbb",
+          "mode": "list",
+          "cachedResultName": "[IA_MODULAR][METRIK][AGENTES_ESPECIALISTAS]"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "body": "={{ $('tag').first().json.body }}",
+            "kommo token": "={{ $('tag').first().json[\"kommo token\"] }}",
+            "busca campos": "={{ $('tag').first().json[\"busca campos\"] }}",
+            "pipelines": "={{ $('tag').first().json.pipelines }}",
+            "busca lead": "={{ $('tag').first().json[\"busca lead\"] }}",
+            "mensagens": "={{ $('Todas as Mensagens').first().json.listaMensagens }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "kommo token",
+              "displayName": "kommo token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "busca campos",
+              "displayName": "busca campos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pipelines",
+              "displayName": "pipelines",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "busca lead",
+              "displayName": "busca lead",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mensagens",
+              "displayName": "mensagens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -2432,
+        928
+      ],
+      "name": "agente 3",
+      "id": "51c729ee-65e6-4f8c-bdc4-ea2bd9c196e4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "BUSCA CONTATO": {
+      "main": [
+        [
+          {
+            "node": "BUSCA FUNIS DE VENDAS E ESTÁGIOS1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DADOS DO LEAD": {
+      "main": [
+        [
+          {
+            "node": "BUSCA CONTATO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA FUNIS DE VENDAS E ESTÁGIOS1": {
+      "main": [
+        [
+          {
+            "node": "BUSCA FUNIL DO LEAD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCA FUNIL DO LEAD": {
+      "main": [
+        [
+          {
+            "node": "Switch3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Salva mensagem no banco - arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI1": {
+      "main": [
+        [
+          {
+            "node": "Salva mensagem no banco - arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transcribe voice": {
+      "main": [
+        [
+          {
+            "node": "Transcrição de Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch3": {
+      "main": [
+        [
+          {
+            "node": "CONTEÚDO BASE64 DOCUMENTO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BAIXA O ÁUDIO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Salva mensagem no banco - texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONTEÚDO BASE64 DOCUMENTO": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BAIXA O ÁUDIO": {
+      "main": [
+        [
+          {
+            "node": "transcribe voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MENSAGEM DO CONTATO": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrição de Áudio": {
+      "main": [
+        [
+          {
+            "node": "Salva mensagem no banco - arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "Postgres - Busca Mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SE A ÚLTIMA MSG REGISTRADA FOR IGUAL A MSG DO WEBHOOK": {
+      "main": [
+        [
+          {
+            "node": "Junta Mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Todas as Mensagens": {
+      "main": [
+        [
+          {
+            "node": "Postgres - DELETA MENSAGENS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Funil e Status Atual do Lead": {
+      "main": [
+        [
+          {
+            "node": "Define a TAG (Use somente se for tags)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "OpenAI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva mensagem no banco - arquivo": {
+      "main": [
+        [
+          {
+            "node": "MENSAGEM DO CONTATO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva mensagem no banco - texto": {
+      "main": [
+        [
+          {
+            "node": "MENSAGEM DO CONTATO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - Busca Mensagens": {
+      "main": [
+        [
+          {
+            "node": "SE A ÚLTIMA MSG REGISTRADA FOR IGUAL A MSG DO WEBHOOK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Junta Mensagens": {
+      "main": [
+        [
+          {
+            "node": "Todas as Mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - DELETA MENSAGENS": {
+      "main": [
+        [
+          {
+            "node": "Funil e Status Atual do Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "busca prompt correto": {
+      "main": [
+        []
+      ]
+    },
+    "Define a TAG (Use somente se for tags)1": {
+      "main": [
+        [
+          {
+            "node": "Roteamento1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roteamento1": {
+      "main": [
+        [
+          {
+            "node": "agente ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "agente 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "agente 3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tag": {
+      "main": [
+        [
+          {
+            "node": "DADOS DO LEAD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "837807ad-aaf9-48b7-a3ae-5f2545129f42",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "zgkb267WxpeLS6Ol",
+  "tags": [
+    {
+      "createdAt": "2025-07-28T16:32:37.843Z",
+      "updatedAt": "2025-07-28T16:32:37.843Z",
+      "id": "KBmh4LOWWSQpT31a",
+      "name": "METRIK"
+    }
+  ]
+}

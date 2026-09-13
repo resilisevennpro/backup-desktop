@@ -1,0 +1,277 @@
+{
+  "name": "[COMUNIDADE][AGENTE_IA][LEAD SCORE]",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "lead_id"
+            },
+            {
+              "name": "domain"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -96,
+        0
+      ],
+      "id": "ab9bb35d-ecd8-4dbb-8312-017164a4bd4f",
+      "name": "Execução de Workflow"
+    },
+    {
+      "parameters": {
+        "authentication": "longLivedToken",
+        "resource": "leads",
+        "filter": {
+          "id": "={{ $json.lead_id }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-kommo.kommo",
+      "typeVersion": 1,
+      "position": [
+        336,
+        0
+      ],
+      "id": "90e0971d-09e7-4d59-b1bf-7616ea77c987",
+      "name": "Get list of leads",
+      "credentials": {
+        "kommoLongLivedApi": {
+          "id": "4icgaxcSMG2A0weG",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1d6e7a9-f0e9-4415-b28d-7959b4c5c737",
+              "name": "dados",
+              "value": "={{ $json._embedded.leads[0] }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        0
+      ],
+      "id": "22a89264-8bbe-485f-a27f-12071e5c296b",
+      "name": "Lead"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8c8b9202-5604-4594-86e8-289500c75c6d",
+              "name": "Buscando Solução de IA",
+              "value": "={{ $('Lead').first().json.dados.custom_fields_values.find(el => el.field_name == 'BUSCANDO SOLUÇÃO DE IA').values[0].value }}",
+              "type": "string"
+            },
+            {
+              "id": "d4f5ca9a-c152-4266-9856-5b0167fb73d3",
+              "name": "Volume de Leads Diários",
+              "value": "={{ $('Lead').first().json.dados.custom_fields_values.find(el => el.field_name == 'Volume de Leads Diários').values[0].value }}",
+              "type": "string"
+            },
+            {
+              "id": "16f3c024-3ccf-432a-bf95-e9bed18f4308",
+              "name": "Principal Dificuldade no Atendimento",
+              "value": "={{ $('Lead').first().json.dados.custom_fields_values.find(el => el.field_name == 'Principal Dificuldade no Atendimento').values[0].value }}",
+              "type": "string"
+            },
+            {
+              "id": "90984c52-2c28-4e25-919b-8e3830ed8145",
+              "name": "Está disposto a investir acima de 5000",
+              "value": "={{ $('Lead').first().json.dados.custom_fields_values.find(el => el.field_name == 'Está disposto a investir acima de 5.000').values[0].value }}",
+              "type": "string"
+            },
+            {
+              "id": "049e5850-b7bd-49ef-9d41-3bab6f4d5a3c",
+              "name": "Nome do Lead",
+              "value": "={{ ($json.dados.name.includes('Lead')) ? null : $json.dados.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        0
+      ],
+      "id": "363810c5-18ed-4970-943b-666442ec1913",
+      "name": "Campos para Análise"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Function node\n// Entrada esperada em item.json com as chaves exatamente como no seu Set:\n// \"Nome do Lead\", \"Buscando Solução de IA\", \"Volume de Leads Diários\",\n// \"Principal Dificuldade no Atendimento\", \"Está disposto a investir acima de 5000\"\n\nfunction isYes(v) {\n  if (v === undefined || v === null) return false;\n  if (typeof v === 'boolean') return v;\n  const s = String(v).trim().toLowerCase();\n  return ['sim','yes','y','true','1'].includes(s);\n}\n\nfunction hasText(v) {\n  return String(v ?? '').trim().length > 0;\n}\n\nfunction toInt(v) {\n  // extrai dígitos de strings como \"23\", \"23 leads\", \"40+\" etc.\n  const m = String(v ?? '').match(/\\d+/g);\n  if (!m) return NaN;\n  const n = parseInt(m.join(''), 10);\n  return Number.isNaN(n) ? NaN : n;\n}\n\nreturn items.map(item => {\n  const d = item.json;\n\n  let score = 0;\n\n  // Nome -> 5\n  if (hasText(d['Nome do Lead'])) score += 5;\n\n  // Buscando solução de IA -> 5\n  if (isYes(d['Buscando Solução de IA'])) score += 5;\n\n  // Volume de leads diários -> <20:1 | 20-40:4 | >40:10\n  const vol = toInt(d['Volume de Leads Diários']);\n  if (!Number.isNaN(vol)) {\n    score += vol < 20 ? 1 : (vol <= 40 ? 4 : 10);\n  }\n\n  // Principal dificuldade no atendimento -> 5\n  if (hasText(d['Principal Dificuldade no Atendimento'])) score += 5;\n\n  // Está disposto a investir acima de 5000 -> 15\n  if (isYes(d['Está disposto a investir acima de 5000'])) score += 15;\n\n  // Temperatura\n  let temperatura = 'Frio';\n  if (score >= 35) temperatura = 'Quente';\n  else if (score > 20) temperatura = 'Morno'; // 21–34\n\n  // anexa ao item\n  item.json.lead_score = score;\n  item.json.lead_score_max = 40;\n  item.json.lead_temperatura = temperatura;\n\n  // (opcional) devolve também um resumo\n  item.json.lead_resumo = `Score: ${score}/40 | Temperatura: ${temperatura}`;\n\n  return item;\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "id": "03d40f8f-71f5-4f53-97b4-b57a097f23a7",
+      "name": "Pontuação"
+    },
+    {
+      "parameters": {
+        "authentication": "longLivedToken",
+        "resource": "leads",
+        "operation": "updateLeads",
+        "collection": {
+          "lead": [
+            {
+              "id": "={{ $('Execução de Workflow').first().json.lead_id }}",
+              "custom_fields_values": {
+                "custom_field": [
+                  {
+                    "data": "{\"id\":1116657,\"type\":\"numeric\"}",
+                    "value": "={{ $json.lead_score }}"
+                  },
+                  {
+                    "data": "{\"id\":1116659,\"type\":\"select\"}",
+                    "value": "={{ $json.lead_temperatura }}"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-kommo.kommo",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "5a98e59b-4df8-406f-ba58-b507b5fb951a",
+      "name": "Atualiza a Pontuação",
+      "credentials": {
+        "kommoLongLivedApi": {
+          "id": "4icgaxcSMG2A0weG",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        0
+      ],
+      "id": "b63bc46f-95f4-4735-b158-c1847eceb510",
+      "name": "Wait",
+      "webhookId": "0c149920-a6b9-4a6b-8211-c7fcf1b7102f"
+    }
+  ],
+  "pinData": {
+    "Execução de Workflow": [
+      {
+        "json": {
+          "lead_id": "25972921",
+          "domain": "https://metriksales.amocrm.com"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Execução de Workflow": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get list of leads": {
+      "main": [
+        [
+          {
+            "node": "Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead": {
+      "main": [
+        [
+          {
+            "node": "Campos para Análise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campos para Análise": {
+      "main": [
+        [
+          {
+            "node": "Pontuação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pontuação": {
+      "main": [
+        [
+          {
+            "node": "Atualiza a Pontuação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get list of leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3473b5c7-80b9-46df-9b3e-bb2972c58255",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "NxpMk7xCwZ2jddbX",
+  "tags": []
+}

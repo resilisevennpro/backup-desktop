@@ -1,0 +1,27 @@
+Na seção Sobre onde está a imagem jackson-marques.jpg, ajuste o tamanho conforme abaixo:
+
+Desktop e Tablet (≥ md breakpoint): reduzir em 40% em relação ao tamanho atual.
+
+Mobile (base): reduzir em 20% em relação ao tamanho atual.
+
+Implementação técnica:
+
+Adicionar classes responsivas do Tailwind na tag da imagem:
+
+w-[80%] (mobile, redução de 20%)
+
+md:w-[60%] lg:w-[60%] (tablet e desktop, redução de 40%)
+
+Sempre incluir h-auto para manter a proporção.
+
+Garantir centralização horizontal (mx-auto) se a imagem perder alinhamento.
+
+Não alterar a qualidade da imagem, apenas o tamanho exibido.
+
+Critério de aceite:
+
+No mobile, a imagem deve estar ~20% menor que o tamanho atual.
+
+No tablet e desktop, a imagem deve estar ~40% menor que o tamanho atual.
+
+A proporção da imagem deve ser preservada (sem distorção).

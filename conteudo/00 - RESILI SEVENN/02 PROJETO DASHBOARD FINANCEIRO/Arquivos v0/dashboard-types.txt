@@ -1,0 +1,152 @@
+// lib/dashboard-types.ts
+
+// ==============================
+// 1) Períodos (MANTIDO como você usa)
+// ==============================
+export type PeriodValue =
+  | "este-mes"
+  | "mes-passado"
+  | "ultimos-7"
+  | "ultimos-14"
+  | "todo-historico"
+  | "personalizado"
+
+// ==============================
+// 2) Filtros do dashboard (o que vem da UI / querystring)
+// ==============================
+export type FilterTypeValue = "paciente" | "procedimento"
+
+export type DashboardFilters = {
+  period: PeriodValue
+  profissional: string[] // multi
+  procedimento: string // "todos" ou nome do procedimento
+  startDate?: string // ISO (YYYY-MM-DD) quando period="personalizado"
+  endDate?: string // ISO (YYYY-MM-DD)
+}
+
+// ==============================
+// 3) Linha "crua" vinda da aba Vendas no Sheets (seu googleSheets usa isso)
+//    OBS: isto é o que seu código HOJE monta e usa: dataISO, paciente, procedimento...
+// ==============================
+export type VendaRow = {
+  dataISO: string // "YYYY-MM-DD" (normalizado)
+  paciente: string
+  procedimento: string
+  profissional?: string
+  tipoAtuacao?: string
+
+  // valores numéricos
+  valorVenda: number
+  taxaComissao?: number // 0..1 (ex: 0.1 = 10%)
+  custoMaterial?: number
+
+  // strings auxiliares
+  formaPagamento?: string
+  qtdParcelas?: number
+  observacoes?: string
+}
+
+// ==============================
+// 4) KPIs (seu googleSheets retorna exatamente isso em kpis)
+// ==============================
+export type DashboardKpis = {
+  metaFaturamento: number
+  faturamentoBruto: number
+  lucroLiquido: number
+  margemLiquida: number // 0..1
+  ticketMedio: number
+}
+
+// ==============================
+// 5) Séries/tabelas auxiliares (como seu googleSheets está retornando hoje)
+// ==============================
+export type VendasDiariasPoint = {
+  label: string // "DD/MM"
+  value: number
+}
+
+export type TopPacienteItem = {
+  paciente: string
+  total: number
+}
+
+export type LucratividadePorProcedimentoItem = {
+  procedimento: string
+  lucro: number
+}
+
+// ==============================
+// 6) Payload real que readClinicSheetData() retorna HOJE
+//    (é isso que o /api/dashboard deve devolver ou adaptar)
+// ==============================
+export type DashboardPayload = {
+  // filtros já normalizados (clamp) aplicados internamente
+  filtersApplied: {
+    period: PeriodValue
+    profissional: string[]
+    procedimento: string
+    startDate?: string
+    endDate?: string
+  }
+
+  // KPIs
+  kpis: DashboardKpis
+
+  // blocos auxiliares
+  vendasDiarias: VendasDiariasPoint[]
+  topPacientes: TopPacienteItem[]
+  lucratividadePorProcedimento: LucratividadePorProcedimentoItem[]
+
+  // extrato = vendas filtradas ordenadas
+  extrato: VendaRow[]
+}
+
+// ==============================
+// 7) (Opcional) Tipos antigos do UI que você já tinha
+//    - Mantive aqui caso alguma parte do front ainda use.
+//    - Se você NÃO estiver usando esses tipos em lugar nenhum, pode remover.
+// ==============================
+export type StatCard = {
+  title: string
+  value: number
+  subtitle?: string
+  delta?: number
+  deltaPositive?: boolean
+}
+
+export type CostDataItem = {
+  name: string
+  value: number
+  percentage: number
+  color?: string
+}
+
+export type DailyRevenuePoint = {
+  day: number
+  revenue: number
+}
+
+export type ProcedureProfitabilityItem = {
+  name: string
+  revenue: number
+  cost: number
+  profit: number
+  margin: number // 0-100
+}
+
+export type TopPatient = {
+  name: string
+  value: number
+  count?: number
+}
+
+export type SalesRow = {
+  date: string
+  patient: string
+  procedure: string
+  value: number
+  payment: string
+  professional?: string
+  commissionPercent?: number
+  materialCost?: number
+}

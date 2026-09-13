@@ -1,0 +1,143 @@
+----------------------------------------------------------------------------------
+Utmify Meta Script Anúncios
+
+utm_source=FB&utm_campaign={{campaign.name}}|{{campaign.id}}&utm_medium={{adset.name}}|{{adset.id}}&utm_content={{ad.name}}|{{ad.id}}&utm_term={{placement}}&xcod=FBhQwK21wXxR{{campaign.name}}|{{campaign.id}}hQwK21wXxR{{adset.name}}|{{adset.id}}hQwK21wXxR{{ad.name}}|{{ad.id}}hQwK21wXxR{{placement}}
+
+----------------------------------------------------------------------------------
+
+PARAMETRO URL AUTOMATICO
+
+utm_source=facebook&utm_medium={{placement}}&utm_campaign={{campaign.name}}&utm_content={{adset.name}}&utm_term={{ad.name}}
+
+-------------------------
+Explicando cada parte:
+
+utm_source=facebook – ORIGEM
+Define a fonte do tráfego, neste caso, "facebook". Isso identifica que o tráfego veio da plataforma de anúncios do Facebook.
+
+utm_medium={{placement}} – MEIO DA CAMPANHA
+Indica o "meio" ou localização onde o anúncio foi exibido. Com o placement, você pode ver se o anúncio foi exibido, por exemplo, no Feed, Stories, ou Reels.
+
+utm_campaign={{campaign.name}} – NOME DA CAMPANHA
+Identifica a campanha do anúncio, usando o nome da campanha para rastrear a performance no nível de campanha.
+
+utm_content={{adset.name}} – CONTEÚDO
+Define o nome do conjunto de anúncios, ajudando a identificar qual conjunto de anúncios específico trouxe o tráfego.
+
+utm_term={{ad.name}} – TERMO DE PESQUISA OU NOME ANUNCIO
+Captura o nome do anúncio, identificando o anúncio específico que foi clicado.
+
+----------------------------------------------------------------------------------
+
+UTMIFY PÁGINA DE VENDAS
+
+<script
+  src="https://cdn.utmify.com.br/scripts/utms/latest.js"
+  data-utmify-prevent-subids
+  async
+  defer
+></script>
+
+----------------------------------------------------------------------------------
+https://layanavasconceloss.com.br/aulagratuita-browlamination?utm_source=facebook&utm_medium=cpc&utm_campaign=oferta&utm_content=criativo1&utm_term=brow
+
+----------------------------------------------------------------------------------
+00 - HTML Personalizado [Persistência de UTMs - Página Inscrição para Página Venda]
+
+CÓDIGO COM ERRO (redirect_to)
+<script>
+(function(){
+    var getUTMs = function() {
+        var params = new URLSearchParams(window.location.search);
+        return params.toString();
+    };
+
+    var form = document.querySelector('form.elementor-form');
+    if (form) {
+        form.addEventListener('submit', function() {
+            var redirectInput = form.querySelector('input[name="redirect_to"]');
+            if (redirectInput) {
+                var utms = getUTMs();
+                if (utms) {
+                    var separator = redirectInput.value.includes('?') ? '&' : '?';
+                    redirectInput.value += separator + utms;
+                }
+            }
+        });
+    }
+})();
+</script>
+
+
+
+
+
+CÓDIGO SEM ERRO ----------------------------
+
+
+<script>
+(function(){
+    var getUTMs = function() {
+        var params = new URLSearchParams(window.location.search);
+        return params.toString();
+    };
+
+    var form = document.querySelector('form.elementor-form');
+    if (form) {
+        form.addEventListener('submit', function(e){
+            var utms = getUTMs();
+            var redirectURL = "https://seudominio.com.br/pagina-de-venda";
+            if (utms) {
+                window.location.href = redirectURL + "?" + utms;
+            } else {
+                window.location.href = redirectURL;
+            }
+        });
+    }
+})();
+</script>
+
+
+----------------------------------------------------------------------------------
+00 - HTML Personalizado [UTM e SCK p/ Checkout Kiwify]
+
+<script>
+(function() {
+  function getParameterByName(name) {
+      name = name.replace(/[\[\]]/g, '\\$&');
+      var url = window.location.href;
+      var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+      var results = regex.exec(url);
+      if (!results) return '';
+      if (!results[2]) return '';
+      return decodeURIComponent(results[2].replace(/\+/g, ' '));
+  }
+
+  var utm_source = getParameterByName('utm_source');
+  var utm_medium = getParameterByName('utm_medium');
+  var utm_campaign = getParameterByName('utm_campaign');
+  var utm_content = getParameterByName('utm_content');
+  var utm_term = getParameterByName('utm_term');
+
+  var rastreio = 'sck=' + utm_source + '|' + utm_medium + '|' + utm_campaign + '|' + utm_content + '|' + utm_term +
+      '&utm_source=' + utm_source +
+      '&utm_medium=' + utm_medium +
+      '&utm_campaign=' + utm_campaign +
+      '&utm_content=' + utm_content +
+      '&utm_term=' + utm_term;
+
+  var links = document.querySelectorAll('a[href*="pay.kiwify.com.br"]');
+  for (var i = 0; i < links.length; i++) {
+      var original = links[i].getAttribute('href');
+      if (original.indexOf('?') > -1) {
+          links[i].setAttribute('href', original + '&' + rastreio);
+      } else {
+          links[i].setAttribute('href', original + '?' + rastreio);
+      }
+  }
+})();
+</script>
+
+
+
+

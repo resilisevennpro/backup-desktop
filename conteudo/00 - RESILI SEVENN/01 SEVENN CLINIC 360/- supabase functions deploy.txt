@@ -1,0 +1,202 @@
+------- WHATSAPP -------------- WHATSAPP -------------------------------------------------------
+
+supabase functions deploy whatsapp-webhook --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt (obrigatório - Uazapi não envia JWT)
+
+supabase functions deploy whatsapp-connect --project-ref degdbpstlcrmpibtqwiy
+
+supabase functions deploy send-whatsapp --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt (Validação própria interna mais completa)
+
+supabase functions deploy whatsapp-chat-action --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt
+
+supabase functions deploy whatsapp-official-connect
+
+
+supabase functions deploy whatsapp-official-webhook
+supabase functions deploy whatsapp-official-connect
+supabase functions deploy whatsapp-official-send
+
+
+#############################################
+supabase functions deploy whatsapp-connect --no-verify-jwt
+
+supabase functions deploy instagram-auth (acho que antes  tinha no verify, tem certeza que o deploy deve ser feito sem o verify?)
+
+supabase functions deploy whatsapp-official-connect --no-verify-jwt
+
+supabase functions deploy google-calendar-auth
+supabase functions deploy google-calendar-cron --no-verify-jwt (acho que antes não tinha no verify, tem certeza que o deploy deve ser feito com no verify?)
+supabase functions deploy invite-user ERRADO (acho que antes  tinha no verify, tem certeza que o deploy deve ser feito sem o verify?)
+supabase functions deploy pause-user
+supabase functions deploy cancel-invite (já existia antes ou foi criado recente?)
+supabase functions deploy update-user-email --no-verify-jw
+
+supabase functions deploy generate-webhook-key # verify_jwt=false (acho que antes não tinha no verify, tem certeza que o deploy deve ser feito com no verify?)
+
+supabase functions deploy webhook-create-lead  # verify_jwt=false (acho que antes não tinha no verify, tem certeza que o deploy deve ser feito com no verify?)
+
+supabase functions deploy force-logout
+supabase functions deploy voip-call-state
+supabase functions deploy google-calendar-sync # herdou o fix do _shared
+
+###############################################3
+
+
+------- INSTAGRAM -------------- INSTAGRAM -------------------------------------------------------
+
+
+supabase functions deploy instagram-webhook              (nao precisa mais do --no-verify-jwt)
+
+supabase functions deploy instagram-send
+
+supabase functions deploy instagram-auth --no-verify-jwt
+
+------- VOIP CALL -------------- VOIP CALL -------------------------------------------------------
+
+
+supabase functions deploy voip-token
+supabase functions deploy voip-call-state
+supabase functions deployvoip-recording-url
+supabase functions deploy voip-voice --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt
+supabase functions deploy voip-status --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt
+supabase functions deploy voip-recording --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt
+supabase functions deploy voip-analysis-callback --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt
+
+supabase functions deploy prospecting-submit
+
+
+
+------- CALENDAR -------------- CALENDAR -------------------------------------------------------
+
+supabase functions deploy google-calendar-cron
+supabase functions deploy google-calendar-auth    --project-ref degdbpstlcrmpibtqwiy
+supabase functions deploy google-calendar-sync     --project-ref degdbpstlcrmpibtqwiy
+supabase functions deploy google-calendar-webhook  --project-ref degdbpstlcrmpibtqwiy (nao precisa mais do --no-verify-jwt)
+
+
+
+------- WEBHOOK LEAD -------------- WEBHOOK LEAD-------------------------------------------------------
+
+supabase functions deploy webhook-create-lead
+supabase functions deploy generate-webhook-key
+
+
+------- INSPECION -------------- INSPECION -------------------------------------------------------
+supabase functions deploy start-inspection --no-verify-jwt
+npx supabase functions deploy end-inspection --no-verify-jwt
+
+
+------- OUTROS -------------- OUTROS -------------------------------------------------------
+
+
+supabase functions deploy chat-automations --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt
+
+supabase functions deploy update-user-email --project-ref degdbpstlcrmpibtqwiy
+
+supabase functions deploy invite-user --project-ref degdbpstlcrmpibtqwiy --no-verify-jwt
+
+supabase functions deploy pause-user
+
+supabase functions deploy kommo-migration --project-ref degdbpstlcrmpibtqwiy
+
+supabase functions deploy sync-worker --project-ref degdbpstlcrmpibtqwiy
+
+supabase functions deploy force-logout
+
+supabase functions deploy send-notification-email
+
+supabase functions deploy transcribe-audio
+
+supabase functions deploy clickup-list-tasks
+
+supabase functions deploy campaign-scheduler-cron
+
+supabase functions deploy threads-search
+supabase functions deploy threads-profile
+
+
+supabase functions deploy partner-signup
+supabase functions deploy partner-approve
+
+supabase functions deploy start-partner-inspection
+
+supabase functions deploy end-partner-inspection
+
+
+------- ASAAS CRM -------------------------------------------------------
+
+
+
+supabase functions deploy asaas-webhook
+supabase functions deploy request-cancellation
+supabase functions deploy resume-subscription
+
+------- SIMULADOR SORRISO -------------------------------------------------------
+
+
+supabase functions deploy smile-generate --project-ref degdbpstlcrmpibtqwiy
+
+supabase functions deploy smile-save --project-ref degdbpstlcrmpibtqwiy
+
+supabase functions deploy smile-delete --project-ref degdbpstlcrmpibtqwiy
+
+supabase functions deploy upgrade-dental-clinic --project-ref degdbpstlcrmpibtqwiy
+
+______________________________ PERFIS ______________________________
+contatoresili
+gabrieldf09
+jackson.gabriellr
+empreendedorismo
+zezaprojecao
+zezamcoach
+lrlimparapido
+
+
+renatajulia - erro
+bzdoggy - erro
+lakasa - erro
+sunset house - erro
+bluntside - erro
+
+_______________________
+
+supabase db push: Envia as migrations locais para o banco remoto.
+supabase db pull: Puxa as alterações feitas diretamente no dashboard (remoto) para arquivos locais.
+
+supabase db remote commit: Gera uma migration local baseada nas mudanças que você fez "na mão" pelo painel do Supabase._______________________
+
+/graphify . --obsidian
+
+git push -u origin teste-whatsapp
+----------------------
+
+_______________________
+🚀 O "Check-up" de Produção (Pós-Ativação)
+Já que o site está no ar via Docker/Git, vamos garantir que a "fiação" por trás do domínio sevennclinic360.com esteja perfeita no EasyPanel para aguentar o tranco.
+
+1. Configuração do Domínio no EasyPanel
+Dentro do seu serviço no EasyPanel, vá na aba Domains:
+
+Certifique-se de que o domínio sevennclinic360.com está lá.
+
+Importante: Ative a opção HTTP to HTTPS Redirect dentro do EasyPanel também. Isso evita loops de redirecionamento com a Cloudflare.
+
+2. Certificado SSL (Let's Encrypt)
+Mesmo com a Cloudflare, o EasyPanel tenta gerar um certificado SSL interno.
+
+Verifique se o status do SSL está "Ready" ou "Active".
+
+Se estiver com erro, é porque a Cloudflare está escondendo o servidor. Nesse caso, a Cloudflare cuida do SSL para o usuário, e o EasyPanel usa um certificado "auto-assinado" para falar com a Cloudflare.
+
+3. Health Checks (Vital para Produção)
+Como você usou Docker, é essencial configurar o Health Check no EasyPanel:
+
+Vá em Service > Health Check.
+
+Configure um caminho (ex: /api/health ou apenas /).
+
+Por que? Se o seu container travar ou der erro de memória, o EasyPanel vai perceber e reiniciar o site automaticamente para você não ficar fora do ar enquanto dorme.
+
+🧐 Dúvida de Arquitetura:
+Já que você já subiu tudo, o seu Frontend e Backend estão no mesmo serviço (monolito no Docker) ou você criou dois serviços separados (um para a API e outro para o App) dentro do projeto?
+
+Isso muda como configuramos os limites de memória (RAM) para a VPS não engasgar!

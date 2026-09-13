@@ -1,0 +1,91 @@
+Edite a seção Hero com o seguinte comportamento:
+O título atualmente tem duas linhas:
+
+
+Linha 1: Mais clientes, menos complicação. 
+Linha 2: Sua empresa vendendo todos os dias com tráfego pago, posicionamento de valor e automação inteligente.
+
+
+Objetivo da edição do título
+Linha 1: A partir de agora será (dinâmica, com efeito): rotaciona palavra por palavra com fade in/out
+Linha 2: A partir de agora será (fixa, sem efeito): permanece sempre visível.
+
+A 1ª linha deve fazer loop infinito com esta ordem de frases:
+
+
+“Mais clientes, menos complicação.”
+“Tráfego pago que vira resultado”
+“Automação que trabalha por você”
+ Em seguida, retorna para a frase 1 e repete o ciclo continuamente.
+
+
+Conteúdo textual
+Linha 1 (dinâmica): usar as três frases acima, alternando palavra por palavra.
+Linha 2 (fixa):
+ “Sua empresa vendendo todos os dias com anúncios online, posicionamento de valor e automação inteligente.”
+
+
+Efeito de animação (apenas na linha 1)
+Modo: word-by-word (não por letra).
+
+
+Entrada (fade in) com leve deslocamento para cima.
+
+
+Saída (fade out) com leve deslocamento para cima (reverso da entrada).
+
+
+Stagger entre palavras: ~0.08s .
+
+
+Duração base da transição: in ~0.45s, out ~0.35s.
+
+
+Pausa (hold) com a frase completa visível: ~1.2s antes de iniciar o “apagar”.
+
+
+Loop contínuo sem travamentos, iniciando pela frase 1.
+
+
+Acessibilidade: respeitar prefers-reduced-motion (se ativo, mostrar somente a frase 1 sem animação).
+
+
+Layout & estilo
+Seção centralizada, espaçamento confortável (ex.: py-20).
+
+
+Linha 1 (h1): destaque, responsivo (ex.: text-4xl md:text-6xl font-bold tracking-tight).
+
+
+Linha 2 (p): subtítulo (ex.: mt-4 text-lg text-muted-foreground).
+
+
+Evitar layout shift: reservar altura mínima para a linha 1 (ex.: min-h-[3.5rem] em mobile, ajustando no desktop).
+
+
+Paleta segue o tema do projeto; não inserir cursor piscando.
+
+
+Implementação
+Usar o padrão do projeto (React + Tailwind).
+
+
+O componente deve receber uma lista de frases para a 1ª linha (para fácil edição futura) e uma string para a 2ª linha fixa.
+
+
+Garantir que espaços entre palavras sejam preservados ao animar por palavra.
+
+
+Não alterar tipografia global; apenas classes utilitárias na seção.
+
+
+Critérios de aceite
+A 2ª linha permanece fixa e idêntica ao texto fornecido.
+
+
+A 1ª linha alterna EXATAMENTE nas três frases, em ordem, com animação por palavra (fade in/out + stagger), depois retorna ao início.
+
+
+Animação suave, sem flicker, sem pular frames, e com fallback “sem animação” para prefers-reduced-motion.
+
+

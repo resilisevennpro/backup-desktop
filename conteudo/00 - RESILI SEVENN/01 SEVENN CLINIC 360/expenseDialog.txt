@@ -1,0 +1,184 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Removed due to missing dependency
+import { useFinanceStore } from "@/store/useFinanceStore";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { CalendarIcon, Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+interface ExpenseDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}
+
+export function ExpenseDialog({ open, onOpenChange }: ExpenseDialogProps) {
+    const { clinic } = useAuth();
+    const { addExpense } = useFinanceStore();
+    const [loading, setLoading] = useState(false);
+
+    const [description, setDescription] = useState("");
+    const [amount, setAmount] = useState("");
+    const [category, setCategory] = useState("");
+    const [date, setDate] = useState<Date>(new Date());
+    const [status, setStatus] = useState<'paid' | 'pending'>('paid');
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!clinic?.id) return;
+        if (!description || !amount || !category) {
+            toast.error("Preencha todos os campos obrigatórios");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await addExpense(clinic.id, {
+                description,
+                amount: parseFloat(amount.replace(',', '.')), // Basic parsing
+                category,
+                date,
+                status
+            });
+            onOpenChange(false);
+            // Reset form
+            setDescription("");
+            setAmount("");
+            setCategory("");
+            setDate(new Date());
+            setStatus('paid');
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Registrar Despesa</DialogTitle>
+                    <DialogDescription>Use para contas pagas ou a pagar.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+                    {/* Description */}
+                    <div className="grid gap-2">
+                        <Label htmlFor="description">Descrição</Label>
+                        <Input
+                            id="description"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Ex: Aluguel Março"
+                            required
+                        />
+                    </div>
+
+                    {/* Amount & Category */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="amount">Valor (R$)</Label>
+                            <Input
+                                id="amount"
+                                type="number"
+                                step="0.01"
+                                placeholder="0,00"
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Categoria</Label>
+                            <Select value={category} onValueChange={setCategory} required>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Custos Operacionais">Custos Operacionais</SelectItem>
+                                    <SelectItem value="Impostos">Impostos</SelectItem>
+                                    <SelectItem value="Manutenção">Manutenção</SelectItem>
+                                    <SelectItem value="Retirada de Sócios">Retirada de Sócios</SelectItem>
+                                    <SelectItem value="Marketing">Marketing</SelectItem>
+                                    <SelectItem value="Outros">Outros</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {/* Date */}
+                    <div className="grid gap-2">
+                        <Label>Data de Pagamento</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={(d) => d && setDate(d)}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+
+                    {/* Status */}
+                    <div className="grid gap-2">
+                        <Label>Status</Label>
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant={status === 'paid' ? 'default' : 'outline'}
+                                className={cn(
+                                    "flex-1",
+                                    status === 'paid' ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "text-zinc-600"
+                                )}
+                                onClick={() => setStatus('paid')}
+                            >
+                                Pago
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={status === 'pending' ? 'default' : 'outline'}
+                                className={cn(
+                                    "flex-1",
+                                    status === 'pending' ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-zinc-600"
+                                )}
+                                onClick={() => setStatus('pending')}
+                            >
+                                Agendado/Pendente
+                            </Button>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="mt-4">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                        <Button type="submit" disabled={loading} className="bg-red-600 hover:bg-red-700 text-white">
+                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Salvar Despesa
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}

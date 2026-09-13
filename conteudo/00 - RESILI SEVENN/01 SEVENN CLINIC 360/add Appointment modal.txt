@@ -1,0 +1,914 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Loader2, User, Stethoscope, CheckCircle2, Timer, ExternalLink, DollarSign, Edit3 } from "lucide-react";
+import { format, addMinutes, parse } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AvailabilityDateTimePicker } from "./AvailabilityDateTimePicker";
+
+interface AddAppointmentModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    slotInfo: { start: Date; end: Date } | null;
+    onSuccess: () => void;
+    professionals?: any[];
+    initialData?: any;
+}
+
+interface Professional {
+    id: string;
+    name: string;
+    color?: string;
+}
+
+interface Service {
+    id: string;
+    name: string;
+    duration: number;
+    base_price: number;
+}
+
+interface Lead {
+    id: string;
+    name: string;
+    phone: string;
+    doctor_id?: string; // Médico da tabela professionals
+    procedure_id?: string; // Serviço da tabela services
+    procedure?: string; // Nome do procedimento (legacy/fallback)
+    status?: string;
+    budget?: number;
+}
+
+const DURATION_OPTIONS = [
+    { value: 30, label: "30 minutos" },
+    { value: 60, label: "1 hora" },
+    { value: 90, label: "1h 30min" },
+    { value: 120, label: "2 horas" },
+    { value: 150, label: "2h 30min" },
+    { value: 180, label: "3 horas" },
+];
+
+export function AddAppointmentModal({ isOpen, onClose, slotInfo, onSuccess, professionals: propProfessionals, initialData }: AddAppointmentModalProps) {
+    const { clinic } = useAuth();
+    const navigate = useNavigate();
+    const [loading, setLoading] = useState(false);
+    const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+    // Dropdown Data
+    const [professionals, setProfessionals] = useState<Professional[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
+    const [leads, setLeads] = useState<Lead[]>([]);
+
+    // Searchable Select State
+    const [searchTerm, setSearchTerm] = useState("");
+    const [showPatientList, setShowPatientList] = useState(false);
+
+    // Availability Slots State
+    const [unavailableSlots, setUnavailableSlots] = useState<string[]>([]);
+    const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
+    // Form Data
+    const [selectedDate, setSelectedDate] = useState("");
+    const [selectedLeadId, setSelectedLeadId] = useState("");
+    const [selectedProfessionalId, setSelectedProfessionalId] = useState("");
+    const [selectedServiceId, setSelectedServiceId] = useState("");
+    const [startTime, setStartTime] = useState("");
+    const [customDuration, setCustomDuration] = useState<number>(60);
+    const [customDurationHours, setCustomDurationHours] = useState(1);
+    const [customDurationMinutes, setCustomDurationMinutes] = useState(0);
+    const [notes, setNotes] = useState("");
+    const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+
+    // Lead Extra Info (Budget & Profile)
+    const [leadStatus, setLeadStatus] = useState<string | null>(null);
+    const [leadBudget, setLeadBudget] = useState<number>(0);
+    const [initialLeadBudget, setInitialLeadBudget] = useState<number>(0);
+    const [isEditingBudget, setIsEditingBudget] = useState(false);
+
+    // Session Package Logic
+    const [isPackage, setIsPackage] = useState(false);
+    const [packageSessions, setPackageSessions] = useState(3);
+
+    const [prevServiceId, setPrevServiceId] = useState<string | null>(null);
+
+    // Helper to set duration states from total minutes
+    const setDurationFromMinutes = (totalMinutes: number) => {
+        const mins = totalMinutes > 0 ? Math.round(totalMinutes) : 60; // Fallback para 60 se zero ou nulo
+        console.log(`[AddAppointmentModal] setDurationFromMinutes: ${mins}m`);
+
+        // Sincroniza o total
+        setCustomDuration(mins);
+
+        // Sincroniza os campos individuais que são a fonte da verdade para o cálculo do horário
+        setCustomDurationHours(Math.floor(mins / 60));
+        setCustomDurationMinutes(mins % 60);
+    };
+
+    useEffect(() => {
+        if (isOpen && clinic?.id) {
+            fetchDropdowns();
+            setIsPackage(false);
+            setPackageSessions(3);
+            setPrevServiceId(null);
+        }
+
+        if (initialData) {
+            console.log("AddAppointmentModal: Filling form with initialData", initialData);
+
+            // Pre-fill from Navigation State or Edit Mode
+            // Support both mapped camelCase (from store) and database snake_case
+            const leadId = initialData.lead_id || initialData.leadId;
+            const professionalId = initialData.doctor_id || initialData.professional_id || initialData.professionalId;
+            const procedureId = initialData.procedure_id || initialData.procedureId;
+
+            if (leadId) setSelectedLeadId(leadId);
+            if (initialData.title || initialData.patient_name) {
+                setSearchTerm(initialData.title || initialData.patient_name);
+            }
+
+            if (professionalId) setSelectedProfessionalId(professionalId);
+            if (procedureId) setSelectedServiceId(procedureId);
+
+            if (initialData.start || initialData.start_time) {
+                const start = new Date(initialData.start || initialData.start_time);
+                setSelectedDate(format(start, "yyyy-MM-dd"));
+                setStartTime(format(start, "HH:mm"));
+
+                // Se estamos editando, a duração será definida pelo useEffect do selectedServiceId
+                // que irá buscar a duração padrão do serviço vinculado.
+                // Mas carregamos o diff inicial apenas como garantia caso não haja serviço.
+                const endTimeSource = initialData.end || initialData.end_time;
+                if (endTimeSource) {
+                    const end = new Date(endTimeSource);
+                    const diff = (end.getTime() - start.getTime()) / 60000;
+                    if (!isNaN(diff) && diff > 0) {
+                        setDurationFromMinutes(diff);
+                    }
+                }
+            }
+            if (initialData.notes) setNotes(initialData.notes);
+
+        } else if (slotInfo) {
+            setSelectedDate(format(slotInfo.start, "yyyy-MM-dd"));
+            setStartTime(format(slotInfo.start, "HH:mm"));
+            setDurationFromMinutes(60);
+
+            setSelectedLeadId("");
+            setSearchTerm("");
+            setSelectedProfessionalId("");
+            setSelectedServiceId("");
+            setNotes("");
+        }
+    }, [isOpen, clinic?.id, slotInfo, initialData]);
+
+    // Update customDuration total when hours/minutes inputs change manually
+    useEffect(() => {
+        const total = (parseInt(customDurationHours.toString()) || 0) * 60 + (parseInt(customDurationMinutes.toString()) || 0);
+        if (total !== customDuration) {
+            setCustomDuration(total > 0 ? total : 1);
+        }
+    }, [customDurationHours, customDurationMinutes]);
+
+    // Use professionals from props if available, otherwise fetch
+    useEffect(() => {
+        if (propProfessionals && propProfessionals.length > 0) {
+            setProfessionals(propProfessionals);
+        }
+    }, [propProfessionals]);
+
+    // Auto-set duration when service is selected
+    useEffect(() => {
+        if (selectedServiceId && services.length > 0) {
+            const service = services.find(s => s.id === selectedServiceId);
+            if (service) {
+                // Sempre que o serviço mudar OU no carregamento inicial, aplicamos a duração do serviço
+                if (prevServiceId !== selectedServiceId) {
+                    const duration = service.duration || 60; // Fallback 60 min se não houver no banco
+                    console.log(`[AddAppointmentModal] Aplicando duração do serviço "${service.name}": ${duration}m`);
+                    setDurationFromMinutes(duration);
+                    setPrevServiceId(selectedServiceId);
+                }
+            }
+        } else if (!selectedServiceId) {
+            setPrevServiceId(null);
+        }
+    }, [selectedServiceId, services, prevServiceId]);
+
+    // Check availability when professional, time, or duration changes
+    useEffect(() => {
+        if (selectedProfessionalId && startTime && slotInfo) {
+            checkAvailability();
+        } else {
+            setIsAvailable(null);
+        }
+    }, [selectedProfessionalId, startTime, customDuration, selectedDate]);
+
+    // Fetch Unavailable Slots for Picker
+    useEffect(() => {
+        const fetchUnavailableSlots = async () => {
+            if (!selectedDate || !selectedProfessionalId || !clinic?.id) {
+                setUnavailableSlots([]);
+                return;
+            }
+
+            setIsLoadingSlots(true);
+            try {
+                // Fetch appointments for the selected date
+                const { data, error } = await supabase
+                    .from('appointments')
+                    .select('start_time, end_time')
+                    .eq('professional_id', selectedProfessionalId)
+                    .eq('clinic_id', clinic.id)
+                    .neq('status', 'cancelled')
+                    .gte('end_time', `${selectedDate}T00:00:00`)
+                    .lte('start_time', `${selectedDate}T23:59:59`);
+
+                if (initialData?.id && data) {
+                    // Filter out current appointment from unavailability list
+                    // But in a simplified slots mode, it's safer to just ignore it if it overlaps with itself
+                }
+
+                if (error) throw error;
+
+                const blocked: string[] = [];
+                if (data) {
+                    data.forEach((app: any) => {
+                        // Skip if it is the one we are editing
+                        if (initialData?.id && app.id === initialData.id) return;
+
+                        const start = new Date(app.start_time);
+                        const end = new Date(app.end_time);
+                        let curr = start;
+                        while (curr < end) {
+                            blocked.push(format(curr, 'HH:mm'));
+                            curr = addMinutes(curr, 30);
+                        }
+                    });
+                }
+                setUnavailableSlots(blocked);
+            } catch (error) {
+                console.error("Error fetching slots:", error);
+            } finally {
+                setIsLoadingSlots(false);
+            }
+        };
+
+        fetchUnavailableSlots();
+    }, [selectedDate, selectedProfessionalId, clinic?.id, initialData?.id]);
+
+    const fetchDropdowns = async () => {
+        try {
+            const [profsData, servicesData, leadsData] = await Promise.all([
+                supabase.from('professionals').select('id, name, color').eq('clinic_id', clinic?.id),
+                supabase.from('services').select('id, name, duration, base_price').eq('clinic_id', clinic?.id),
+                supabase.from('leads').select('id, name, phone, doctor_id, procedure_id, procedure, status, budget').eq('clinic_id', clinic?.id).limit(1000)
+            ]);
+
+            if (!propProfessionals || propProfessionals.length === 0) {
+                setProfessionals((profsData.data as Professional[] || []).sort((a, b) => a.name.localeCompare(b.name)));
+            }
+
+            setServices((servicesData.data as Service[] || []).sort((a, b) => a.name.localeCompare(b.name)));
+            setLeads((leadsData.data as Lead[] || []).sort((a, b) => a.name.localeCompare(b.name)));
+
+        } catch (error) {
+            console.error("Error fetching dropdowns:", error);
+        }
+    };
+
+    // Auto-fill from Lead Profile (Sync Logic)
+    useEffect(() => {
+        if (selectedLeadId && leads.length > 0) {
+            const lead = leads.find(l => l.id === selectedLeadId);
+            if (lead) {
+                setLeadStatus(lead.status || null);
+
+                // Sincroniza o orçamento apenas se não estivermos editando ativamente
+                if (!isEditingBudget) {
+                    setLeadBudget(lead.budget || 0);
+                    setInitialLeadBudget(lead.budget || 0);
+                }
+
+                // Only auto-fill if we are in CREATE mode
+                if (!initialData) {
+                    if (!selectedProfessionalId && lead.doctor_id) {
+                        setSelectedProfessionalId(lead.doctor_id);
+                    }
+                    if (!selectedServiceId && services.length > 0) {
+                        if (lead.procedure_id) {
+                            setSelectedServiceId(lead.procedure_id);
+                        } else if (lead.procedure) {
+                            const svc = services.find(s => s.name === lead.procedure);
+                            if (svc) setSelectedServiceId(svc.id);
+                        }
+                    }
+                }
+            }
+        } else {
+            setLeadStatus(null);
+            if (!isEditingBudget) {
+                setLeadBudget(0);
+                setInitialLeadBudget(0);
+            }
+        }
+    }, [selectedLeadId, leads, services, initialData, isEditingBudget]);
+
+    const handleSaveBudget = async () => {
+        if (!selectedLeadId) return;
+
+        // Se não mudou nada, apenas fecha a edição
+        if (leadBudget === initialLeadBudget) {
+            setIsEditingBudget(false);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            console.log(`[AddAppointmentModal] Salvando orçamento para lead ${selectedLeadId}: R$ ${leadBudget}`);
+            const { error } = await supabase
+                .from('leads')
+                .update({ budget: leadBudget })
+                .eq('id', selectedLeadId);
+
+            if (error) throw error;
+
+            setInitialLeadBudget(leadBudget);
+            setIsEditingBudget(false);
+            toast.success("Orçamento do lead atualizado diretamente!");
+
+            // Opcional: recarregar dropdowns para garantir que a lista local de leads esteja atualizada
+            fetchDropdowns();
+        } catch (error) {
+            console.error("Error saving budget:", error);
+            toast.error("Erro ao salvar orçamento.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const checkAvailability = async () => {
+        if (!selectedProfessionalId || !startTime) return;
+
+        setCheckingAvailability(true);
+        try {
+            const startDateStr = selectedDate;
+            const baseDate = startDateStr ? new Date(startDateStr + 'T00:00:00') : (slotInfo?.start || new Date());
+            const [hours, minutes] = startTime.split(':').map(Number);
+            const startDate = new Date(baseDate);
+            startDate.setHours(hours, minutes, 0);
+            const endDate = addMinutes(startDate, customDuration);
+
+            // Check for overlapping appointments
+            let query = supabase
+                .from('appointments')
+                .select('id, start_time, end_time')
+                .eq('professional_id', selectedProfessionalId)
+                .eq('clinic_id', clinic?.id)
+                .neq('status', 'cancelled')
+                .gte('end_time', startDate.toISOString())
+                .lte('start_time', endDate.toISOString());
+
+            if (initialData?.id) {
+                query = query.neq('id', initialData.id);
+            }
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+
+            setIsAvailable(!data || data.length === 0);
+        } catch (error) {
+            console.error("Error checking availability:", error);
+            setIsAvailable(null);
+        } finally {
+            setCheckingAvailability(false);
+        }
+    };
+
+    const calculateEndTime = () => {
+        const startDateStr = selectedDate;
+        if (!startTime || !startDateStr) return "-";
+
+        const [year, month, day] = startDateStr.split('-').map(Number);
+        const [hours, minutes] = startTime.split(':').map(Number);
+
+        const startDate = new Date(year, month - 1, day, hours, minutes);
+        const endDate = addMinutes(startDate, customDuration);
+
+        return format(endDate, "HH:mm");
+    };
+
+    const handleSave = async () => {
+        if (!selectedLeadId || !selectedProfessionalId || !selectedServiceId || !selectedDate || !startTime) {
+            toast.error("Preencha todos os campos obrigatórios.");
+            return;
+        }
+
+        if (isAvailable === false) {
+            toast.error("O profissional não está disponível neste horário.");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const [year, month, day] = selectedDate.split('-').map(Number);
+            const [hours, minutes] = startTime.split(':').map(Number);
+            const startDate = new Date(year, month - 1, day, hours, minutes);
+            const endDate = addMinutes(startDate, customDuration);
+
+            const payload = {
+                clinic_id: clinic?.id,
+                lead_id: selectedLeadId,
+                professional_id: selectedProfessionalId,
+                procedure_id: selectedServiceId,
+                start_time: startDate.toISOString(),
+                end_time: endDate.toISOString(),
+                status: initialData?.status || 'Pendente',
+                notes: notes
+            };
+
+            if (initialData?.id) {
+                // MODO EDIÇÃO
+                const { error } = await supabase
+                    .from('appointments')
+                    .update(payload)
+                    .eq('id', initialData.id);
+
+                if (error) throw error;
+                // toast.success(`Agendamento de ${searchTerm || 'paciente'} atualizado com sucesso!`);
+            } else {
+                // MODO CRIAÇÃO
+                const { error } = await supabase
+                    .from('appointments')
+                    .insert([payload]);
+
+                if (error) throw error;
+                // toast.success(`Agendamento de ${searchTerm || 'paciente'} criado com sucesso!`);
+            }
+
+            // Sync with Lead if changed
+            if (selectedLeadId) {
+                const leadUpdate: any = {
+                    doctor_id: selectedProfessionalId,
+                    procedure_id: selectedServiceId
+                };
+
+                // Update budget if changed
+                let budgetUpdated = false;
+                if (leadBudget !== initialLeadBudget) {
+                    leadUpdate.budget = leadBudget;
+                    budgetUpdated = true;
+                }
+
+                await supabase.from('leads').update(leadUpdate).eq('id', selectedLeadId);
+
+                if (budgetUpdated) {
+                    toast.success("Agendamento e orçamento salvos com sucesso!");
+                } else {
+                    toast.success(`Agendamento de ${searchTerm || 'paciente'} ${initialData?.id ? 'atualizado' : 'criado'} com sucesso!`);
+                }
+            }
+
+            onSuccess();
+            onClose();
+        } catch (error) {
+            console.error("Error saving appointment:", error);
+            toast.error(`Erro ao salvar: ${(error as any).message || 'Erro deconhecido'}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent
+                className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto"
+                onOpenAutoFocus={(e: Event) => e.preventDefault()}
+            >
+                <DialogHeader>
+                    <DialogTitle className="text-xl">
+                        {initialData?.id ? 'Editar Agendamento' : 'Novo Agendamento'}
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-5 py-4">
+
+                    {/* Paciente */}
+                    <div className="space-y-2 relative">
+                        {showPatientList && (
+                            <div className="fixed inset-0 z-30" onClick={() => setShowPatientList(false)} />
+                        )}
+                        <div className="flex justify-between items-center">
+                            <label className="text-sm font-semibold flex items-center gap-2">
+                                <User className="w-4 h-4 text-primary" /> Paciente
+                            </label>
+
+                            <div className="flex items-center gap-1">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-slate-400 hover:text-primary disabled:opacity-30"
+                                                disabled={!selectedLeadId || !leadStatus}
+                                                onClick={() => {
+                                                    if (selectedLeadId && leadStatus) {
+                                                        navigate(`/crm/${leadStatus}/${selectedLeadId}`);
+                                                        onClose();
+                                                    }
+                                                }}
+                                            >
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top"><p className="text-xs">Abrir Ficha</p></TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-slate-400 hover:text-primary disabled:opacity-30"
+                                                disabled={!selectedLeadId || !leadStatus}
+                                                onClick={() => {
+                                                    if (selectedLeadId && leadStatus) {
+                                                        navigate(`/crm/${leadStatus}/${selectedLeadId}?tab=prontuario`);
+                                                        onClose();
+                                                    }
+                                                }}
+                                            >
+                                                <Stethoscope className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top"><p className="text-xs">Ver Prontuário</p></TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-slate-400 hover:text-primary disabled:opacity-30"
+                                                disabled={!selectedLeadId || !leadStatus}
+                                                onClick={() => {
+                                                    if (selectedLeadId && leadStatus) {
+                                                        navigate(`/crm/${leadStatus}/${selectedLeadId}?tab=financeiro`);
+                                                        onClose();
+                                                    }
+                                                }}
+                                            >
+                                                <DollarSign className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top"><p className="text-xs">Financeiro</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                        </div>
+                        <div className="relative z-40">
+                            <Input
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setShowPatientList(true);
+                                    if (e.target.value === "") setSelectedLeadId("");
+                                }}
+                                onFocus={() => setShowPatientList(true)}
+                                placeholder="Busque pelo nome ou selecione..."
+                                className="h-11 pl-4"
+                            />
+                            {selectedLeadId && !showPatientList && (
+                                <CheckCircle2 className="absolute right-3 top-3.5 w-4 h-4 text-emerald-500" />
+                            )}
+
+                            {showPatientList && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-md shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+                                    {leads.filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.phone.includes(searchTerm)).length > 0 ? (
+                                        leads.filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.phone.includes(searchTerm)).map(lead => (
+                                            <div
+                                                key={lead.id}
+                                                className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm flex items-center gap-3 border-b border-slate-100 last:border-0 transition-colors"
+                                                onClick={() => {
+                                                    setSelectedLeadId(lead.id);
+                                                    setSearchTerm(lead.name);
+                                                    setShowPatientList(false);
+                                                }}
+                                            >
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-sm" />
+                                                <div className="flex-1 flex justify-between items-center">
+                                                    <span className="font-medium text-slate-700">{lead.name}</span>
+                                                    <span className="text-xs text-slate-400 font-mono">{lead.phone}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-3 text-xs text-slate-500 text-center italic">
+                                            Nenhum paciente encontrado.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Profissional */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold flex items-center gap-2">
+                                <Stethoscope className="w-4 h-4 text-primary" /> Profissional
+                            </label>
+                            <Select value={selectedProfessionalId} onValueChange={setSelectedProfessionalId}>
+                                <SelectTrigger className="h-11">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {professionals.map(pro => (
+                                        <SelectItem
+                                            key={pro.id}
+                                            value={pro.id}
+                                            className="border-b border-slate-100 last:border-0 focus:bg-slate-50 py-2.5 cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                                                <span className="font-medium text-slate-700">{pro.name}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Serviço */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold flex items-center gap-2">
+                                <Stethoscope className="w-4 h-4 text-primary" /> Procedimento
+                            </label>
+                            <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+                                <SelectTrigger className="h-11">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {services.map(svc => (
+                                        <SelectItem
+                                            key={svc.id}
+                                            value={svc.id}
+                                            className="border-b border-slate-100 last:border-0 focus:bg-slate-50 py-2.5 cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                                                <span className="font-medium text-slate-700">{svc.name}</span>
+                                                <span className="text-xs text-slate-400 ml-1">({svc.duration}m)</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {/* Orçamento do Lead */}
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <label className="text-sm font-semibold flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-emerald-500" /> Orçamento do Lead
+                            </div>
+                            <div className="flex items-center gap-1.5 overflow-hidden">
+                                {selectedLeadId && (
+                                    <div className="flex items-center gap-1">
+                                        {isEditingBudget ? (
+                                            <>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 font-bold gap-1"
+                                                    onClick={handleSaveBudget}
+                                                >
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    CONFIRMAR
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-[10px] text-slate-400 hover:text-slate-500 hover:bg-slate-50 gap-1"
+                                                    onClick={() => {
+                                                        setLeadBudget(initialLeadBudget);
+                                                        setIsEditingBudget(false);
+                                                    }}
+                                                >
+                                                    CANCELAR
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 px-2 text-[10px] text-slate-500 hover:text-primary gap-1"
+                                                onClick={() => setIsEditingBudget(true)}
+                                            >
+                                                <Edit3 className="w-3.5 h-3.5" />
+                                                EDITAR VALOR
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </label>
+                        <div className="relative group">
+                            <Input
+                                value={isEditingBudget ? leadBudget : `R$ ${leadBudget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                readOnly={!isEditingBudget}
+                                onChange={(e) => {
+                                    if (isEditingBudget) {
+                                        const val = e.target.value;
+                                        setLeadBudget(Number(val) || 0);
+                                    }
+                                }}
+                                // Se estiver editando, permita digitar o valor puro
+                                type={isEditingBudget ? "number" : "text"}
+                                className={`h-11 pl-4 transition-all ${!isEditingBudget ? 'bg-slate-50 border-slate-100 text-slate-600 font-medium cursor-default shadow-none' : 'bg-white border-emerald-200 ring-emerald-100 focus-visible:ring-emerald-500'}`}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && isEditingBudget) {
+                                        handleSaveBudget();
+                                    }
+                                    if (e.key === 'Escape' && isEditingBudget) {
+                                        setLeadBudget(initialLeadBudget);
+                                        setIsEditingBudget(false);
+                                    }
+                                }}
+                            />
+                            {!isEditingBudget && leadBudget > 0 && (
+                                <div className="absolute right-3 top-3.5 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Registrado</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Date and Time Picker Premium Component */}
+                    <AvailabilityDateTimePicker
+                        date={selectedDate ? parse(selectedDate, 'yyyy-MM-dd', new Date()) : undefined}
+                        time={startTime}
+                        onSelect={(date, time) => {
+                            setSelectedDate(format(date, 'yyyy-MM-dd'));
+                            setStartTime(time);
+                        }}
+                        professionalId={selectedProfessionalId}
+                        unavailableSlots={unavailableSlots}
+                        isLoadingSlots={isLoadingSlots}
+                    />
+
+                    {/* Duration Selector */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold flex items-center gap-2">
+                            <Timer className="w-4 h-4 text-primary" /> Duração
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {DURATION_OPTIONS.map(option => (
+                                <Button
+                                    key={option.value}
+                                    type="button"
+                                    variant={customDuration === option.value ? "default" : "outline"}
+                                    size="sm"
+                                    className={`h-9 transition-all ${customDuration === option.value ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600' : ''}`}
+                                    onClick={() => {
+                                        setDurationFromMinutes(option.value);
+                                    }}
+                                >
+                                    {option.label}
+                                </Button>
+                            ))}
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg mt-2 border border-slate-100 italic">
+                            <span>Término previsto:</span>
+                            <span className="font-bold text-slate-900 not-italic">{calculateEndTime()}</span>
+                        </div>
+                    </div>
+
+                    {/* Custom Duration Inputs */}
+                    <div className="flex gap-4">
+                        <div className="space-y-2 flex-1">
+                            <label className="text-sm font-semibold flex items-center gap-2">Horas</label>
+                            <Input
+                                type="number"
+                                min={0}
+                                max={23}
+                                value={customDurationHours}
+                                onChange={(e) => setCustomDurationHours(parseInt(e.target.value) || 0)}
+                            />
+                        </div>
+                        <div className="space-y-2 flex-1">
+                            <label className="text-sm font-semibold flex items-center gap-2">Minutos</label>
+                            <Input
+                                type="number"
+                                min={0}
+                                max={59}
+                                step={5}
+                                value={customDurationMinutes}
+                                onChange={(e) => setCustomDurationMinutes(parseInt(e.target.value) || 0)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Logic for Packet Sessions */}
+                    <div className="space-y-3 p-4 bg-slate-50 border border-slate-100 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                id="recurrence"
+                                checked={isPackage}
+                                onChange={(e) => setIsPackage(e.target.checked)}
+                                className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                            />
+                            <label htmlFor="recurrence" className="text-sm font-semibold text-slate-700 cursor-pointer select-none">
+                                Agendar + de uma Sessão
+                            </label>
+                        </div>
+
+                        {isPackage && (
+                            <div className="animate-in slide-in-from-top-2 pt-2 border-t border-slate-200 mt-2 space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold text-slate-500">Quantidade Total de Sessões</label>
+                                    <Input
+                                        type="number"
+                                        value={packageSessions}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 2;
+                                            setPackageSessions(val);
+                                        }}
+                                        min={2}
+                                        max={20}
+                                        className="h-9 bg-white w-24"
+                                    />
+                                    <p className="text-[10px] text-slate-500">Incluindo a sessão atual.</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-slate-700">Agendar Próximas Sessões:</label>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                                        {Array.from({ length: Math.max(0, packageSessions - 1) }).map((_, idx) => (
+                                            <div key={idx} className="flex items-center gap-2 text-sm">
+                                                <span className="text-slate-500 w-16 text-xs font-medium">Sessão {idx + 2}</span>
+                                                <Input type="date" className="h-8 text-xs bg-white" />
+                                                <Input type="time" className="h-8 w-24 text-xs bg-white" defaultValue={startTime} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <p className="text-[10px] text-slate-500 bg-blue-50 text-blue-600 p-2 rounded border border-blue-100">
+                                    ℹ️ Selecione as datas para cada sessão do pacote. Os horários vêm pré-preenchidos.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Availability Warning */}
+                    {isAvailable === false && (
+                        <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-lg p-3">
+                            <p className="text-sm text-rose-700 dark:text-rose-400 font-medium">
+                                ⚠️ O profissional já possui um agendamento neste horário. Por favor, escolha outro horário.
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold">Observações (opcional)</label>
+                        <Input
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Ex: Paciente especificou algo..."
+                            className="h-11"
+                        />
+                    </div>
+
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>Cancelar</Button>
+                    <Button
+                        onClick={handleSave}
+                        disabled={loading || isAvailable === false}
+                        className="bg-primary hover:bg-primary/90"
+                    >
+                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {initialData?.id ? 'Salvar Alterações' : 'Confirmar Agendamento'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

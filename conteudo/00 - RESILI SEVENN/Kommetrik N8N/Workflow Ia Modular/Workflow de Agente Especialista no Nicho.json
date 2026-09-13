@@ -1,0 +1,1028 @@
+{
+  "name": "[IA_MODULAR][METRIK][AGENTES_ESPECIALISTAS]",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.mensagens }}",
+        "options": {
+          "systemMessage": "=diga sempre \"olá, eu sou a bia\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -4064,
+        544
+      ],
+      "id": "036edb87-3596-4b09-b6e3-bc2db5582505",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini-2025-04-14"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -4112,
+        752
+      ],
+      "id": "b31d1662-38ce-4eee-80fc-fdfb69cc4687",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Start').first().json.body[\"message[add][0][contact_id]\"] }}",
+        "tableName": "metrik",
+        "contextWindowLength": 40
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -3968,
+        752
+      ],
+      "id": "c9167ea3-90d8-4d47-bc43-432e7573a6fd",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# IA ESPECIALISTA DO NICHO",
+        "height": 552,
+        "width": 1240,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -4304,
+        416
+      ],
+      "typeVersion": 1,
+      "id": "382da34f-f0d1-420f-8049-2f4a505229d0",
+      "name": "Sticky Note19"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "text",
+        "options": {}
+      },
+      "id": "b274c090-0dff-4eb4-9e79-c365d1e5142f",
+      "name": "Separa as mensagens",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -2800,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Envio de Mensagem na Kommo",
+        "height": 548,
+        "width": 1664,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        416
+      ],
+      "id": "679834c4-4a9e-44af-b4b4-b0cb65b4e82d",
+      "name": "Sticky Note23"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "followup",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "entity_id",
+              "keyValue": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2960,
+        128
+      ],
+      "id": "d7696925-b377-43f9-8549-afd4b61ac468",
+      "name": "Busca Follow",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "qUIgj8amLLvnhn92",
+          "name": "[KOMMETRIK][SUPABASE]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "followup",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "entity_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "bot"
+            },
+            {
+              "fieldId": "last_interaction_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "domain",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"account[_links][self]\"] }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][chat_id]\"] }}"
+            },
+            {
+              "fieldId": "entity_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}"
+            },
+            {
+              "fieldId": "element_type",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][element_type]\"] }}"
+            },
+            {
+              "fieldId": "user_name",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][author][name]\"] }}"
+            },
+            {
+              "fieldId": "author_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][author][id]\"] }}"
+            },
+            {
+              "fieldId": "talk_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][talk_id]\"] }}"
+            },
+            {
+              "fieldId": "contact_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][contact_id]\"] }}"
+            },
+            {
+              "fieldId": "account_name",
+              "fieldValue": "Martins Moura"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2576,
+        208
+      ],
+      "id": "ba318304-dd55-4a62-a7b7-bf76411ed1c8",
+      "name": "Cria registro",
+      "credentials": {
+        "supabaseApi": {
+          "id": "qUIgj8amLLvnhn92",
+          "name": "[KOMMETRIK][SUPABASE]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "followup",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "entity_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "direction",
+              "fieldValue": "bot"
+            },
+            {
+              "fieldId": "last_interaction_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "follows_count",
+              "fieldValue": "0"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2576,
+        48
+      ],
+      "id": "5af3f085-5ca4-42fe-b359-e24e91de8e74",
+      "name": "Atualiza",
+      "credentials": {
+        "supabaseApi": {
+          "id": "qUIgj8amLLvnhn92",
+          "name": "[KOMMETRIK][SUPABASE]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fbbf0458-72e3-49f2-9a2d-07bcfb570171",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2768,
+        128
+      ],
+      "id": "dede5b7b-4293-4259-bf10-c830630cdcff",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "content": "## FOLLOWUP",
+        "height": 412,
+        "width": 1664
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        -16
+      ],
+      "id": "aa5dd726-d882-4752-a880-dcd6a01b8da7",
+      "name": "Sticky Note24"
+    },
+    {
+      "parameters": {
+        "amount": 2.52
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1552,
+        736
+      ],
+      "id": "e9a8ce30-a5e1-40fc-8c29-bdafb2530993",
+      "name": "Wait2",
+      "webhookId": "d33a1e65-27ac-484e-839d-2bb4cb540760"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "8b9e4e1d-92b0-45c4-9c71-32be68b3598b",
+      "name": "Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2624,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2432,
+        720
+      ],
+      "id": "531319be-e92e-4483-8813-ad7cb6a706c9",
+      "name": "Mensagem"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ia.kommetrik.com.br/api/executions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer "
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $('Start').first().json.body[\"account[_links][self]\"] }}"
+            },
+            {
+              "name": "kommo_account_id",
+              "value": "={{ $('Start').first().json.body['account[id]'] }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Start').first().json.body['message[add][0][chat_id]'] }}"
+            },
+            {
+              "name": "entity_id",
+              "value": "={{ $('Start').first().json.body['message[add][0][entity_id]'] }}"
+            },
+            {
+              "name": "element_type",
+              "value": "={{ $('Start').first().json.body['message[add][0][element_type]'] }}"
+            },
+            {
+              "name": "user_name",
+              "value": "={{ $('Start').first().json.body['message[add][0][author][name]'] }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "author_id",
+              "value": "={{ $('Start').first().json.body['message[add][0][author][id]'] }}"
+            },
+            {
+              "name": "talk_id",
+              "value": "={{ $('Start').first().json.body['message[add][0][talk_id]'] }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('Start').first().json.body['message[add][0][contact_id]'] }}"
+            },
+            {
+              "name": "token_kommo",
+              "value": "={{ $('Start').first().json['kommo token'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1840,
+        736
+      ],
+      "id": "b60e43ea-4b4a-43cb-a6b7-8a0dc99e3946",
+      "name": "Envia mensagem na Kommo"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -2368,
+        512
+      ],
+      "id": "0252fa95-fa6e-4397-8585-b7fc55df0220",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ia.kommetrik.com.br/api/executions/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer "
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $('Webhook').first().json.body[\"account[_links][self]\"] }}"
+            },
+            {
+              "name": "kommo_account_id",
+              "value": "={{ $('Webhook').first().json.body['account[id]'] }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][chat_id]'] }}"
+            },
+            {
+              "name": "entity_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}"
+            },
+            {
+              "name": "element_type",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][element_type]'] }}"
+            },
+            {
+              "name": "user_name",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][name]'] }}"
+            },
+            {
+              "name": "file_url",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "author_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][id]'] }}"
+            },
+            {
+              "name": "talk_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][talk_id]'] }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][contact_id]'] }}"
+            },
+            {
+              "name": "token_kommo",
+              "value": "={{ $('Kommo2').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1840,
+        512
+      ],
+      "id": "922b6c3b-804c-4f92-b095-0d288d0c77ae",
+      "name": "Envia mensagem na Kommo1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{(() => {\n  const text = $json.text;\n  const imageRegex = /(https?:\\/\\/[^\\s]+?\\.(jpg|jpeg|png|gif|bmp|webp))/gi;\n  return imageRegex.test(text);\n})()}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "e297a32b-fd94-43b0-8788-bf144296c3d4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Imagem"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Texto"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -2080,
+        704
+      ],
+      "id": "61062fd9-d7a7-4559-8605-8b409c7af642",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "699a472e-2084-4dc6-a9b7-7dbccf5d6da6",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2272,
+        720
+      ],
+      "id": "4207ffd9-8e48-4dbb-9dc3-e1364e0ddf04",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "description": "Nome: Transferência para Atendimento Humano\nDescrição: Escala o atendimento para um operador humano quando o cliente solicita explicitamente ou quando o caso requer intervenção especializada que excede as capacidades do sistema automatizado.\nQuando usar:\n\nCliente solicita falar com atendente humano\nExpressa frustração com atendimento automatizado\nCaso complexo que requer análise humana\nSituações sensíveis que demandam empatia humana\n\nParâmetros:\n\nmotivo_transferencia: \"solicitacao_cliente\", \"caso_complexo\", \"situacao_sensivel\"\ncontexto_conversa: Resumo da interação até o momento\nurgencia: \"alta\", \"normal\" ou \"baixa\"",
+        "workflowId": {
+          "__rl": true,
+          "value": "0XQBtxFa2Bhwgg3b",
+          "mode": "list",
+          "cachedResultName": "[GLAUBER_ADVOGADOS][GLAUBER][AGENTE_IA]"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -3808,
+        752
+      ],
+      "id": "da690390-6cc4-4d40-a1aa-786fd48c1ff8",
+      "name": "transfere_atendimento",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1e66db0-00dc-481d-951c-1fde558e268e",
+              "name": "text",
+              "value": "={{ $json.output.split('\\n') }}",
+              "type": "array"
+            },
+            {
+              "id": "445d3c98-8602-47c2-9594-82a00ed47554",
+              "name": "=test",
+              "value": "={{ $json.message.content.messages }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "296c06aa-183b-4026-9022-150f6a31fc32",
+      "name": "Divide as mensagens1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2976,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## LEAD DIRECIONADO PARA O ESPECILISTA",
+        "height": 552,
+        "width": 320,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4640,
+        416
+      ],
+      "id": "f16b3b0b-c15a-4051-ac65-4b18fce2ced7",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "body",
+              "type": "any"
+            },
+            {
+              "name": "kommo token",
+              "type": "any"
+            },
+            {
+              "name": "busca campos",
+              "type": "any"
+            },
+            {
+              "name": "pipelines",
+              "type": "any"
+            },
+            {
+              "name": "busca lead",
+              "type": "any"
+            },
+            {
+              "name": "mensagens"
+            }
+          ]
+        }
+      },
+      "id": "4fa94d9d-894e-4453-b229-d7c4024ea1e8",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -4528,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "egAX9SIsFROzGI9M",
+          "mode": "list",
+          "cachedResultName": "[TESTE][METRIK][AÇÕES]"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "output": "={{ $json.output }}",
+            "lead_id": "={{ $('Start').first().json.body[\"message[add][0][entity_id]\"] }}",
+            "domain": "={{ $('Start').first().json.body[\"account[_links][self]\"] }}",
+            "contact_id": "={{ $('Start').first().json.body[\"message[add][0][contact_id]\"] }}"
+          },
+          "matchingColumns": [
+            "output"
+          ],
+          "schema": [
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contact_id",
+              "displayName": "contact_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "domain",
+              "displayName": "domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -3280,
+        144
+      ],
+      "id": "9c5323ef-f68a-47cd-a607-1c69d3f802d4",
+      "name": "Execute Workflow",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## AÇÕES",
+        "height": 408,
+        "width": 320,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3392,
+        -16
+      ],
+      "id": "e9935aeb-5c23-4369-a987-3bbc1d125003",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Divide as mensagens1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separa as mensagens": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Follow": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Atualiza",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cria registro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia mensagem na Kommo": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia mensagem na Kommo1": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Envia mensagem na Kommo1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Envia mensagem na Kommo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transfere_atendimento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Divide as mensagens1": {
+      "main": [
+        [
+          {
+            "node": "Separa as mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bb102ecb-b042-4343-8870-7292e0fe62f3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "fXWotCNuj7YJopbb",
+  "tags": [
+    {
+      "createdAt": "2025-07-28T16:32:37.843Z",
+      "updatedAt": "2025-07-28T16:32:37.843Z",
+      "id": "KBmh4LOWWSQpT31a",
+      "name": "METRIK"
+    }
+  ]
+}

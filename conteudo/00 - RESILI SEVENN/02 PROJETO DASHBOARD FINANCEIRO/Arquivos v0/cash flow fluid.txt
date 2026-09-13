@@ -1,0 +1,116 @@
+"use client"
+
+import { Card } from "@/components/ui/card"
+import { TrendingUp, Calendar } from "lucide-react"
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
+
+const cashFlowData = [
+  { month: "Jan", amount: 3200 },
+  { month: "Fev", amount: 5000 },
+  { month: "Mar", amount: 4100 },
+  { month: "Abr", amount: 3800 },
+  { month: "Mai", amount: 4500 },
+  { month: "Jun", amount: 3600 },
+  { month: "Jul", amount: 2800 },
+  { month: "Ago", amount: 2100 },
+  { month: "Set", amount: 1500 },
+  { month: "Out", amount: 900 },
+  { month: "Nov", amount: 400 },
+  { month: "Dez", amount: 200 },
+]
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200 animate-in fade-in-0 zoom-in-95 duration-200">
+        <p className="text-xs text-slate-500 font-medium mb-1">{payload[0].payload.month} 2026</p>
+        <p className="text-lg font-bold text-[#6fca3a]">R$ {payload[0].value.toLocaleString("pt-BR")}</p>
+        <p className="text-xs text-slate-600 mt-1">Parcelas a receber</p>
+      </div>
+    )
+  }
+  return null
+}
+
+export function CashFlowFluid() {
+  const totalProjected = cashFlowData.reduce((sum, item) => sum + item.amount, 0)
+  const avgMonthly = totalProjected / cashFlowData.length
+
+  return (
+    <Card className="p-8 shadow-lg rounded-2xl bg-white border-slate-200">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-10 h-10 bg-[#6fca3a]/10 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-[#6fca3a]" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">Fluxo de Caixa Futuro</h2>
+          </div>
+          <p className="text-slate-500 text-sm">Projeção de recebíveis de cartão parcelado</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-slate-600 mb-1">Total Projetado</p>
+          <p className="text-md font-bold text-[#6fca3a]">R$ {totalProjected.toLocaleString("pt-BR")}</p>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={cashFlowData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+            <defs>
+              <linearGradient id="fluidGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6fca3a" stopOpacity={0.4} />
+                <stop offset="50%" stopColor="#6fca3a" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#6fca3a" stopOpacity={0.05} />
+              </linearGradient>
+              <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#6fca3a" />
+                <stop offset="100%" stopColor="#4ade80" />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="month" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+            <YAxis
+              stroke="#94A3B8"
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              dx={-10}
+              tickFormatter={(value) => `R$ ${(value / 1000).toFixed(1)}k`}
+            />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ stroke: "#6fca3a", strokeWidth: 1, strokeDasharray: "5 5" }}
+            />
+            <Area
+              type="natural"
+              dataKey="amount"
+              stroke="url(#lineGradient)"
+              strokeWidth={3}
+              fill="url(#fluidGradient)"
+              animationDuration={1500}
+              animationEasing="ease-out"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Calendar className="w-4 h-4 text-slate-600" />
+            <p className="text-xs text-slate-600 font-medium">Média Mensal</p>
+          </div>
+          <p className="text-md font-bold text-slate-900">R$ {avgMonthly.toFixed(0)}</p>
+        </div>
+        <div className="bg-gradient-to-br from-[#6fca3a]/5 to-[#6fca3a]/10 rounded-xl p-4">
+          <p className="text-xs text-slate-600 font-medium mb-1">Próximo Mês</p>
+          <p className="text-md font-bold text-[#6fca3a]">R$ 5.000</p>
+        </div>
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4">
+          <p className="text-xs text-slate-600 font-medium mb-1">Declínio</p>
+          <p className="text-md font-bold text-slate-900">-96%</p>
+        </div>
+      </div>
+    </Card>
+  )
+}

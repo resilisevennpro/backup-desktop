@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposta Comercial - Portal Contábil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Paleta Resili Sevenn */
+            --bg-color: #060606;       /* Fundo Principal */
+            --card-bg: #1f1f1f;        /* Fundo dos Cartões */
+            --primary-green: #59A52C;  /* Verde Logo */
+            --light-green: #6fca3a;    /* Verde Claro */
+            --dark-green: #437d21;     /* Verde Escuro */
+            --text-main: #ffffff;
+            --text-secondary: #b3b3b3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- HEADER & LOGO --- */
+        header {
+            text-align: center;
+            padding: 40px 0;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .logo-container img {
+            max-width: 200px; /* Ajuste conforme necessário */
+            height: auto;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(to right, var(--primary-green), var(--light-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* --- SECTIONS --- */
+        section {
+            margin-bottom: 60px;
+            padding: 30px;
+            background: rgba(31, 31, 31, 0.4);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            opacity: 0; /* Começa invisível para animar */
+            transform: translateY(20px);
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        /* Delays para animação em cascata */
+        section:nth-child(2) { animation-delay: 0.2s; }
+        section:nth-child(3) { animation-delay: 0.4s; }
+        section:nth-child(4) { animation-delay: 0.6s; }
+
+        h2 {
+            border-left: 4px solid var(--primary-green);
+            padding-left: 15px;
+            margin-bottom: 25px;
+            color: white;
+            font-size: 1.8rem;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: #dcdcdc;
+        }
+
+        ul {
+            list-style: none;
+            margin-left: 10px;
+        }
+
+        li {
+            margin-bottom: 10px;
+            position: relative;
+            padding-left: 25px;
+            color: #e0e0e0;
+        }
+
+        li::before {
+            content: '✔';
+            color: var(--primary-green);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        /* --- ESCOPO GRID --- */
+        .scope-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .scope-item {
+            background: rgba(255,255,255,0.03);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 2px solid var(--dark-green);
+            transition: transform 0.3s ease;
+        }
+
+        .scope-item:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .scope-title {
+            color: var(--light-green);
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: block;
+            font-size: 1.2rem;
+        }
+
+        /* --- PRICING CARDS --- */
+        .pricing-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .pricing-card {
+            flex: 1;
+            background: linear-gradient(145deg, #1f1f1f, #151515);
+            border: 1px solid #333;
+            padding: 30px;
+            border-radius: 16px;
+            position: relative;
+            min-width: 300px;
+            transition: all 0.3s ease;
+        }
+
+        .pricing-card.featured {
+            border: 2px solid var(--primary-green);
+            box-shadow: 0 0 30px rgba(89, 165, 44, 0.15);
+        }
+
+        .pricing-card:hover {
+            transform: scale(1.02);
+        }
+
+        .card-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .badge {
+            background-color: var(--primary-green);
+            color: black;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin: 15px 0;
+        }
+
+        .price span {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .maintenance-box {
+            background: rgba(89, 165, 44, 0.1);
+            border: 1px solid var(--primary-green);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .maintenance-price {
+            color: var(--light-green);
+            font-weight: 700;
+            font-size: 1.3rem;
+        }
+
+        /* --- FOOTER & CTA --- */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            margin-bottom: 80px;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 1s forwards;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(90deg, var(--primary-green), var(--light-green));
+            color: black;
+            padding: 18px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(111, 202, 58, 0.4);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button:hover {
+            box-shadow: 0 6px 25px rgba(111, 202, 58, 0.6);
+            transform: translateY(-3px);
+            color: #000;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .pricing-container { flex-direction: column; }
+            section { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <div class="logo-container">
+                <img src="public/images/resili-sevenn-logo.png">
+            </div>
+            <h1>Proposta de Desenvolvimento</h1>
+            <p class="subtitle">Portal do Cliente & Hub Contábil Inteligente</p>
+        </header>
+
+        <section>
+            <h2>1. O Objetivo</h2>
+            <p>Desenvolver uma plataforma web exclusiva (SaaS White-label) para centralizar a comunicação entre a Contabilidade e seus Clientes. O sistema eliminará a desorganização de e-mails, oferecendo uma experiência profissional, segura e escalável, agregando valor aos serviços Básico, Médio e Avançado.</p>
+        </section>
+
+        <section>
+            <h2>2. O Que Será Entregue</h2>
+            <div class="scope-grid">
+                <div class="scope-item">
+                    <span class="scope-title">Painel do Cliente</span>
+                    <ul>
+                        <li>Login individual seguro.</li>
+                        <li>Dashboard com banners informativos.</li>
+                        <li>Upload e Download de documentos.</li>
+                        <li>Segurança total (Cliente A não vê Cliente B).</li>
+                        <li>Área de Lives (Exclusivo p/ plano Avançado).</li>
+                    </ul>
+                </div>
+                <div class="scope-item">
+                    <span class="scope-title">Painel do Contador (Admin)</span>
+                    <ul>
+                        <li>Gestão completa de usuários.</li>
+                        <li>Upload de PDFs em massa.</li>
+                        <li>Visão geral de todos os clientes.</li>
+                        <li>Disparo de e-mails de notificação.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>3. Investimento e Desenvolvimento</h2>
+            <p>Apresentamos dois cenários. A estrutura visual e de segurança é idêntica; a diferença está na automação das vendas.</p>
+            
+            <div class="pricing-container">
+                
+                <div class="pricing-card featured">
+                    <div class="card-header">
+                        <span class="badge">Recomendado</span>
+                        <h3 style="margin-top:10px; color:white;">Opção 1: Automático</h3>
+                        <p style="font-size:0.9rem; color:#aaa;">Portal + Pagamentos (Stripe)</p>
+                    </div>
+                    <div class="price">R$ 8.500<span>/único</span></div>
+                    <ul>
+                        <li>Integração com Cartão/Pix.</li>
+                        <li>Liberação de acesso imediata.</li>
+                        <li>Bloqueio automático de inadimplentes.</li>
+                        <li>Painel financeiro para o cliente.</li>
+                    </ul>
+                </div>
+
+                <div class="pricing-card">
+                    <div class="card-header">
+                        <h3 style="margin-top:10px; color:white;">Opção 2: Manual</h3>
+                        <p style="font-size:0.9rem; color:#aaa;">Portal + Gestão Manual</p>
+                    </div>
+                    <div class="price">R$ 6.000<span>/único</span></div>
+                    <ul>
+                        <li>Menor custo inicial.</li>
+                        <li>Você libera o acesso manualmente.</li>
+                        <li>Ideal para venda via contrato/boleto.</li>
+                        <li>Mesma estrutura visual e segurança.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>4. Manutenção e Segurança</h2>
+            <p>Para garantir que o sistema permaneça online, seguro e com backups em dia.</p>
+            <div class="maintenance-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <h3 style="color:white; margin-bottom:5px;">Fixo Mensal</h3>
+                        <p style="margin:0; font-size:0.9rem;">Monitoramento, Segurança e Suporte Técnico.</p>
+                    </div>
+                    <div class="maintenance-price">R$ 300,00 / mês</div>
+                </div>
+            </div>
+            <br>
+            <p><small>*Custos de Domínio já inclusos.</small></p>
+        </section>
+
+        <footer>
+            <a href="http://wa.me/5548988663609" target="_blank" class="cta-button">
+                Conversar sobre Proposta
+            </a>
+            <p style="margin-top: 20px; font-size: 0.8rem; color: #666;">
+                Proposta válida por 15 dias. Desenvolvido por Resili Sevenn.
+            </p>
+        </footer>
+
+    </div>
+
+</body>
+</html>

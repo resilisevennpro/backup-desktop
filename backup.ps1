@@ -44,6 +44,17 @@ $excludeArgs += "wp-data"
 
 robocopy $origem.FullName $destino /MIR /XF "*.mp4" "*.mov" "*.avi" "*.mkv" ".env" ".env.*" @excludeArgs /NFL /NDL /NJH /R:1 /W:1 | Out-Null
 
+# GitHub recusa arquivos acima de 100MB — remove do destino (o original na pasta de origem continua intacto)
+Write-Host "`nVerificando arquivos acima de 95MB (limite do GitHub é 100MB)..." -ForegroundColor Cyan
+$grandes = Get-ChildItem $destino -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 95MB }
+if ($grandes) {
+    Write-Host "Removidos $($grandes.Count) arquivo(s) grande(s) demais para o GitHub (envie ao Drive manualmente):" -ForegroundColor Yellow
+    $grandes | ForEach-Object {
+        Write-Host "  - $($_.FullName.Replace($destino, 'conteudo')) ($([math]::Round($_.Length/1MB,1)) MB)" -ForegroundColor Yellow
+        Remove-Item $_.FullName -Force
+    }
+}
+
 # 3. Listar vídeos que ainda não parecem estar em lugar nenhum (checagem por nome no Drive)
 Write-Host "`nVerificando vídeos (.mp4) que talvez ainda não estejam no Drive..." -ForegroundColor Cyan
 $videos = Get-ChildItem $origem.FullName -Recurse -File -Include *.mp4, *.mov -ErrorAction SilentlyContinue |

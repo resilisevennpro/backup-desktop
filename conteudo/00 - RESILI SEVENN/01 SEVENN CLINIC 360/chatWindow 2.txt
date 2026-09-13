@@ -1,0 +1,2594 @@
+import { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import EmojiPicker, { Theme } from 'emoji-picker-react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+import BubbleMenuExtension from '@tiptap/extension-bubble-menu';
+import { Extension } from '@tiptap/core';
+import { InputRule } from '@tiptap/core';
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+import type { Contact } from "./ChatList";
+import {
+    Send,
+    Bot,
+    PauseCircle,
+    PlayCircle,
+    Paperclip,
+    Smile,
+    Heart,
+    HelpCircle,
+    AlertCircle,
+    CalendarCheck,
+    MessageSquare,
+    UserPlus,
+    Zap,
+    Search,
+    FileText,
+    CheckCircle,
+    X,
+    ChevronDown,
+    ChevronUp,
+    Check,
+    UserCheck,
+    Image,
+    File,
+    ClipboardList,
+    ExternalLink,
+    ListTodo,
+    Loader2,
+    Activity,
+    Pill,
+    Download,
+    Folder,
+    FolderSearch,
+    LayoutGrid,
+    List,
+    Film,
+    Music,
+    AlertTriangle,
+    ArrowLeft,
+    Trash2,
+    Mic,
+    Square,
+    Pause,
+    Play,
+    ListOrdered,
+    Bold,
+    Italic,
+    Strikethrough,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { getSecureUrl, parseSupabaseUrl } from "@/lib/storage-utils";
+import { SecureImage } from "@/components/common/SecureImage";
+import { toast } from "sonner";
+
+export interface Message {
+    id: string;
+    text: string;
+    sender: 'user' | 'me' | 'ai' | 'system';
+    timestamp: string;
+    status: 'sent' | 'delivered' | 'read';
+    metadata?: {
+        type: 'media' | 'text' | string;
+        url?: string;
+        fileName?: string;
+        fileType?: 'image' | 'video' | 'audio' | 'document' | string;
+    };
+}
+
+interface PipelineStage {
+    id: string;
+    name: string;
+    color: string;
+    pipeline_id: string;
+    position: number;
+}
+
+interface QuickReply {
+    id: string;
+    clinic_id: string;
+    titulo: string;
+    conteudo: string;
+    categoria: string;
+    status: string;
+}
+
+const REPLY_CATEGORIES = ['Preparação', 'Orientações Pós', 'Formas de Pagamento', 'Políticas da Clínica', 'Localização'];
+const CATEGORY_MESSAGES_MAP: Record<string, string> = {
+    'Preparação': 'Preparação',
+    'Orientações Pós': 'Pós-Procedimento',
+    'Formas de Pagamento': 'Pagamento',
+    'Políticas da Clínica': 'Políticas',
+    'Localização': 'Localização'
+};
+
+interface ClinicalNote {
+    id: string;
+    created_at: string;
+    content: string;
+    type: 'anamnese' | 'evolution' | 'prescription';
+    professional?: { name: string };
+}
+
+interface GalleryItem {
+    id: string;
+    url: string;
+    thumbnail: string;
+    category: string;
+    created_at: string;
+    description?: string;
+}
+
+interface ClinicDocument {
+    id: string;
+    title: string;
+    created_at: string;
+    status: string;
+    content?: string;
+}
+
+interface NextAppointmentData {
+    date: string;
+    procedure: string;
+    professional: string;
+}
+
+interface SupportFolder {
+    id: string;
+    clinic_id: string;
+    nome: string;
+    descricao?: string;
+    tipo: 'institucional' | 'servico' | 'manual';
+    is_fixed: boolean;
+}
+
+interface SupportMedia {
+    id: string;
+    clinic_id: string;
+    folder_id: string;
+    nome: string;
+    tipo_arquivo: 'image' | 'video' | 'audio' | 'document' | string;
+    url: string;
+    thumbnail_url?: string;
+    is_active: boolean;
+    deleted_at?: string;
+    created_at?: string;
+}
+
+const EMOJI_SHORTCODES: Record<string, string> = {
+    // Gestures
+    legal: '👍', dislike: '👎', ok: '👌', amem: '🙏', gratidao: '🙏', oracao: '🙏',
+    paz: '✌️', tchau: '👋', ola: '👋', oi: '👋', palmas: '👏', uau: '😮',
+    // Faces
+    sorriso: '😊', rindo: '😂', chorando: '😭', triste: '😢', amei: '😍', coracao: '❤️',
+    // Status
+    fogo: '🔥', top: '🔥', check: '✅', feito: '✅', erro: '❌', aviso: '⚠️', info: 'ℹ️',
+    // Common
+    estrela: '⭐', relogio: '🕐', calendario: '📅', telefone: '📞', doc: '📄', clipe: '📌',
+    // Health/Clinic
+    medico: '👨‍⚕️', doutor: '👨‍⚕️', medica: '👩‍⚕️', doutora: '👩‍⚕️', remedio: '💊', hospital: '🏥', saude: '❤️',
+    dinheiro: '💰', pagamento: '💰', pix: '💰', cartao: '💳'
+};
+
+const lookupEmoji = (query: string) =>
+    Object.entries(EMOJI_SHORTCODES)
+        .filter(([k]) => k.startsWith(query.toLowerCase()))
+        .slice(0, 6)
+        .map(([label, emoji]) => ({ emoji, label }));
+
+const CURRENT_PROVIDER = 'evolution'; // Configuração de Provedor
+const MEDIA_TABS = [
+    { value: 'all', label: 'Todos', icon: Folder },
+    { value: 'image', label: 'Fotos', icon: Image },
+    { value: 'video', label: 'Vídeos', icon: Film },
+    { value: 'audio', label: 'Áudios', icon: Music },
+    { value: 'document', label: 'Documentos', icon: FileText },
+];
+
+const PIPELINES_META = [
+    { id: 'vendas_principal', label: 'Oportunidades' },
+    { id: 'gestao_pacientes', label: 'Gestão de Pacientes' },
+    { id: 'nutricao', label: 'Nutrição' }
+];
+
+interface ChatWindowProps {
+    contact: Contact | null;
+    messages: Message[];
+    onSendMessage: (text: string) => void;
+    isAiActive: boolean;
+    onToggleAi: () => void;
+    onResolveConversation?: () => void;
+    onAssignConversation?: () => void;
+    clinicId?: string;
+    operatorName?: string | null;
+}
+
+export function ChatWindow({
+    contact,
+    messages,
+    onSendMessage,
+    isAiActive,
+    onToggleAi,
+    onResolveConversation,
+    onAssignConversation,
+    clinicId,
+}: ChatWindowProps) {
+    const { profile, clinic } = useAuth();
+    const navigate = useNavigate();
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Verification: Data Isolation & Session
+    // Security: Only use clinic ID if it looks like a valid UUID (not "1")
+    const activeClinicId = (clinic?.id && clinic.id !== "1") ? clinic.id : (clinicId && clinicId !== "1" ? clinicId : null);
+
+    // Search state
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchIndex, setSearchIndex] = useState(0);
+
+    // Stage selector state
+    const [stageOpen, setStageOpen] = useState(false);
+    const [allStages, setAllStages] = useState<PipelineStage[]>([]);
+    const [expandedPipe, setExpandedPipe] = useState<string | null>(null);
+
+    // Drawer states
+    const [prontuarioOpen, setProntuarioOpen] = useState(false);
+    const [midiasOpen, setMidiasOpen] = useState(false);
+    const [documentosOpen, setDocumentosOpen] = useState(false);
+
+    // Prontuário data
+    const [clinicalNotes, setClinicalNotes] = useState<ClinicalNote[]>([]);
+    const [loadingNotes, setLoadingNotes] = useState(false);
+    const [leadDetails, setLeadDetails] = useState<{ allergies?: string; complaint?: string } | null>(null);
+
+    // Mídias data
+    const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+    const [loadingGallery, setLoadingGallery] = useState(false);
+
+    // Documentos data
+    const [documents, setDocuments] = useState<ClinicDocument[]>([]);
+    const [loadingDocs, setLoadingDocs] = useState(false);
+
+    // Next appointment data (fetched live)
+    const [nextAppointment, setNextAppointment] = useState<NextAppointmentData | null>(null);
+    const [loadingAppointment, setLoadingAppointment] = useState(false);
+
+    // Quick Replies (Slash Command)
+    const [replies, setReplies] = useState<QuickReply[]>([]);
+    const [slashOpen, setSlashOpen] = useState(false);
+    const [slashQuery, setSlashQuery] = useState("");
+    const [inputValue, setInputValue] = useState("");
+
+    // Support Media Modal
+    const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
+    const [supportMedia, setSupportMedia] = useState<SupportMedia[]>([]);
+    const [supportFolders, setSupportFolders] = useState<SupportFolder[]>([]);
+    const [selectedSupportFolder, setSelectedSupportFolder] = useState<SupportFolder | null>(null);
+    const [selectedMedia, setSelectedMedia] = useState<SupportMedia[]>([]);
+    const [loadingMedia, setLoadingMedia] = useState(false);
+    const [mediaSearchQuery, setMediaSearchQuery] = useState("");
+    const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
+    const [mediaLayout, setMediaLayout] = useState<'grid' | 'list'>('grid');
+    const [isConfirmingMedia, setIsConfirmingMedia] = useState(false);
+    const [sendingMedia, setSendingMedia] = useState(false);
+
+    // Emoji and File Attachments
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+    const [emojiSuggestions, setEmojiSuggestions] = useState<{ emoji: string; label: string }[]>([]);
+    const [showEmojiSuggestions, setShowEmojiSuggestions] = useState(false);
+    const [emojiColonQuery, setEmojiColonQuery] = useState('');
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [uploadingFiles, setUploadingFiles] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // ── Tiptap: WhatsApp Markdown conversion ─────────────────────────────────
+    const htmlToWhatsapp = (html: string) => {
+        let text = html;
+        text = text.replace(/<strong>(.*?)<\/strong>/g, '*$1*');
+        text = text.replace(/<em>(.*?)<\/em>/g, '_$1_');
+        text = text.replace(/<s>(.*?)<\/s>/g, '~$1~');
+        text = text.replace(/<u>(.*?)<\/u>/g, '__$1__');
+        text = text.replace(/<p>(.*?)<\/p>/g, '$1\n');
+        text = text.replace(/<br\s*\/?>/g, '\n');
+        text = text.replace(/<.*?>/g, ''); // strip remaining tags
+        return text.trim();
+    };
+
+    const editor = useEditor({
+        extensions: [
+            StarterKit.configure({
+                bulletList: {
+                    keepMarks: true,
+                    keepAttributes: false,
+                },
+                orderedList: {
+                    keepMarks: true,
+                    keepAttributes: false,
+                },
+                hardBreak: {
+                    keepMarks: true,
+                },
+            }),
+            Underline,
+
+            Placeholder.configure({
+                placeholder: 'Digite uma mensagem ou / para atalhos...',
+            }),
+            BubbleMenuExtension,
+            Link.configure({
+                openOnClick: false,
+            }),
+            // Custom font-styling shortcuts
+            Extension.create({
+                name: 'markdownShortcuts',
+                addInputRules() {
+                    return [
+                        new InputRule({
+                            find: /\*(.+?)\*$/,
+                            handler: ({ state, range, match }) => {
+                                const { tr } = state;
+                                tr.replaceWith(range.from, range.to, state.schema.text(match[1]));
+                                tr.addMark(range.from, range.from + match[1].length, state.schema.marks.bold.create());
+                                return null;
+                            },
+                        }),
+                        new InputRule({
+                            find: /_(.+?)_$/,
+                            handler: ({ state, range, match }) => {
+                                const { tr } = state;
+                                tr.replaceWith(range.from, range.to, state.schema.text(match[1]));
+                                tr.addMark(range.from, range.from + match[1].length, state.schema.marks.italic.create());
+                                return null;
+                            },
+                        }),
+                        new InputRule({
+                            find: /~(.+?)~$/,
+                            handler: ({ state, range, match }) => {
+                                const { tr } = state;
+                                tr.replaceWith(range.from, range.to, state.schema.text(match[1]));
+                                tr.addMark(range.from, range.from + match[1].length, state.schema.marks.strike.create());
+                                return null;
+                            },
+                        }),
+                        new InputRule({
+                            find: /__(.+?)__$/,
+                            handler: ({ state, range, match }) => {
+                                const { tr } = state;
+                                tr.replaceWith(range.from, range.to, state.schema.text(match[1]));
+                                tr.addMark(range.from, range.from + match[1].length, state.schema.marks.underline.create());
+                                return null;
+                            },
+                        }),
+                    ];
+                },
+            }),
+        ],
+        content: '',
+        onUpdate: ({ editor }) => {
+            setInputValue(editor.getHTML());
+
+            const { state } = editor;
+            const { from } = state.selection;
+            const textBefore = state.doc.textBetween(Math.max(0, from - 20), from);
+
+            // Emoji shortcode detection (!query)
+            const emojiMatch = textBefore.match(/!(\w*)$/);
+            if (emojiMatch) {
+                setShowEmojiSuggestions(true);
+                setEmojiSuggestions(lookupEmoji(emojiMatch[1]));
+            } else {
+                setShowEmojiSuggestions(false);
+            }
+
+            // Slash command detection (/query)
+            if (textBefore.match(/\/(\w*)$/)) {
+                setSlashOpen(true);
+                setSlashQuery(textBefore.match(/\/(\w*)$/)?.[1].toLowerCase() || '');
+            } else {
+                setSlashOpen(false);
+            }
+        },
+        editorProps: {
+            attributes: {
+                class: 'prose prose-sm sm:prose-base focus:outline-none max-w-none min-h-[40px] max-h-[200px] overflow-y-auto px-1 py-2',
+            },
+            handlePaste: (view, event) => {
+                const items = Array.from(event.clipboardData?.items || []);
+                const imageItems = items.filter(item => item.type.startsWith('image/'));
+
+                if (imageItems.length > 0) {
+                    event.preventDefault();
+
+                    const newFiles: File[] = [];
+                    imageItems.forEach((item) => {
+                        const file = item.getAsFile();
+                        if (file) {
+                            // Criamos um novo arquivo com o nome personalizado de "paste"
+                            const fileExt = file.name.split('.').pop() || 'png';
+                            const fileName = `paste_${Date.now()}_${Math.random().toString(36).slice(2, 9)}.${fileExt}`;
+
+                            // Recria o File para manter o nome correto
+                            const renamedFile = new window.File([file], fileName, { type: file.type });
+                            newFiles.push(renamedFile);
+                        }
+                    });
+
+                    // Adiciona na "bandeja" de preview junto com o que já estiver lá
+                    if (newFiles.length > 0) {
+                        setSelectedFiles(prev => [...prev, ...newFiles]);
+                    }
+
+                    return true; // Retorna true para a imagem não virar um texto sujo no input
+                }
+                return false;
+            },
+            handleKeyDown: (view, event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSend();
+                    return true;
+                }
+                return false;
+            }
+        }
+    });
+
+    // Audio Recording
+    const [isRecording, setIsRecording] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+    const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const timerRef = useRef<number | null>(null);
+    const audioStreamRef = useRef<MediaStream | null>(null);
+    const isRecordingCanceled = useRef(false);
+    const isStopForPreview = useRef(false);
+
+    // Check if any drawer is open (for dynamic layout)
+    // const anyDrawerOpen = prontuarioOpen || midiasOpen || documentosOpen;
+
+    const sentimentIcons = useMemo(() => ({
+        interested: { icon: Heart, color: 'text-green-500', label: 'Interessado' },
+        doubting: { icon: HelpCircle, color: 'text-yellow-500', label: 'Dúvida' },
+        angry: { icon: AlertCircle, color: 'text-red-500', label: 'Insatisfeito' },
+        booking: { icon: CalendarCheck, color: 'text-blue-500', label: 'Agendamento' },
+        neutral: { icon: MessageSquare, color: 'text-zinc-400', label: 'Neutro' },
+        question: { icon: Search, color: 'text-purple-400', label: 'Sondagem' }
+    }), []);
+
+    // =========================================================================
+    // FETCH: Pipeline Stages
+    // =========================================================================
+    useEffect(() => {
+        if (!activeClinicId) return;
+        const fetchStages = async () => {
+            const { data, error } = await supabase
+                .from('pipeline_stages')
+                .select('id, name, color, pipeline_id, position')
+                .eq('clinic_id', activeClinicId)
+                .eq('is_active', true)
+                .order('position', { ascending: true });
+            if (!error && data) setAllStages(data);
+        };
+        fetchStages();
+    }, [activeClinicId]);
+
+    // =========================================================================
+    // FETCH: Next Appointment for this lead (real fetch)
+    // =========================================================================
+    const fetchNextAppointmentData = useCallback(async () => {
+        if (!contact?.id || contact.id === '1') return;
+        setLoadingAppointment(true);
+        setNextAppointment(null);
+        try {
+            const now = new Date().toISOString();
+            const { data, error } = await supabase
+                .from('appointments')
+                .select(`
+                    id,
+                    start_time,
+                    services!procedure_id(name),
+                    professionals!professional_id(name)
+                `)
+                .eq('lead_id', contact.id)
+                .not('status', 'in', '("Cancelado","Concluído","Faltou")')
+                .gte('start_time', now)
+                .order('start_time', { ascending: true })
+                .limit(1)
+                .single();
+
+            if (!error && data) {
+                const service = Array.isArray((data as any).services) ? (data as any).services[0] : (data as any).services;
+                const professional = Array.isArray((data as any).professionals) ? (data as any).professionals[0] : (data as any).professionals;
+                setNextAppointment({
+                    date: data.start_time,
+                    procedure: service?.name || 'Consulta',
+                    professional: professional?.name || 'Profissional',
+                });
+            }
+        } catch {
+            // no upcoming appointment found — keep null
+        } finally {
+            setLoadingAppointment(false);
+        }
+    }, [contact?.id]);
+
+    useEffect(() => {
+        if (contact?.id && contact.id !== '1') {
+            fetchNextAppointmentData();
+        } else {
+            setNextAppointment(null);
+        }
+    }, [contact?.id, fetchNextAppointmentData]);
+
+    // =========================================================================
+    // FETCH: Prontuário Data
+    // =========================================================================
+    const fetchProntuarioData = useCallback(async () => {
+        if (!contact?.id || contact.id === '1') return;
+        setLoadingNotes(true);
+        try {
+            const { data: notes, error: notesError } = await supabase
+                .from('clinical_records')
+                .select('*, professional:profiles!professional_id(name:full_name)')
+                .eq('lead_id', contact.id)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (!notesError && notes) setClinicalNotes(notes as any);
+
+            const { data: leadData } = await supabase
+                .from('leads')
+                .select('custom_fields')
+                .eq('id', contact.id)
+                .single();
+
+            if (leadData?.custom_fields) {
+                const cf = leadData.custom_fields as any;
+                setLeadDetails({
+                    allergies: cf.allergies || '',
+                    complaint: cf.complaint || '',
+                });
+            } else {
+                setLeadDetails(null);
+            }
+        } catch (err) {
+            console.error("Fetch prontuario error:", err);
+        } finally {
+            setLoadingNotes(false);
+        }
+    }, [contact?.id]);
+
+    useEffect(() => {
+        if (prontuarioOpen) fetchProntuarioData();
+    }, [prontuarioOpen, fetchProntuarioData]);
+
+    // =========================================================================
+    // FETCH: Mídias (lead_gallery) when drawer opens
+    // =========================================================================
+    const fetchGalleryData = useCallback(async () => {
+        if (!contact?.id || contact.id === '1') return;
+        setLoadingGallery(true);
+        try {
+            const { data, error } = await supabase
+                .from('lead_gallery')
+                .select('id, url, thumbnail, category, created_at, description')
+                .eq('lead_id', contact.id)
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+            if (!error && data) setGalleryItems(data);
+            else setGalleryItems([]);
+        } catch (err) {
+            console.error("Fetch gallery error:", err);
+            setGalleryItems([]);
+        } finally {
+            setLoadingGallery(false);
+        }
+    }, [contact?.id]);
+
+    useEffect(() => {
+        if (midiasOpen) fetchGalleryData();
+    }, [midiasOpen, fetchGalleryData]);
+
+    // =========================================================================
+    // FETCH: Documentos (clinic_documents) when drawer opens
+    // =========================================================================
+    const fetchDocumentsData = useCallback(async () => {
+        if (!contact?.id || contact.id === '1' || !activeClinicId) return;
+        setLoadingDocs(true);
+        try {
+            const { data, error } = await supabase
+                .from('clinic_documents')
+                .select('id, title, created_at, status, content')
+                .eq('clinic_id', activeClinicId)
+                .eq('lead_id', contact.id)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (!error && data) setDocuments(data);
+            else setDocuments([]);
+        } catch (err) {
+            console.error("Fetch documents error:", err);
+            setDocuments([]);
+        } finally {
+            setLoadingDocs(false);
+        }
+    }, [contact?.id, activeClinicId]);
+
+    useEffect(() => {
+        if (!documentosOpen) return;
+        fetchDocumentsData();
+    }, [documentosOpen, fetchDocumentsData]);
+
+    // =========================================================================
+    // FETCH: Quick Replies
+    // =========================================================================
+    useEffect(() => {
+        if (!activeClinicId) return;
+        const fetchReplies = async () => {
+            const { data, error } = await supabase
+                .from('respostas_rapidas')
+                .select('*')
+                .eq('clinic_id', activeClinicId)
+                .eq('is_active', true);
+            if (!error && data) setReplies(data);
+        };
+        fetchReplies();
+    }, [activeClinicId]);
+
+    // =========================================================================
+    // FETCH: Support Media
+    // =========================================================================
+    useEffect(() => {
+        if (!isMediaModalOpen || !activeClinicId || activeClinicId === '1') return;
+
+        const fetchSupportMedia = async () => {
+            setLoadingMedia(true);
+            try {
+                const [mediaRes, foldersRes] = await Promise.all([
+                    supabase
+                        .from('apoio_midias')
+                        .select('*')
+                        .eq('clinic_id', activeClinicId)
+                        .eq('is_active', true)
+                        .is('deleted_at', null)
+                        .order('created_at', { ascending: false }),
+                    supabase
+                        .from('apoio_pastas')
+                        .select('*')
+                        .eq('clinic_id', activeClinicId)
+                        .eq('is_active', true)
+                        .is('deleted_at', null)
+                        .order('is_fixed', { ascending: false })
+                        .order('nome', { ascending: true })
+                ]);
+
+                if (mediaRes.error) throw mediaRes.error;
+                if (foldersRes.error) throw foldersRes.error;
+
+                setSupportMedia(mediaRes.data || []);
+                setSupportFolders(foldersRes.data || []);
+            } catch (error) {
+                console.error("Error fetching support media:", error);
+                toast.error("Erro ao carregar biblioteca de mídias.");
+            } finally {
+                setLoadingMedia(false);
+            }
+        };
+
+        fetchSupportMedia();
+    }, [isMediaModalOpen, activeClinicId]);
+
+    // Helper: detect if a media URL comes from a private bucket
+    const isPrivateBucket = useCallback((url: string) => {
+        if (!url) return false;
+        return (
+            url.includes('/lead-images/') ||
+            url.includes('/patient-photos/') ||
+            url.includes('/clinic-documents/')
+        );
+    }, []);
+
+    // =========================================================================
+    const handleSendMedia = useCallback(async (files: SupportMedia[], isApoio: boolean) => {
+        if (!contact || !activeClinicId) return;
+
+        // Security: Ensure operator is logged in
+        if (!profile?.id) {
+            toast.error("Sessão expirada. Por favor, faça login novamente.");
+            return;
+        }
+
+        setSendingMedia(true);
+        try {
+            // Disparar o envio para cada arquivo
+            for (const file of files) {
+                let mediaUrl = file.url;
+
+                // Lógica de Segurança (LGPD) - Refresh Signed URL on Send
+                if (isPrivateBucket(mediaUrl)) {
+                    console.log("Preparing fresh 24h signed URL for private media:", file.nome);
+                    const info = parseSupabaseUrl(mediaUrl);
+                    if (info) {
+                        try {
+                            const { url } = await getSecureUrl(info.bucket, info.path);
+                            mediaUrl = url;
+                        } catch (e) {
+                            console.error("Failed to sign URL for dispatch:", e);
+                            // Fallback to original URL, but it might fail on delivery
+                        }
+                    }
+                }
+
+                // Disparo via Evolution API (Simulado)
+                console.log(`[${CURRENT_PROVIDER}] Enviando mídia para ${contact.name}:`, mediaUrl);
+
+                // Registra na tabela de mensagens do Supabase para manter histórico
+                await supabase.from('messages').insert({
+                    clinic_id: activeClinicId,
+                    lead_id: contact.id,
+                    content: `[Mídia: ${file.nome}]`,
+                    metadata: {
+                        type: 'media',
+                        url: mediaUrl,
+                        fileName: file.nome,
+                        fileType: file.tipo_arquivo,
+                        provider: CURRENT_PROVIDER
+                    },
+                    direction: 'clinica',
+                    operator_id: profile.id
+                });
+            }
+
+            toast.success(`${files.length} mídia(s) enviada(s) com sucesso!`);
+            setIsMediaModalOpen(false);
+            setIsConfirmingMedia(false);
+            setSelectedMedia([]);
+        } catch (error) {
+            console.error("Error sending media:", error);
+            toast.error("Falha ao enviar mídias. Tente novamente.");
+        } finally {
+            setSendingMedia(false);
+        }
+    }, [contact, activeClinicId, profile?.id, isPrivateBucket]);
+
+    const filteredSupportMedia = useMemo(() => {
+        return supportMedia.filter(item => {
+            if (selectedSupportFolder && item.folder_id !== selectedSupportFolder.id) return false;
+            if (!selectedSupportFolder) return false;
+
+            const matchesSearch = item.nome.toLowerCase().includes(mediaSearchQuery.toLowerCase());
+            const matchesType = mediaTypeFilter === 'all' || item.tipo_arquivo === mediaTypeFilter;
+            return matchesSearch && matchesType;
+        });
+    }, [supportMedia, mediaSearchQuery, mediaTypeFilter, selectedSupportFolder]);
+
+    const filteredSupportFolders = useMemo(() => {
+        // Deduplication: keep only first is_fixed folder per tipo
+        const seen = new Set<string>();
+        const deduped = supportFolders.filter(folder => {
+            if (folder.is_fixed) {
+                const key = `fixed-${folder.tipo}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+            }
+            return true;
+        });
+        if (selectedSupportFolder) return [];
+        return deduped.filter(folder =>
+            folder.nome.toLowerCase().includes(mediaSearchQuery.toLowerCase())
+        );
+    }, [supportFolders, mediaSearchQuery, selectedSupportFolder]);
+
+    // Media count per folder for the folder grid badges
+    const mediaCountByFolder = useMemo(() => {
+        const map: Record<string, number> = {};
+        supportMedia.forEach(item => {
+            map[item.folder_id] = (map[item.folder_id] || 0) + 1;
+        });
+        return map;
+    }, [supportMedia]);
+
+    const toggleMediaSelection = (file: SupportMedia) => {
+        setSelectedMedia(prev =>
+            prev.find(f => f.id === file.id)
+                ? prev.filter(f => f.id !== file.id)
+                : [...prev, file]
+        );
+    };
+
+    const handleMediaSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setMediaSearchQuery(e.target.value);
+    };
+
+    const handleConfirmMediaSend = () => {
+        if (selectedMedia.length > 0) {
+            setIsConfirmingMedia(true);
+        }
+    };
+
+    const resetMediaModal = () => {
+        setIsMediaModalOpen(false);
+        setIsConfirmingMedia(false);
+        setSelectedMedia([]);
+        setMediaSearchQuery("");
+        setMediaTypeFilter("all");
+        setSelectedSupportFolder(null);
+    };
+
+    const handleFolderBack = () => {
+        setSelectedSupportFolder(null);
+        setMediaSearchQuery("");
+        setMediaTypeFilter("all");
+    };
+
+    // =========================================================================
+    // COMPUTED
+    // =========================================================================
+    const groupedPipelines = useMemo(() => {
+        const grouped: { id: string; label: string; stages: PipelineStage[] }[] = [];
+        for (const pipe of PIPELINES_META) {
+            const pipeStages = allStages.filter(s => s.pipeline_id === pipe.id);
+            if (pipeStages.length > 0) {
+                grouped.push({ id: pipe.id, label: pipe.label, stages: pipeStages });
+            }
+        }
+        return grouped;
+    }, [allStages]);
+
+    // Find which pipeline the current contact's stage belongs to
+    const currentPipelineId = useMemo(() => {
+        if (!contact?.stage) return null;
+        const matchingStage = allStages.find(s => s.name === contact.stage);
+        return matchingStage?.pipeline_id || null;
+    }, [contact?.stage, allStages]);
+
+    // Auto-expand the lead's current pipeline when popover opens
+    useEffect(() => {
+        if (stageOpen && currentPipelineId) {
+            setExpandedPipe(currentPipelineId);
+        }
+    }, [stageOpen, currentPipelineId]);
+
+    // =========================================================================
+    // SEARCH: Filter + highlight + navigate results
+    // =========================================================================
+    const searchResults = useMemo(() => {
+        if (!searchQuery.trim()) return [];
+        const q = searchQuery.toLowerCase();
+        return messages
+            .map((m, idx) => ({ msg: m, originalIndex: idx }))
+            .filter(({ msg }) => msg.text.toLowerCase().includes(q));
+    }, [messages, searchQuery]);
+
+    const filteredMessages = useMemo(() => {
+        return messages;
+    }, [messages]);
+
+    const currentSearchResultId = searchResults.length > 0 ? searchResults[searchIndex]?.msg.id : null;
+
+    useEffect(() => {
+        if (currentSearchResultId) {
+            const el = document.getElementById(`msg-${currentSearchResultId}`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [currentSearchResultId]);
+
+    const handleSearchPrev = () => {
+        setSearchIndex(prev => (prev > 0 ? prev - 1 : searchResults.length - 1));
+    };
+    const handleSearchNext = () => {
+        setSearchIndex(prev => (prev < searchResults.length - 1 ? prev + 1 : 0));
+    };
+
+    useEffect(() => {
+        setSearchIndex(0);
+    }, [searchQuery]);
+
+    const highlightText = (text: string, query: string) => {
+        if (!query.trim()) return text;
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const parts = text.split(regex);
+        return parts.map((part, i) =>
+            regex.test(part)
+                ? <mark key={i} className="bg-yellow-300/80 text-slate-900 rounded-sm px-0.5">{part}</mark>
+                : part
+        );
+    };
+
+    // =========================================================================
+    // AUTO-SCROLL & SEND
+    // =========================================================================
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        if (!searchQuery.trim()) scrollToBottom();
+    }, [messages, searchQuery]);
+
+    const handleSend = async () => {
+        const text = inputValue.trim();
+        const hasFiles = selectedFiles.length > 0;
+
+        if (text || hasFiles) {
+            // Security Check
+            if (!profile?.id || !activeClinicId) {
+                toast.error("Sessão expirada. Por favor, faça login novamente.");
+                return;
+            }
+
+            try {
+                // If there are files, upload them first
+                if (hasFiles) {
+                    setUploadingFiles(true);
+                    const uploadedSupportMedia: SupportMedia[] = [];
+
+                    for (const file of selectedFiles) {
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+                        const filePath = `${activeClinicId}/${contact?.id}/${fileName}`;
+
+                        const { error: uploadError } = await supabase.storage
+                            .from('lead-images')
+                            .upload(filePath, file);
+
+                        if (uploadError) throw uploadError;
+
+                        const { url } = await getSecureUrl('lead-images', filePath);
+
+                        uploadedSupportMedia.push({
+                            id: crypto.randomUUID(),
+                            clinic_id: activeClinicId,
+                            folder_id: '',
+                            nome: file.name,
+                            tipo_arquivo: file.type.split('/')[0] || 'document',
+                            url: url,
+                            is_active: true
+                        });
+                    }
+
+                    await handleSendMedia(uploadedSupportMedia, false);
+                    setSelectedFiles([]);
+                }
+
+                // Send text message if any
+                if (text) {
+                    const whatsappText = htmlToWhatsapp(text);
+                    onSendMessage(whatsappText);
+                    editor?.commands.setContent('');
+                    setInputValue("");
+                }
+            } catch (err) {
+                console.error("Error sending message/files:", err);
+                toast.error("Erro ao enviar arquivos.");
+            } finally {
+                setUploadingFiles(false);
+            }
+        }
+    };
+
+    const onEmojiClick = (emojiData: any) => {
+        if (!editor) return;
+        editor.chain().focus().insertContent(emojiData.emoji).run();
+        setEmojiPickerOpen(false);
+    };
+
+    const insertEmojiShortcode = (emoji: string) => {
+        if (!editor) return;
+        const { state } = editor;
+        const { from } = state.selection;
+        const textBefore = state.doc.textBetween(Math.max(0, from - 20), from);
+        const match = textBefore.match(/!(\w*)$/);
+
+        if (match) {
+            const queryLen = match[0].length;
+            editor.chain()
+                .focus()
+                .deleteRange({ from: from - queryLen, to: from })
+                .insertContent(emoji + ' ')
+                .run();
+        }
+
+        setShowEmojiSuggestions(false);
+        setEmojiSuggestions([]);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const newFiles = Array.from(e.target.files);
+            setSelectedFiles(prev => [...prev, ...newFiles]);
+        }
+        // Reset input to allow same file selection
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const removeSelectedFile = (index: number) => {
+        setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const cleanupRecording = () => {
+        // 1. Pára o gravador
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+        // 2. DESLIGA O MICROFONE (Isso apaga a bolinha vermelha!)
+        if (audioStreamRef.current) {
+            audioStreamRef.current.getTracks().forEach(track => {
+                track.stop();
+            });
+            audioStreamRef.current = null; // Limpa a referência
+        }
+        // 3. Pára o cronómetro
+        if (recordingTime) {
+            clearInterval(recordingTime);
+        }
+    };
+
+    const uploadAudio = useCallback(async (blob: Blob) => {
+        if (!activeClinicId || !contact?.id) return;
+        setUploadingFiles(true);
+        try {
+            const fileName = `audio_${crypto.randomUUID()}.opus`;
+            const filePath = `${activeClinicId}/${contact.id}/audios/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('lead-images')
+                .upload(filePath, blob, { contentType: 'audio/opus' });
+
+            if (uploadError) throw uploadError;
+
+            const { url } = await getSecureUrl('lead-images', filePath);
+
+            await handleSendMedia([{
+                id: crypto.randomUUID(),
+                clinic_id: activeClinicId! as string,
+                folder_id: '',
+                nome: 'Mensagem de voz',
+                tipo_arquivo: 'audio',
+                url: url,
+                is_active: true
+            }], false);
+        } catch (err) {
+            console.error("Audio upload error:", err);
+            toast.error("Erro ao enviar áudio.");
+        } finally {
+            setUploadingFiles(false);
+        }
+    }, [activeClinicId, contact?.id, handleSendMedia]);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioStreamRef.current = stream;
+            // Use mimeType based on browser support, focusing on opus for WhatsApp compatibility
+            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+            mediaRecorderRef.current = recorder;
+            audioChunksRef.current = [];
+
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+
+            recorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/opus' });
+
+                if (audioBlob.size > 0 && !isRecordingCanceled.current) {
+                    if (isStopForPreview.current) {
+                        const url = URL.createObjectURL(audioBlob);
+                        setAudioPreviewUrl(url);
+                        setRecordedBlob(audioBlob);
+                        setIsPreviewMode(true);
+                    } else {
+                        await uploadAudio(audioBlob);
+                    }
+                }
+
+                // Always call cleanupRecording at the end of onstop
+                cleanupRecording();
+            };
+
+            recorder.start();
+            setIsRecording(true);
+            setIsPaused(false);
+            setIsPreviewMode(false);
+            setAudioPreviewUrl(null);
+            setRecordedBlob(null);
+            isRecordingCanceled.current = false;
+            isStopForPreview.current = false;
+            setRecordingTime(0);
+
+            timerRef.current = window.setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+        } catch (err) {
+            console.error("Microphone error:", err);
+            toast.error("Erro ao acessar o microfone.");
+        }
+    };
+
+    const pauseRecording = useCallback(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.pause();
+            setIsPaused(true);
+            if (timerRef.current) clearInterval(timerRef.current);
+        }
+    }, []);
+
+    const resumeRecording = useCallback(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+            mediaRecorderRef.current.resume();
+            setIsPaused(false);
+            timerRef.current = window.setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+        }
+    }, []);
+
+    const stopRecording = () => {
+        isStopForPreview.current = false;
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+    };
+
+    const stopAndPreviewRecord = () => {
+        isStopForPreview.current = true;
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+        if (timerRef.current) clearInterval(timerRef.current);
+    };
+
+    const cancelRecording = () => {
+        isRecordingCanceled.current = true;
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+    };
+
+    const handleSendAudioPreview = useCallback(async () => {
+        if (recordedBlob) {
+            await uploadAudio(recordedBlob);
+            setIsPreviewMode(false);
+            setAudioPreviewUrl(null);
+            setRecordedBlob(null);
+            cleanupRecording();
+        }
+    }, [recordedBlob, uploadAudio, cleanupRecording]);
+
+    const handleDiscardPreview = () => {
+        setIsPreviewMode(false);
+        setAudioPreviewUrl(null);
+        setRecordedBlob(null);
+        cleanupRecording();
+    };
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const selectReply = (reply: QuickReply) => {
+        if (!editor) return;
+        editor.commands.setContent(reply.conteudo);
+        setSlashOpen(false);
+    };
+
+    // =========================================================================
+    // KEYBOARD SHORTCUTS
+    // =========================================================================
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+            // Space: Toggle Record/Pause
+            if (e.code === 'Space' && isRecording && !isInput) {
+                e.preventDefault();
+                if (isPaused) resumeRecording();
+                else pauseRecording();
+            }
+
+            // Enter: Send Audio in Preview Mode
+            if (e.code === 'Enter' && isPreviewMode && recordedBlob && !isInput) {
+                e.preventDefault();
+                handleSendAudioPreview();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isRecording, isPaused, isPreviewMode, recordedBlob, resumeRecording, pauseRecording, handleSendAudioPreview]);
+
+    const filteredReplies = useMemo(() => {
+        if (!slashQuery) return replies;
+        return replies.filter(r =>
+            r.titulo.toLowerCase().includes(slashQuery) ||
+            r.conteudo.toLowerCase().includes(slashQuery)
+        );
+    }, [replies, slashQuery]);
+
+    const groupedReplies = useMemo(() => {
+        const groups: Record<string, QuickReply[]> = {};
+        REPLY_CATEGORIES.forEach(cat => {
+            const label = CATEGORY_MESSAGES_MAP[cat] || cat;
+            const items = filteredReplies.filter(r => r.categoria === cat);
+            if (items.length > 0) groups[label] = items;
+        });
+        return groups;
+    }, [filteredReplies]);
+
+    const buildExpandLink = (tab: string) => {
+        if (!contact?.id) return '#';
+        return `/crm-oportunidades/${contact.stage || 'default'}/${contact.id}?tab=${tab}`;
+    };
+
+    const noteTypeConfig = {
+        anamnese: { label: 'Anamnese', icon: ClipboardList, color: 'bg-purple-100 text-purple-700', dot: 'bg-purple-500' },
+        evolution: { label: 'Evolução', icon: Activity, color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
+        prescription: { label: 'Prescrição', icon: Pill, color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+    };
+
+    const docStatusConfig: Record<string, { label: string; color: string }> = {
+        signed: { label: 'Assinado', color: 'bg-emerald-100 text-emerald-700' },
+        pending: { label: 'Pendente', color: 'bg-amber-100 text-amber-700' },
+        draft: { label: 'Rascunho', color: 'bg-slate-100 text-slate-600' },
+        awaiting_signature: { label: 'Aguardando', color: 'bg-blue-100 text-blue-700' },
+    };
+
+    if (!contact) {
+        return (
+            <div className="flex-1 flex items-center justify-center bg-muted/5 flex-col gap-4">
+                <div className="h-20 w-20 bg-muted/30 rounded-full flex items-center justify-center">
+                    <Bot className="h-10 w-10 text-muted-foreground opacity-30" />
+                </div>
+                <div className="text-center">
+                    <p className="text-muted-foreground font-medium">Selecione uma conversa para iniciar</p>
+                    <p className="text-[10px] text-muted-foreground uppercase mt-1 tracking-widest">Painel de Atendimento Sevenn</p>
+                </div>
+            </div>
+        );
+    }
+
+    const currentSentiment = contact.sentiment ? sentimentIcons[contact.sentiment as keyof typeof sentimentIcons] : null;
+    const hasAppointment = !!nextAppointment;
+
+    return (
+        <>
+
+
+            {/* ========================= MAIN CONTAINER ========================= */}
+            <div className="flex-1 flex flex-col h-full bg-[#efeae2] dark:bg-[#0b141a] animate-in slide-in-from-right-10 duration-500 transition-all">
+                {/* ========================= COMMAND BAR (always full width, static) ========================= */}
+                <div className="border-b bg-card shadow-sm z-10 shrink-0">
+                    {/* Main Row */}
+                    <div className="h-14 px-4 flex items-center justify-between gap-3">
+                        {/* === LEFT: Avatar + Attribution + Agenda === */}
+                        <div className="flex items-center gap-3 min-w-0 flex-shrink">
+                            <Avatar className="h-8 w-8 border border-primary/20 shrink-0">
+                                <AvatarImage src={contact.avatar} />
+                                <AvatarFallback className="font-bold text-[10px]">{contact.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+
+                            <div className="min-w-0">
+                                <h3 className="font-bold text-[14px] font-manrope leading-none text-slate-900 truncate">{contact.name}</h3>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <Badge variant="outline" className="text-[8px] font-bold h-3.5 px-1 bg-muted/30 uppercase tracking-tighter">
+                                        {contact.channel}
+                                    </Badge>
+                                    {currentSentiment && (
+                                        <currentSentiment.icon className={cn("h-2.5 w-2.5", currentSentiment.color)} />
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="w-px h-7 bg-border/60 mx-1 shrink-0" />
+
+                            {/* Attribution */}
+                            {contact.operator_name ? (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <UserCheck className="w-3.5 h-3.5 text-blue-500" />
+                                    <span className="text-[11px] font-semibold text-slate-600 max-w-[80px] truncate">{contact.operator_name}</span>
+                                </div>
+                            ) : (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[10px] font-bold gap-1 border-blue-200 text-blue-600 hover:bg-blue-50 shrink-0"
+                                    onClick={onAssignConversation}
+                                >
+                                    <UserPlus className="w-3 h-3" />
+                                    Assumir
+                                </Button>
+                            )}
+
+                            <div className="w-px h-7 bg-border/60 mx-1 shrink-0" />
+
+                            {/* Intelligent Agenda Icon — live data */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className={cn(
+                                            "h-7 w-7 rounded-md flex items-center justify-center border transition-all cursor-default shrink-0",
+                                            loadingAppointment ? "border-slate-200 bg-slate-50 text-slate-400" :
+                                                hasAppointment
+                                                    ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                                                    : "border-slate-200 bg-slate-50 text-slate-400"
+                                        )}>
+                                            {loadingAppointment
+                                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                : hasAppointment
+                                                    ? <Check className="w-3.5 h-3.5" />
+                                                    : <span className="text-[11px] font-bold">—</span>
+                                            }
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {loadingAppointment
+                                            ? 'Buscando agendamento...'
+                                            : hasAppointment
+                                                ? `Próxima consulta: ${nextAppointment.date} — ${nextAppointment.procedure}${nextAppointment.professional ? ` (${nextAppointment.professional})` : ''}`
+                                                : 'Sem consulta agendada'
+                                        }
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+
+                        {/* === CENTER: Stage Selector + Search + IA Toggle === */}
+                        <div className="flex items-center gap-2">
+                            {/* Stage Selector Dropdown — moved to center */}
+                            <Popover open={stageOpen} onOpenChange={setStageOpen}>
+                                <PopoverTrigger asChild>
+                                    <button className="h-7 border border-slate-200 bg-white shadow-sm min-w-[120px] text-xs font-bold font-manrope rounded-md px-2.5 flex items-center gap-1.5 hover:border-primary/30 transition-all shrink-0">
+                                        <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                                        <span className="truncate text-slate-700">{contact.stage || 'Sem Etapa'}</span>
+                                        <ChevronDown className="w-3 h-3 text-slate-400 ml-auto shrink-0" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="center" className="w-60 p-0 max-h-[400px] overflow-y-auto">
+                                    {groupedPipelines.map(pipe => {
+                                        const isExpanded = expandedPipe === pipe.id;
+                                        const isCurrentPipeline = pipe.id === currentPipelineId;
+                                        return (
+                                            <div key={pipe.id}>
+                                                <button
+                                                    onClick={() => setExpandedPipe(prev => prev === pipe.id ? null : pipe.id)}
+                                                    className={cn(
+                                                        "w-full flex items-center justify-between px-3 py-2 text-left transition-colors border-b border-slate-100",
+                                                        isCurrentPipeline ? "bg-primary/5 hover:bg-primary/10" : "bg-slate-50/80 hover:bg-slate-100/80"
+                                                    )}
+                                                >
+                                                    <span className={cn(
+                                                        "text-[10px] font-bold uppercase tracking-wider",
+                                                        isCurrentPipeline ? "text-primary" : "text-slate-500"
+                                                    )}>{pipe.label}</span>
+                                                    {isExpanded ? <ChevronUp className="w-3 h-3 text-slate-400" /> : <ChevronDown className="w-3 h-3 text-slate-400" />}
+                                                </button>
+                                                {isExpanded && pipe.stages.map(stage => (
+                                                    <button
+                                                        key={stage.id}
+                                                        className={cn(
+                                                            "w-full text-left px-4 py-2 text-xs font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors",
+                                                            stage.name === contact.stage && "bg-primary/5 text-primary font-bold"
+                                                        )}
+                                                        onClick={() => {
+                                                            // TODO: Call moveLead via prop
+                                                            setStageOpen(false);
+                                                        }}
+                                                    >
+                                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: stage.color || '#94a3b8' }} />
+                                                        {stage.name}
+                                                        {stage.name === contact.stage && <Check className="w-3 h-3 ml-auto text-primary" />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        );
+                                    })}
+                                    {groupedPipelines.length === 0 && (
+                                        <div className="p-4 text-center text-xs text-muted-foreground">Carregando etapas...</div>
+                                    )}
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Search Toggle */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="icon"
+                                            variant={searchOpen ? "default" : "ghost"}
+                                            className={cn("h-7 w-7 rounded-md", searchOpen && "bg-primary text-white")}
+                                            onClick={() => { setSearchOpen(!searchOpen); setSearchQuery(""); setSearchIndex(0); }}
+                                        >
+                                            <Search className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Buscar na conversa</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            {/* IA Toggle Pill */}
+                            <div
+                                className={cn(
+                                    "flex items-center cursor-pointer select-none overflow-hidden rounded-full border transition-all duration-300 hover:shadow-sm h-7 w-[110px] shrink-0",
+                                    isAiActive ? "border-emerald-200" : "border-red-200"
+                                )}
+                                onClick={onToggleAi}
+                            >
+                                {isAiActive ? (
+                                    <>
+                                        <div className="w-[75%] bg-emerald-500 h-full flex items-center justify-center gap-1">
+                                            <Bot className="w-3 h-3 text-white" />
+                                            <span className="text-[9px] font-black text-white tracking-tighter uppercase">IA Ativa</span>
+                                        </div>
+                                        <div className="w-[25%] bg-white h-full flex items-center justify-center">
+                                            <PauseCircle className="w-3 h-3 text-slate-400" />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="w-[25%] bg-white h-full flex items-center justify-center">
+                                            <PlayCircle className="w-3 h-3 text-red-400" />
+                                        </div>
+                                        <div className="w-[75%] bg-red-500 h-full flex items-center justify-center gap-1">
+                                            <span className="text-[9px] font-black text-white tracking-tighter uppercase">Humano</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* === RIGHT: Drawers + Actions (50% bigger buttons) === */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            {/* Prontuário */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button size="icon" variant={prontuarioOpen ? "default" : "ghost"} className={cn("h-10 w-10 rounded-lg", prontuarioOpen ? "bg-primary text-white" : "hover:bg-primary/10 hover:text-primary")} onClick={() => { setProntuarioOpen(!prontuarioOpen); setMidiasOpen(false); setDocumentosOpen(false); }}>
+                                            <ClipboardList className="h-5 w-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Prontuário</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            {/* Mídias */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button size="icon" variant={midiasOpen ? "default" : "ghost"} className={cn("h-10 w-10 rounded-lg", midiasOpen ? "bg-primary text-white" : "hover:bg-primary/10 hover:text-primary")} onClick={() => { setMidiasOpen(!midiasOpen); setProntuarioOpen(false); setDocumentosOpen(false); }}>
+                                            <Image className="h-5 w-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Mídias</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            {/* Documentos */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button size="icon" variant={documentosOpen ? "default" : "ghost"} className={cn("h-10 w-10 rounded-lg", documentosOpen ? "bg-primary text-white" : "hover:bg-primary/10 hover:text-primary")} onClick={() => { setDocumentosOpen(!documentosOpen); setProntuarioOpen(false); setMidiasOpen(false); }}>
+                                            <File className="h-5 w-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Documentos</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            <div className="w-px h-7 bg-border/60" />
+
+                            {/* Agendamento */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-10 w-10 rounded-lg hover:bg-blue-50 hover:text-blue-600"
+                                            onClick={() => navigate('/agenda', { state: { action: 'new_appointment', leadId: contact.id } })}
+                                        >
+                                            <CalendarCheck className="h-5 w-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Agendar Consulta</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            {/* Tarefa */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button size="icon" variant="ghost" className="h-10 w-10 rounded-lg hover:bg-amber-50 hover:text-amber-600">
+                                            <ListTodo className="h-5 w-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Nova Tarefa</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            <div className="w-px h-7 bg-border/60" />
+
+                            {/* Resolver */}
+                            <Button
+                                size="sm"
+                                variant={contact.conversation_status === 'closed' ? "outline" : "default"}
+                                className={cn(
+                                    "h-10 gap-2 text-[11px] font-bold px-4 rounded-lg",
+                                    contact.conversation_status === 'closed'
+                                        ? "text-emerald-600 border-emerald-200 bg-emerald-50"
+                                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                )}
+                                onClick={onResolveConversation}
+                                disabled={contact.conversation_status === 'closed'}
+                            >
+                                <CheckCircle className="h-4 w-4" />
+                                {contact.conversation_status === 'closed' ? 'Resolvida' : 'Resolver'}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Search Bar (conditional) */}
+                    {searchOpen && (
+                        <div className="px-4 pb-2 flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Buscar mensagens..."
+                                    className="w-full h-8 bg-muted/30 border border-slate-200 rounded-lg pl-8 pr-3 text-xs font-manrope focus:outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-slate-400"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            {searchQuery && searchResults.length > 0 && (
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <span className="text-[10px] text-muted-foreground font-medium">
+                                        {searchIndex + 1}/{searchResults.length}
+                                    </span>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSearchPrev}>
+                                        <ChevronUp className="h-3 w-3" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSearchNext}>
+                                        <ChevronDown className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            )}
+                            {searchQuery && searchResults.length === 0 && (
+                                <span className="text-[10px] text-red-400 font-medium shrink-0">Nenhum resultado</span>
+                            )}
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setSearchOpen(false); setSearchQuery(""); }}>
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
+                {/* ========================= CONTENT AREA (chat + optional side panel) ========================= */}
+                <div className="flex flex-1 overflow-hidden">
+                    {/* Chat messages + input column */}
+                    <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-fixed opacity-70 mix-blend-multiply scrollbar-hide">
+                            {filteredMessages.map((msg) => {
+                                const isSearchMatch = searchQuery.trim() && msg.text.toLowerCase().includes(searchQuery.toLowerCase());
+                                const isCurrentResult = msg.id === currentSearchResultId;
+
+                                return (
+                                    <div
+                                        key={msg.id}
+                                        id={`msg-${msg.id}`}
+                                        className={cn(
+                                            "flex w-full transition-all duration-200",
+                                            msg.sender === 'user' ? "justify-start" : "justify-end",
+                                            isCurrentResult && "scale-[1.02]"
+                                        )}
+                                    >
+                                        <div
+                                            className={cn(
+                                                "max-w-[75%] rounded-[14px] px-3.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.06)] relative text-[15px] leading-[1.6] font-manrope font-normal transition-all",
+                                                msg.sender === 'user' && "bg-white dark:bg-zinc-800 rounded-tl-sm border border-slate-200/60 text-slate-800",
+                                                msg.sender === 'me' && "bg-[#d9fdd3] dark:bg-[#005c4b] rounded-tr-sm text-slate-900 dark:text-zinc-100 border border-[#bce8b3]",
+                                                msg.sender === 'ai' && "bg-zinc-900 text-white rounded-tr-sm border border-zinc-800",
+                                                msg.sender === 'system' && "bg-zinc-200/50 dark:bg-zinc-800/50 text-center text-[11px] font-bold text-slate-500 w-fit mx-auto px-3 py-1 rounded-full shadow-none bg-transparent my-2",
+                                                isCurrentResult && "ring-2 ring-yellow-400 shadow-lg shadow-yellow-200/50",
+                                                isSearchMatch && !isCurrentResult && "ring-1 ring-yellow-300/50"
+                                            )}
+                                        >
+                                            {msg.sender === 'ai' && (
+                                                <div className="text-[11px] font-semibold text-green-400 mb-1 flex items-center gap-1.5 uppercase tracking-wide font-manrope">
+                                                    <Bot className="h-3.5 w-3.5" /> Resposta IA
+                                                </div>
+                                            )}
+                                            {msg.metadata?.fileType === 'audio' && msg.metadata.url ? (
+                                                <div className="flex flex-col gap-2 min-w-[200px] py-1">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                                            <Mic className="w-4 h-4 text-primary" />
+                                                        </div>
+                                                        <audio
+                                                            controls
+                                                            className="h-8 max-w-full accent-primary bg-transparent"
+                                                            src={msg.metadata.url}
+                                                        >
+                                                            Seu navegador não suporta áudio.
+                                                        </audio>
+                                                    </div>
+                                                    <span className="text-[10px] opacity-70 italic">{msg.metadata.fileName || 'Mensagem de voz'}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="whitespace-pre-wrap">
+                                                    {searchQuery.trim() ? highlightText(msg.text, searchQuery) : msg.text}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center justify-end gap-1 mt-1 opacity-60">
+                                                <span className="text-[10px] font-medium">
+                                                    {msg.timestamp}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Quick Actions & Input */}
+                        <div className="bg-card border-t shadow-2xl z-10 px-6 py-3 space-y-2">
+                            {/* ── Row 1: Shortcuts + Send Button ── */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Zap className="h-3.5 w-3.5 text-yellow-500" />
+                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Atalho</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSlashOpen(!slashOpen)}
+                                        className="h-7 px-3 rounded-full text-[12px] font-semibold font-manrope text-zinc-600 hover:bg-emerald-50 transition-all bg-zinc-50 border border-primary/10"
+                                    >
+                                        Respostas Rápidas ( / )
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsMediaModalOpen(true)}
+                                        className="h-7 px-3 rounded-full text-[12px] font-semibold font-manrope text-zinc-600 hover:bg-emerald-50 transition-all bg-zinc-50 border border-emerald-100"
+                                    >
+                                        <Folder className="h-3.5 w-3.5 mr-1.5" />
+                                        Mídias de Apoio
+                                    </Button>
+                                </div>
+
+                                {/* Send button — always in top-right */}
+                                {!isRecording && !isPreviewMode && (
+                                    <Button
+                                        size="sm"
+                                        disabled={uploadingFiles || (!inputValue.trim() && selectedFiles.length === 0)}
+                                        className={cn(
+                                            "h-8 px-4 rounded-xl shrink-0 shadow transition-all active:scale-95 gap-1.5 text-[13px] font-bold",
+                                            (inputValue.trim() || selectedFiles.length > 0)
+                                                ? "bg-primary hover:bg-primary/90 text-white shadow-primary/20"
+                                                : "bg-zinc-100 text-zinc-400 shadow-none cursor-not-allowed"
+                                        )}
+                                        onClick={handleSend}
+                                    >
+                                        {uploadingFiles
+                                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                                            : <Send className="h-4 w-4" />}
+                                        Enviar
+                                    </Button>
+                                )}
+                            </div>
+
+                            {/* ── Row 2: Icons + Textarea ── */}
+                            <div className="flex items-end gap-1">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    multiple
+                                    className="hidden"
+                                />
+
+                                <TooltipProvider>
+                                    <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button size="icon" variant="ghost" className="h-10 w-10 shrink-0 text-zinc-400 hover:text-primary transition-colors">
+                                                <Smile className="h-5 w-5" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent side="top" align="start" className="p-0 border-none shadow-xl">
+                                            <EmojiPicker
+                                                onEmojiClick={onEmojiClick}
+                                                autoFocusSearch={false}
+                                                theme={Theme.LIGHT}
+                                                width={350}
+                                                height={400}
+                                                searchPlaceholder="Pesquisar emoji..."
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-10 w-10 shrink-0 text-zinc-400 hover:text-primary transition-colors"
+                                                onClick={() => fileInputRef.current?.click()}
+                                            >
+                                                <Paperclip className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Anexar Arquivo</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className={cn(
+                                                    "h-10 w-10 shrink-0 text-zinc-400 hover:text-red-500 transition-colors",
+                                                    isRecording && "text-red-500 animate-pulse bg-red-50"
+                                                )}
+                                                onClick={isRecording ? stopRecording : startRecording}
+                                            >
+                                                <Mic className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{isRecording ? 'Parar Gravação' : 'Gravar Áudio'}</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+
+                                <div className="flex-1 relative">
+                                    {isRecording ? (
+                                        <div className="w-full h-12 bg-red-50/50 border border-red-200 rounded-2xl py-2 px-6 flex items-center justify-between animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="flex items-center gap-3">
+                                                {/* Left: Discard */}
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 text-slate-400 hover:text-red-500 rounded-lg"
+                                                    onClick={cancelRecording}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+
+                                                {/* Center Controls */}
+                                                <div className="flex items-center gap-4 px-4 border-l border-r border-red-100">
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full"
+                                                        onClick={isPaused ? resumeRecording : pauseRecording}
+                                                    >
+                                                        {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                                                    </Button>
+
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={cn("w-1.5 h-1.5 rounded-full bg-red-500", !isPaused && "animate-pulse")} />
+                                                        <span className="text-sm font-bold text-red-600 font-mono w-12">{formatTime(recordingTime)}</span>
+                                                    </div>
+
+                                                    <div className="flex gap-0.5 items-end h-4 min-w-[32px]">
+                                                        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                                                            <div
+                                                                key={i}
+                                                                className={cn(
+                                                                    "w-1 bg-red-300 rounded-full",
+                                                                    !isPaused && "animate-wave"
+                                                                )}
+                                                                style={{
+                                                                    height: isPaused ? '30%' : `${20 + Math.random() * 80}%`,
+                                                                    animationDelay: `${i * 0.1}s`
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Right: Stop & Preview */}
+                                            <Button
+                                                size="sm"
+                                                className="bg-zinc-800 hover:bg-zinc-900 text-white h-8 gap-1.5 px-3 rounded-xl shadow-sm border-none"
+                                                onClick={stopAndPreviewRecord}
+                                            >
+                                                <Square className="w-3 h-3 fill-current" />
+                                                Ouvir
+                                            </Button>
+                                        </div>
+                                    ) : isPreviewMode ? (
+                                        <div className="w-full h-12 bg-primary/5 border border-primary/20 rounded-2xl py-2 px-6 flex items-center justify-between animate-in fade-in zoom-in-95 duration-200">
+                                            <div className="flex items-center gap-4 flex-1">
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 text-slate-400 hover:text-red-500"
+                                                    onClick={handleDiscardPreview}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+
+                                                <div className="flex-1 max-w-[300px]">
+                                                    <audio
+                                                        src={audioPreviewUrl || ''}
+                                                        controls
+                                                        className="h-8 w-full accent-primary bg-transparent"
+                                                    />
+                                                </div>
+
+                                                <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Preview</span>
+                                            </div>
+
+                                            <Button
+                                                size="sm"
+                                                className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 gap-2 px-4 rounded-xl shadow-lg shadow-emerald-200 transition-all active:scale-95"
+                                                onClick={handleSendAudioPreview}
+                                            >
+                                                <Send className="w-4 h-4" />
+                                                Enviar
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* File Previews */}
+                                            {selectedFiles.length > 0 && (
+                                                <div className="absolute bottom-full left-0 mb-3 flex flex-wrap gap-2 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg z-20 animate-in fade-in slide-in-from-bottom-2">
+                                                    {selectedFiles.map((file, idx) => (
+                                                        <div key={idx} className="relative group bg-slate-50 dark:bg-zinc-800 rounded-lg p-2 border border-slate-200 dark:border-zinc-700 flex items-center gap-2 max-w-[200px]">
+                                                            {file.type.startsWith('image/') ? (
+                                                                <div className="w-8 h-8 rounded bg-slate-200 overflow-hidden shrink-0">
+                                                                    <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                                                                </div>
+                                                            ) : file.type.includes('pdf') ? (
+                                                                <FileText className="w-8 h-8 text-red-500 shrink-0" />
+                                                            ) : file.type.startsWith('video/') ? (
+                                                                <Film className="w-8 h-8 text-blue-500 shrink-0" />
+                                                            ) : (
+                                                                <File className="w-8 h-8 text-slate-400 shrink-0" />
+                                                            )}
+                                                            <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300 truncate">{file.name}</span>
+                                                            <button
+                                                                onClick={() => removeSelectedFile(idx)}
+                                                                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <Popover open={slashOpen} onOpenChange={setSlashOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <div className="w-full" />
+                                                </PopoverTrigger>
+                                                <PopoverContent
+                                                    side="top"
+                                                    align="start"
+                                                    className="w-[400px] p-0 mb-2 overflow-hidden shadow-2xl border-primary/20"
+                                                    onOpenAutoFocus={(e) => e.preventDefault()}
+                                                >
+                                                    <div className="bg-primary/5 px-4 py-2 border-b flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Respostas Rápidas</span>
+                                                        <span className="text-[9px] text-primary/60 font-medium">Use / para filtrar</span>
+                                                    </div>
+                                                    <div className="max-h-[300px] overflow-y-auto p-2 space-y-3">
+                                                        {Object.entries(groupedReplies).map(([category, items]) => (
+                                                            <div key={category} className="space-y-1">
+                                                                <h4 className="px-2 text-[9px] font-bold text-slate-400 uppercase tracking-wider">{category}</h4>
+                                                                {items.map(reply => (
+                                                                    <button
+                                                                        key={reply.id}
+                                                                        onClick={() => selectReply(reply)}
+                                                                        className="w-full text-left px-2 py-2 rounded-lg hover:bg-slate-50 transition-colors group flex flex-col"
+                                                                    >
+                                                                        <span className="text-[13px] font-bold text-slate-700 group-hover:text-primary transition-colors">{reply.titulo}</span>
+                                                                        <span className="text-[11px] text-slate-500 line-clamp-1 group-hover:text-slate-600">{reply.conteudo}</span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        ))}
+                                                        {filteredReplies.length === 0 && (
+                                                            <div className="py-8 text-center text-xs text-muted-foreground italic">
+                                                                Nenhuma resposta encontrada para "{slashQuery}"
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+
+                                            {/* Emoji shortcode floating suggestions */}
+                                            {showEmojiSuggestions && emojiSuggestions.length > 0 && (
+                                                <div className="absolute bottom-full left-0 mb-2 flex items-center gap-1 p-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-30 animate-in fade-in slide-in-from-bottom-1 duration-150">
+                                                    {emojiSuggestions.map(({ emoji, label }) => (
+                                                        <button
+                                                            key={label}
+                                                            type="button"
+                                                            onClick={() => insertEmojiShortcode(emoji)}
+                                                            className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors group"
+                                                            title={`!${label}`}
+                                                        >
+                                                            <span className="text-xl">{emoji}</span>
+                                                            <span className="text-[9px] text-zinc-400 group-hover:text-primary font-mono">{label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <div className="w-full bg-white border border-zinc-200 rounded-2xl py-2 px-6 focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-primary text-[15px] font-normal font-manrope">
+                                                {editor && (
+                                                    <BubbleMenu editor={editor}>
+                                                        <div className="flex items-center gap-0.5 px-2 py-1.5 bg-zinc-900 rounded-xl shadow-2xl border border-zinc-700/50">
+                                                            <button
+                                                                onClick={() => editor.chain().focus().toggleBold().run()}
+                                                                className={cn("h-7 w-7 flex items-center justify-center rounded-lg text-white hover:bg-white/15", editor.isActive('bold') && 'bg-primary text-white')}
+                                                            >
+                                                                <span className="font-bold">B</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => editor.chain().focus().toggleItalic().run()}
+                                                                className={cn("h-7 w-7 flex items-center justify-center rounded-lg text-white hover:bg-white/15", editor.isActive('italic') && 'bg-primary text-white')}
+                                                            >
+                                                                <span className="italic font-serif">I</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => editor.chain().focus().toggleStrike().run()}
+                                                                className={cn("h-7 w-7 flex items-center justify-center rounded-lg text-white hover:bg-white/15", editor.isActive('strike') && 'bg-primary text-white')}
+                                                            >
+                                                                <span className="line-through">S</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                                                                className={cn("h-7 w-7 flex items-center justify-center rounded-lg text-white hover:bg-white/15", editor.isActive('underline') && 'bg-primary text-white')}
+                                                            >
+                                                                <span className="underline">U</span>
+                                                            </button>
+                                                            <div className="w-px h-4 bg-zinc-700 mx-1" />
+                                                            <button
+                                                                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                                                                className={cn("h-7 w-7 flex items-center justify-center rounded-lg text-white hover:bg-white/15", editor.isActive('bulletList') && 'bg-primary text-white')}
+                                                            >
+                                                                <List className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                                                                className={cn("h-7 w-7 flex items-center justify-center rounded-lg text-white hover:bg-white/15", editor.isActive('orderedList') && 'bg-primary text-white')}
+                                                            >
+                                                                <ListOrdered className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </BubbleMenu>
+                                                )}
+                                                <EditorContent
+                                                    editor={editor}
+                                                    className="flex-1 w-full"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ========================= SIDE PANEL DRAWERS (below header) ========================= */}
+
+                    {/* Prontuário Side Panel */}
+                    {prontuarioOpen && (
+                        <div className="w-[380px] shrink-0 border-l bg-card flex flex-col overflow-hidden animate-in slide-in-from-right-5 duration-300">
+                            <div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <ClipboardList className="w-4 h-4 text-primary" />
+                                    <h3 className="text-sm font-bold text-slate-900">Prontuário</h3>
+                                </div>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setProntuarioOpen(false)}>
+                                    <X className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground px-4 pt-2">Resumo clínico de {contact.name}</p>
+
+                            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 [&::-webkit-scrollbar]:hidden">
+                                <div className="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Informações</h4>
+                                    <div className="space-y-1 text-xs">
+                                        <p className="font-medium text-slate-900">{contact.name}</p>
+                                        <p className="text-slate-500">Canal: {contact.channel} • Etapa: {contact.stage || '—'}</p>
+                                    </div>
+                                </div>
+
+                                {leadDetails && (
+                                    <>
+                                        {leadDetails.allergies && (
+                                            <div className="rounded-lg border border-emerald-200 p-3 bg-emerald-50">
+                                                <h4 className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-1">⚠️ Alergias</h4>
+                                                <p className="text-xs text-emerald-800">{leadDetails.allergies}</p>
+                                            </div>
+                                        )}
+                                        {leadDetails.complaint && (
+                                            <div className="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Queixa Principal</h4>
+                                                <p className="text-xs text-slate-700">{leadDetails.complaint}</p>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                <div>
+                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Últimas Notas Clínicas</h4>
+                                    {loadingNotes ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                                        </div>
+                                    ) : clinicalNotes.length === 0 ? (
+                                        <p className="text-xs text-slate-400 italic text-center py-4">Nenhuma nota registrada.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {clinicalNotes.map(note => {
+                                                const cfg = noteTypeConfig[note.type] || noteTypeConfig.evolution;
+                                                return (
+                                                    <div key={note.id} className="rounded-lg border border-slate-200 p-3 bg-white space-y-1.5 hover:shadow-sm transition-shadow">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className={cn("w-1.5 h-1.5 rounded-full", cfg.dot)} />
+                                                                <Badge className={cn("text-[9px] font-bold h-4 px-1.5 border-none shadow-none", cfg.color)}>
+                                                                    {cfg.label}
+                                                                </Badge>
+                                                            </div>
+                                                            <span className="text-[10px] text-slate-400 font-medium">
+                                                                {new Date(note.created_at).toLocaleDateString('pt-BR')}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-700 leading-relaxed line-clamp-3">{note.content}</p>
+                                                        <p className="text-[9px] text-slate-400 italic">
+                                                            por {note.professional?.name || 'Equipe Clínica'}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="border-t p-3 shrink-0">
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-2 text-xs font-semibold"
+                                    onClick={() => { setProntuarioOpen(false); navigate(buildExpandLink('prontuario')); }}
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    Ver Prontuário Completo
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mídias Side Panel */}
+                    {midiasOpen && (
+                        <div className="w-[380px] shrink-0 border-l bg-card flex flex-col overflow-hidden animate-in slide-in-from-right-5 duration-300">
+                            <div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <Image className="w-4 h-4 text-primary" />
+                                    <h3 className="text-sm font-bold text-slate-900">Mídias</h3>
+                                </div>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setMidiasOpen(false)}>
+                                    <X className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground px-4 pt-2">Galeria de imagens de {contact.name}</p>
+
+                            <div className="flex-1 overflow-y-auto px-4 py-3 [&::-webkit-scrollbar]:hidden">
+                                {loadingGallery ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                                    </div>
+                                ) : galleryItems.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                                            <Image className="w-6 h-6 text-slate-300" />
+                                        </div>
+                                        <p className="text-xs text-slate-400">Nenhuma mídia anexada.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {galleryItems.map(item => (
+                                            <div
+                                                key={item.id}
+                                                className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer group relative hover:ring-2 hover:ring-primary/30 transition-all"
+                                            >
+                                                <img
+                                                    src={item.thumbnail || item.url}
+                                                    alt={item.description || 'Mídia'}
+                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                                    crossOrigin="anonymous"
+                                                />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <Badge className="text-[8px] bg-white/90 text-slate-700 border-none shadow-sm">
+                                                        {item.category || 'Imagem'}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="border-t p-3 shrink-0">
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-2 text-xs font-semibold"
+                                    onClick={() => { setMidiasOpen(false); navigate(buildExpandLink('galeria')); }}
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    Ver Galeria Completa
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Documentos Side Panel */}
+                    {documentosOpen && (
+                        <div className="w-[380px] shrink-0 border-l bg-card flex flex-col overflow-hidden animate-in slide-in-from-right-5 duration-300">
+                            <div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-primary" />
+                                    <h3 className="text-sm font-bold text-slate-900">Documentos</h3>
+                                </div>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDocumentosOpen(false)}>
+                                    <X className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground px-4 pt-2">Documentos de {contact.name}</p>
+
+                            <div className="flex-1 overflow-y-auto px-4 py-3 [&::-webkit-scrollbar]:hidden">
+                                {loadingDocs ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                                    </div>
+                                ) : documents.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                                            <FileText className="w-6 h-6 text-slate-300" />
+                                        </div>
+                                        <p className="text-xs text-slate-400">Nenhum documento.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {documents.map(doc => {
+                                            const status = docStatusConfig[doc.status] || docStatusConfig.draft;
+                                            return (
+                                                <div
+                                                    key={doc.id}
+                                                    className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:shadow-sm transition-shadow cursor-pointer group"
+                                                >
+                                                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
+                                                        <FileText className="w-4 h-4 text-slate-500 group-hover:text-primary" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-semibold text-slate-900 truncate">{doc.title}</p>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <Badge className={cn("text-[8px] font-bold h-4 px-1.5 border-none shadow-none", status.color)}>
+                                                                {status.label}
+                                                            </Badge>
+                                                            <span className="text-[9px] text-slate-400">
+                                                                {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <Download className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="border-t p-3 shrink-0">
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-2 text-xs font-semibold"
+                                    onClick={() => { setDocumentosOpen(false); navigate(buildExpandLink('documentos')); }}
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    Ver Documentos Completos
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ========================= MODALS ========================= */}
+
+                    {/* Support Media Modal */}
+                    <Dialog open={isMediaModalOpen} onOpenChange={(open) => !open && resetMediaModal()}>
+                        <DialogContent className="max-w-3xl h-[80vh] flex flex-col p-0 overflow-hidden border-primary/10">
+                            {!isConfirmingMedia ? (
+                                <>
+                                    {/* Header */}
+                                    <DialogHeader className="p-5 pb-3 border-b bg-white shrink-0">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <DialogTitle className="text-lg font-bold font-space flex items-center gap-2">
+                                                    {selectedSupportFolder && (
+                                                        <button
+                                                            onClick={handleFolderBack}
+                                                            className="p-1.5 -ml-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                                                        >
+                                                            <ArrowLeft className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <div className={cn(
+                                                        "p-1.5 rounded-lg",
+                                                        selectedSupportFolder
+                                                            ? selectedSupportFolder.tipo === 'institucional' ? "bg-emerald-50" : selectedSupportFolder.tipo === 'servico' ? "bg-blue-50" : "bg-slate-50"
+                                                            : "bg-emerald-50"
+                                                    )}>
+                                                        <Folder className={cn(
+                                                            "w-4 h-4",
+                                                            selectedSupportFolder
+                                                                ? selectedSupportFolder.tipo === 'institucional' ? "text-emerald-600" : selectedSupportFolder.tipo === 'servico' ? "text-blue-600" : "text-slate-500"
+                                                                : "text-emerald-600"
+                                                        )} />
+                                                    </div>
+                                                    <span className="truncate">
+                                                        {selectedSupportFolder ? selectedSupportFolder.nome : 'Biblioteca de Mídias'}
+                                                    </span>
+                                                </DialogTitle>
+                                                <DialogDescription className="sr-only">
+                                                    {selectedSupportFolder ? 'Selecione mídias para enviar' : 'Escolha uma pasta'}
+                                                </DialogDescription>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <div className="relative w-56">
+                                                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                                    <input
+                                                        className="w-full h-9 pl-9 pr-4 rounded-full border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
+                                                        placeholder={selectedSupportFolder ? 'Buscar arquivo...' : 'Buscar pasta...'}
+                                                        value={mediaSearchQuery}
+                                                        onChange={handleMediaSearch}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Type Filters — only shown inside a folder */}
+                                        {selectedSupportFolder && (
+                                            <div className="flex items-center justify-between mt-3 pt-2">
+                                                <Tabs value={mediaTypeFilter} onValueChange={setMediaTypeFilter} className="flex-1">
+                                                    <TabsList className="bg-muted/50 p-1 h-9 rounded-full">
+                                                        {MEDIA_TABS.map(tab => (
+                                                            <TabsTrigger
+                                                                key={tab.value}
+                                                                value={tab.value}
+                                                                className="rounded-full px-3.5 text-[11px] font-bold uppercase tracking-wider data-[state=active]:shadow-sm"
+                                                            >
+                                                                <tab.icon className="w-3.5 h-3.5 mr-1.5 hidden sm:inline" />
+                                                                {tab.label}
+                                                            </TabsTrigger>
+                                                        ))}
+                                                    </TabsList>
+                                                </Tabs>
+
+                                                <div className="flex items-center bg-muted rounded-lg p-1 shrink-0 ml-3">
+                                                    <Button
+                                                        variant={mediaLayout === 'grid' ? 'secondary' : 'ghost'}
+                                                        size="icon"
+                                                        className="h-7 w-7 rounded-md"
+                                                        onClick={() => setMediaLayout('grid')}
+                                                    >
+                                                        <LayoutGrid className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        variant={mediaLayout === 'list' ? 'secondary' : 'ghost'}
+                                                        size="icon"
+                                                        className="h-7 w-7 rounded-md"
+                                                        onClick={() => setMediaLayout('list')}
+                                                    >
+                                                        <List className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </DialogHeader>
+
+                                    {/* Content Area */}
+                                    <div className="flex-1 overflow-y-auto p-5 scrollbar-hide">
+                                        {loadingMedia ? (
+                                            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                                                <Loader2 className="w-8 h-8 animate-spin mb-3 text-primary/40" />
+                                                <p className="text-xs font-medium animate-pulse">Carregando...</p>
+                                            </div>
+                                        ) : !selectedSupportFolder ? (
+                                            /* ===== LEVEL 1: Folder Grid ===== */
+                                            <div className="animate-in fade-in slide-in-from-left-2 duration-200">
+                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                    {filteredSupportFolders.map(folder => {
+                                                        const count = mediaCountByFolder[folder.id] || 0;
+                                                        const typeColor = folder.tipo === 'institucional'
+                                                            ? { bg: 'bg-emerald-50', text: 'text-emerald-600', hoverBg: 'hover:border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' }
+                                                            : folder.tipo === 'servico'
+                                                                ? { bg: 'bg-blue-50', text: 'text-blue-600', hoverBg: 'hover:border-blue-200', badge: 'bg-blue-100 text-blue-700' }
+                                                                : { bg: 'bg-slate-50', text: 'text-slate-500', hoverBg: 'hover:border-slate-300', badge: 'bg-slate-100 text-slate-600' };
+                                                        return (
+                                                            <div
+                                                                key={folder.id}
+                                                                onClick={() => { setSelectedSupportFolder(folder); setMediaSearchQuery(''); setMediaTypeFilter('all'); }}
+                                                                className={cn(
+                                                                    "group relative border rounded-xl p-4 flex flex-col items-center gap-2.5 transition-all cursor-pointer bg-white",
+                                                                    "hover:shadow-md", typeColor.hoverBg
+                                                                )}
+                                                            >
+                                                                {/* Folder Icon */}
+                                                                <div className={cn("p-3.5 rounded-2xl transition-colors", typeColor.bg)}>
+                                                                    <Folder className={cn("w-7 h-7", typeColor.text)} />
+                                                                </div>
+
+                                                                {/* Folder Name */}
+                                                                <div className="text-center w-full">
+                                                                    <p className="text-sm font-bold text-slate-800 truncate px-1">{folder.nome}</p>
+                                                                    {folder.descricao && (
+                                                                        <p className="text-[10px] text-muted-foreground truncate px-1 mt-0.5">{folder.descricao}</p>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Footer: tipo badge + count */}
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className={cn("text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider", typeColor.badge)}>
+                                                                        {folder.tipo}
+                                                                    </span>
+                                                                    {count > 0 && (
+                                                                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold">
+                                                                            {count}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {filteredSupportFolders.length === 0 && (
+                                                    <div className="py-16 text-center text-muted-foreground opacity-50">
+                                                        <FolderSearch className="w-12 h-12 mx-auto mb-3" />
+                                                        <p className="font-medium">Nenhuma pasta encontrada.</p>
+                                                        {mediaSearchQuery && <p className="text-xs mt-1">Tente outro termo de busca.</p>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : filteredSupportMedia.length === 0 ? (
+                                            /* ===== LEVEL 2: Empty State ===== */
+                                            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-60 animate-in fade-in duration-200">
+                                                <div className="relative mb-4">
+                                                    <FolderSearch className="w-16 h-16 text-slate-200" />
+                                                    <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 border shadow-sm">
+                                                        <Search className="w-4 h-4 text-primary" />
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm font-bold text-slate-600">
+                                                    {mediaTypeFilter === 'all'
+                                                        ? 'Nenhuma mídia nesta pasta'
+                                                        : `Nenhum(a) ${MEDIA_TABS.find(t => t.value === mediaTypeFilter)?.label.toLowerCase()} encontrado(a)`
+                                                    }
+                                                </p>
+                                                <p className="text-xs mt-1">Tente outros termos ou mude o filtro.</p>
+                                            </div>
+                                        ) : mediaLayout === 'grid' ? (
+                                            /* ===== LEVEL 2: Grid View ===== */
+                                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 animate-in fade-in slide-in-from-right-2 duration-200">
+                                                {filteredSupportMedia.map((item) => {
+                                                    const isSelected = selectedMedia.some(f => f.id === item.id);
+                                                    const isPrivate = isPrivateBucket(item.url);
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            onClick={() => !isPrivate && toggleMediaSelection(item)}
+                                                            className={cn(
+                                                                "group relative bg-white border rounded-xl overflow-hidden transition-all",
+                                                                isPrivate
+                                                                    ? "opacity-50 cursor-not-allowed"
+                                                                    : "cursor-pointer hover:shadow-md",
+                                                                isSelected ? "ring-2 ring-primary border-transparent shadow-lg" : "border-slate-200"
+                                                            )}
+                                                        >
+                                                            <div className="aspect-square bg-slate-50 flex items-center justify-center relative overflow-hidden">
+                                                                {isPrivate ? (
+                                                                    <div className="flex flex-col items-center gap-1.5 p-3 text-center">
+                                                                        <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+                                                                        <span className="text-[9px] text-slate-400 font-medium">Bucket privado</span>
+                                                                    </div>
+                                                                ) : item.tipo_arquivo === 'image' && (item.thumbnail_url || item.url) ? (
+                                                                    <img src={item.thumbnail_url || item.url} alt={item.nome} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                                ) : (
+                                                                    <div className="flex flex-col items-center gap-1 p-2">
+                                                                        {item.tipo_arquivo === 'video' && <Film className="w-8 h-8 text-purple-400" />}
+                                                                        {item.tipo_arquivo === 'audio' && <Music className="w-8 h-8 text-amber-400" />}
+                                                                        {(item.tipo_arquivo === 'document' || !['image', 'video', 'audio'].includes(item.tipo_arquivo)) && <FileText className="w-8 h-8 text-slate-400" />}
+                                                                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{item.tipo_arquivo}</span>
+                                                                    </div>
+                                                                )}
+
+                                                                {isSelected && (
+                                                                    <div className="absolute inset-0 bg-primary/20 flex items-start justify-end p-2">
+                                                                        <div className="h-5 w-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                                                            <Check className="w-3.5 h-3.5 text-primary" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="p-2 border-t">
+                                                                <p className="text-[11px] font-bold text-slate-700 truncate">{item.nome}</p>
+                                                                <span className="text-[9px] text-muted-foreground uppercase font-semibold">{item.tipo_arquivo}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            /* ===== LEVEL 2: List View ===== */
+                                            <div className="space-y-2 animate-in fade-in slide-in-from-right-2 duration-200">
+                                                {filteredSupportMedia.map((item) => {
+                                                    const isSelected = selectedMedia.some(f => f.id === item.id);
+                                                    const isPrivate = isPrivateBucket(item.url);
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            onClick={() => !isPrivate && toggleMediaSelection(item)}
+                                                            className={cn(
+                                                                "group flex items-center justify-between p-3 rounded-xl border bg-white transition-all",
+                                                                isPrivate
+                                                                    ? "opacity-50 cursor-not-allowed"
+                                                                    : "cursor-pointer hover:shadow-sm",
+                                                                isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-200"
+                                                            )}
+                                                        >
+                                                            <div className="flex items-center gap-4 min-w-0">
+                                                                <div className="h-12 w-12 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                                                                    {isPrivate ? (
+                                                                        <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+                                                                    ) : item.tipo_arquivo === 'image' && (item.thumbnail_url || item.url) ? (
+                                                                        <img src={item.thumbnail_url || item.url} alt={item.nome} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                                    ) : (
+                                                                        <>
+                                                                            {item.tipo_arquivo === 'video' && <Film className="w-5 h-5 text-purple-400" />}
+                                                                            {item.tipo_arquivo === 'audio' && <Music className="w-5 h-5 text-amber-400" />}
+                                                                            {(item.tipo_arquivo === 'document' || !['image', 'video', 'audio'].includes(item.tipo_arquivo)) && <FileText className="w-5 h-5 text-slate-400" />}
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-bold text-slate-800 truncate">{item.nome}</p>
+                                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                                        <Badge variant="outline" className="text-[9px] h-4 uppercase">{item.tipo_arquivo}</Badge>
+                                                                        {isPrivate && <span className="text-[9px] text-amber-500 font-medium">Link privado</span>}
+                                                                        {item.created_at && <span className="text-[10px] text-slate-400">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {!isPrivate && <Checkbox checked={isSelected} className="rounded-full shadow-none border-slate-300" />}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div className="p-4 border-t bg-white flex items-center justify-between shrink-0">
+                                        <div className="text-xs font-medium text-slate-500">
+                                            {selectedSupportFolder
+                                                ? selectedMedia.length === 0
+                                                    ? `${filteredSupportMedia.length} arquivo(s) disponível(is)`
+                                                    : `${selectedMedia.length} selecionado(s)`
+                                                : `${filteredSupportFolders.length} pasta(s)`
+                                            }
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" size="sm" onClick={resetMediaModal}>Cancelar</Button>
+                                            {selectedSupportFolder && (
+                                                <Button
+                                                    size="sm"
+                                                    disabled={selectedMedia.length === 0}
+                                                    onClick={handleConfirmMediaSend}
+                                                    className="bg-primary hover:bg-primary/90 font-bold"
+                                                >
+                                                    Continuar ({selectedMedia.length})
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                /* ===== CONFIRMATION STEP ===== */
+                                <>
+                                    <DialogHeader className="p-6 pb-2 border-b">
+                                        <DialogTitle className="text-xl font-bold font-space flex items-center gap-2">
+                                            <AlertTriangle className="w-5 h-5 text-amber-500" />
+                                            Confirmar Envio
+                                        </DialogTitle>
+                                        <DialogDescription className="text-xs mt-1">
+                                            Deseja enviar {selectedMedia.length} arquivo(s) para o paciente <strong>{contact?.name}</strong>?
+                                        </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                        <div className="bg-slate-50 rounded-xl p-4 border space-y-2">
+                                            {selectedMedia.map(file => (
+                                                <div key={file.id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                        <div className="h-8 w-8 bg-slate-50 rounded flex items-center justify-center shrink-0">
+                                                            {file.tipo_arquivo === 'image' && <Image className="w-4 h-4 text-emerald-500" />}
+                                                            {file.tipo_arquivo === 'video' && <Film className="w-4 h-4 text-blue-500" />}
+                                                            {file.tipo_arquivo === 'audio' && <Music className="w-4 h-4 text-amber-500" />}
+                                                            {file.tipo_arquivo === 'document' && <FileText className="w-4 h-4 text-slate-500" />}
+                                                        </div>
+                                                        <span className="text-[13px] font-medium text-slate-700 truncate">{file.nome}</span>
+                                                    </div>
+                                                    <Badge variant="outline" className="text-[9px] uppercase tracking-tighter opacity-70">
+                                                        {file.tipo_arquivo}
+                                                    </Badge>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="text-center py-2">
+                                            <p className="text-xs text-muted-foreground italic">
+                                                As mídias serão enviadas individualmente via Evolution API.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 border-t bg-white flex items-center justify-end gap-3">
+                                        <Button variant="ghost" size="sm" onClick={() => setIsConfirmingMedia(false)} disabled={sendingMedia}>
+                                            Voltar para seleção
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => handleSendMedia(selectedMedia, true)}
+                                            disabled={sendingMedia}
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-8"
+                                        >
+                                            {sendingMedia ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                    Enviando...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Send className="w-4 h-4 mr-2" />
+                                                    Confirmar Envio
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </div>
+        </>
+    );
+}

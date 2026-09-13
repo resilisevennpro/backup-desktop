@@ -1,0 +1,1516 @@
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useServicesStore } from "@/store/useServicesStore";
+import {
+    Users,
+    Crown,
+    Clock,
+    AlertTriangle,
+    Cake,
+    Phone,
+    MoreHorizontal,
+    CalendarDays,
+    FileText,
+    Send,
+    Check,
+    TrendingUp,
+    DollarSign,
+    RefreshCw,
+    Search,
+    ChevronLeft,
+    ChevronRight,
+    Filter,
+    X,
+    Syringe,
+    Info,
+    Timer,
+    FileSpreadsheet,
+    FileType2,
+    Download
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import {
+    format,
+    subMonths,
+    subDays,
+    differenceInMonths,
+    formatDistanceToNow,
+    startOfMonth,
+    endOfMonth,
+    startOfWeek,
+    endOfWeek,
+    startOfYear,
+    differenceInDays,
+    startOfDay,
+    endOfDay
+} from "date-fns";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+
+// =============================================================================
+// TYPES
+// =============================================================================
+type PatientTier = "vip" | "ativo" | "novo" | "ausente" | "inativo" | "recorrente";
+
+interface Patient {
+    id: string;
+    name: string;
+    avatar?: string;
+    phone: string;
+    email?: string;
+    birthday?: string; // ISO date (birthDate)
+    hasAllergy: boolean;
+    tier: PatientTier;
+    ltv: number;
+    outstandingBalance?: number; // New field
+    lastProcedure?: {
+        name: string;
+        date: string; // ISO date
+    };
+    nextAppointment?: string; // ISO date
+    createdAt: string; // patientSince - ISO date
+    lastVisitAt?: string; // ISO date
+    sales_cycle_days?: number;
+    salesCount: number;
+    stage?: string;
+    nextAppointmentId?: string;
+}
+
+// =============================================================================
+// MOCK DATA (Estética/Odonto) - with diverse procedures and birthdays
+// =============================================================================
+// =============================================================================
+// MOCK DATA REMOVED - using real Supabase data
+// =============================================================================
+
+// =============================================================================
+// TIER CONFIG
+// =============================================================================
+const TIER_CONFIG: Record<PatientTier, { label: string; color: string; bgColor: string }> = {
+    vip: { label: "VIP (Diamante)", color: "text-purple-700", bgColor: "bg-purple-50 border-purple-200" },
+    ativo: { label: "Ativo", color: "text-emerald-700", bgColor: "bg-emerald-50 border-emerald-200" },
+    novo: { label: "Novo", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },
+    recorrente: { label: "Recorrente", color: "text-blue-600", bgColor: "bg-blue-100 border-blue-200" },
+    ausente: { label: "Inativo", color: "text-rose-700", bgColor: "bg-rose-50 border-rose-200" },
+    inativo: { label: "Inativo", color: "text-rose-700", bgColor: "bg-rose-50 border-rose-200" },
+};
+
+// =============================================================================
+// TABS CONFIG
+// =============================================================================
+type TabKey = "todos" | "ativos" | "vips" | "retorno" | "aniversariantes" | "inativos" | "devedores" | "assinaturas";
+
+const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
+    { key: "todos", label: "Todos", icon: Users },
+    { key: "ativos", label: "Ativos", icon: TrendingUp },
+    { key: "vips", label: "VIPs (Diamante)", icon: Crown },
+    { key: "retorno", label: "Para Retorno", icon: Clock },
+    { key: "aniversariantes", label: "Aniversariantes", icon: Cake },
+    { key: "inativos", label: "Inativos (Risco)", icon: AlertTriangle },
+    { key: "devedores", label: "Saldos em Aberto", icon: DollarSign },
+    { key: "assinaturas", label: "Assinaturas Pendentes", icon: FileText },
+];
+
+// =============================================================================
+// MONTHS CONFIG - Dynamic with current month first
+// =============================================================================
+const getCurrentMonthLabel = () => {
+    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const currentMonth = new Date().getMonth();
+    return monthNames[currentMonth];
+};
+
+const MONTHS = [
+    { value: "current", label: `Mês Atual (${getCurrentMonthLabel()})` },
+    { value: "1", label: "Janeiro" },
+    { value: "2", label: "Fevereiro" },
+    { value: "3", label: "Março" },
+    { value: "4", label: "Abril" },
+    { value: "5", label: "Maio" },
+    { value: "6", label: "Junho" },
+    { value: "7", label: "Julho" },
+    { value: "8", label: "Agosto" },
+    { value: "9", label: "Setembro" },
+    { value: "10", label: "Outubro" },
+    { value: "11", label: "Novembro" },
+    { value: "12", label: "Dezembro" },
+];
+
+// =============================================================================
+// PAGINATION CONFIG
+// =============================================================================
+const ITEMS_PER_PAGE = 10;
+
+// =============================================================================
+// COMPONENT
+// =============================================================================
+export default function PatientsPage() {
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<TabKey>("todos");
+    const [selectedPatients, setSelectedPatients] = useState<Set<string>>(new Set());
+    const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [pendingSignatureLeadIds, setPendingSignatureLeadIds] = useState<Set<string>>(new Set());
+
+    // CRM Store Integration mostly for Auth and basics, but we will fetch Patients separately
+    const { clinic, profile } = useAuth();
+
+    // Default date range: first day of current month to today
+    const getDefaultDateRange = () => ({
+        from: startOfMonth(new Date()),
+        to: new Date(),
+    });
+
+    // Filter States
+    const [procedureFilter, setProcedureFilter] = useState<string>("all");
+    const [periodFilter, setPeriodFilter] = useState<string>("thisMonth"); // Default: Este Mês
+    const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(getDefaultDateRange());
+    const [isDateRangeDefault, setIsDateRangeDefault] = useState(true);
+    const [birthdayMonthFilter, setBirthdayMonthFilter] = useState<string>("current");
+
+    const fetchPatients = async () => {
+        if (!clinic?.id) return;
+        setLoading(true);
+        try {
+            // Fetch leads with status 'Venda Realizada'
+            const { data, error } = await supabase
+                .from('leads')
+                .select('*, appointments!lead_id(*)')
+                .eq('clinic_id', clinic.id)
+                .eq('status', 'Venda Realizada')
+                .order('created_at', { ascending: false });
+
+
+
+            if (error) throw error;
+
+            console.log("Leads data:", data); // Debug
+
+            // Fetch ALL transactions for the clinic to ensure strict calculation
+            const { data: allTrans } = await supabase
+                .from('financial_transactions')
+                .select('*')
+                .eq('clinic_id', clinic.id)
+                .eq('type', 'income');
+
+            if (error) throw error;
+
+            console.log("Leads data:", data);
+
+            // Group transactions by patient (normalized)
+            const transactionsByPatient = (allTrans || []).reduce((acc, t) => {
+                const key = t.lead_id || t.metadata?.patient_name || t.patient; // Normalize key
+                if (!key) return acc;
+                // Use lead_id if matches, otherwise name map might be tricky if names differ.
+                // Ideally we map by lead_id. 
+                // Let's assume most transactions have lead_id if created via CRM. 
+                // If not, we try to match by name. 
+                // We will build a map: Lead ID -> Trans[], Name -> Trans[]
+
+                // For this refactor, let's map strictly by lead_id if available, and try name for older/orphan ones.
+                // But we are iterating LEADS primarily.
+                return acc;
+            }, {});
+
+            // Simpler: Just filter inside the loop? 
+            // Better performance: Create a Map<LeadID, Trans[]>
+            const transMap = new Map<string, Transaction[]>();
+            const nameTransMap = new Map<string, Transaction[]>();
+
+            (allTrans || []).forEach((t: any) => { // Cast to any to avoid strict typing issues here for quick refactor
+                if (t.lead_id) {
+                    const list = transMap.get(t.lead_id) || [];
+                    list.push(t);
+                    transMap.set(t.lead_id, list);
+                } else if (t.patient || t.metadata?.patient_name) {
+                    const name = t.patient || t.metadata?.patient_name;
+                    const list = nameTransMap.get(name) || [];
+                    list.push(t);
+                    nameTransMap.set(name, list);
+                }
+            });
+
+            // Group leads by patient
+            const patientsMap = new Map<string, Patient>();
+
+            (data || []).forEach(lead => {
+                const key = lead.phone || lead.name;
+                if (!key) return;
+
+                const existing = patientsMap.get(key);
+
+                // --- NEW CALCULATION LOGIC ---
+                // Find all transactions for this lead (by ID or Name)
+                const leadTrans = [
+                    ...(transMap.get(lead.id) || []),
+                    ...(nameTransMap.get(lead.name) || [])
+                ];
+                // Deduplicate by ID if needed (though lead_id check should prevail)
+                const uniqueTrans = Array.from(new Map(leadTrans.map(item => [item.id, item])).values());
+
+                // Calculate LTV strictly from PAID transactions
+                const strictLtv = uniqueTrans
+                    .filter(t => t.status === 'paid')
+                    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+                // Calculate Debt strictly from PENDING transactions
+                const strictDebt = uniqueTrans
+                    .filter(t => t.status === 'pending')
+                    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+                // Basic Lead Props
+                const dealDate = lead.closed_at || lead.created_at;
+
+                // ... (Logic for dates/procedures remains)
+                // Calculate procedure name
+                let procedureName = lead.procedure || 'Procedimento';
+                const serviceId = lead.service_id || lead.procedure_id; // Check both naming conventions
+                if (serviceId) {
+                    const svc = services.find(s => s.id === serviceId);
+                    if (svc) procedureName = svc.name;
+                }
+
+                // Calculate next appointment
+                let nextAppt = undefined;
+                let nextApptId = undefined;
+                if (lead.appointments && Array.isArray(lead.appointments)) {
+                    // ... (existing logic)
+                    const futureAppts = lead.appointments
+                        .filter((a: any) => new Date(a.start_time) > new Date() && a.status !== 'Cancelado' && a.status !== 'Excluído')
+                        .sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+                    if (futureAppts.length > 0) {
+                        nextAppt = futureAppts[0].start_time;
+                        nextApptId = futureAppts[0].id;
+                    }
+                }
+
+                if (existing) {
+                    // Update LTV/Debt by adding current lead's contribution? 
+                    // NO. We are aggregating by patient key.
+                    // IMPORTANT: If duplicate leads exist for same patient, we might double count if we just look at name match.
+                    // But we are iterating LEADS.
+                    // If we have 2 leads for "John Doe", and 3 transactions for "John Doe".
+                    // If we map by Name, both iterations will find same 3 transactions.
+                    // We should aggregate leads first, THEN calculate finance?
+                    // Or just use the map.
+
+                    // Optimization: Construct the Patient object purely from the unique Set of transactions + Profile info from latest lead.
+                    // Let's stick to updating existing but be careful with finance.
+                    // If we found the patient already, we probably shouldn't re-add transactions if they are determined by NAME.
+                    // If determined by Lead ID, they are unique.
+
+                    // SIMPLIFICATION: We calculate finance for the UNIQUE KEY (Patient) at the end or incrementally.
+                    // Let's accumulate `strictLtv` and `strictDebt` carefully.
+                    // If matching by Lead ID, it's safe.
+                    // If matching by Name, we might re-process.
+                    // Lets just accumulate transactions in the patient object and sum at end?
+                    // Or just use the latest lead's finance value? No, LTV is cumulative.
+
+                    // Actually, if we use `patientsMap` (keyed by phone/name), we are merging multiple leads into one patient.
+                    // We should collect ALL Lead IDs for this patient, and ALL Name aliases.
+                    // Then fetch transactions for ALL those IDs/Names.
+                    // This is gettign complex inside the loop.
+
+                    // Alternative: Build Patient Map first (Profile data).
+                    // Then iterate Patient Map and calculate Finance.
+
+                    // Update existing profile data
+                    if (new Date(dealDate) > new Date(existing.lastVisitAt!)) {
+                        existing.lastVisitAt = dealDate;
+                        existing.lastProcedure = { name: procedureName, date: dealDate };
+                    }
+                    if (new Date(lead.created_at) < new Date(existing.createdAt)) {
+                        existing.createdAt = lead.created_at;
+                    }
+                    if (nextAppt) {
+                        if (!existing.nextAppointment || new Date(nextAppt) < new Date(existing.nextAppointment)) {
+                            existing.nextAppointment = nextAppt;
+                            existing.nextAppointmentId = nextApptId;
+                        }
+                    }
+                    existing.salesCount += 1;
+
+                    // Store Lead IDs to fetch finance later
+                    existing._leadIds = [...(existing._leadIds || []), lead.id];
+
+                } else {
+                    patientsMap.set(key, {
+                        id: lead.id,
+                        name: lead.name,
+                        avatar: lead.avatar_url,
+                        phone: lead.phone,
+                        email: lead.email,
+                        tier: 'novo',
+                        ltv: 0, // Will calc later
+                        outstandingBalance: 0, // Will calc later
+                        lastProcedure: { name: procedureName, date: dealDate },
+                        nextAppointment: nextAppt,
+                        nextAppointmentId: nextApptId,
+                        createdAt: lead.created_at,
+                        lastVisitAt: dealDate,
+                        salesCount: 1,
+                        stage: lead.status,
+                        hasAllergy: false, // Default
+                        _leadIds: [lead.id] // Temp field
+                    } as any);
+                }
+            });
+
+            // NOW Calculate Finance for each Unique Patient
+            const realPatients: Patient[] = Array.from(patientsMap.values()).map((p: any) => {
+                // Find transactions matching any of the lead IDs OR the patient Name
+                const pTrans = (allTrans || []).filter((t: any) => {
+                    const matchId = t.lead_id && p._leadIds.includes(t.lead_id);
+                    const matchName = !t.lead_id && (t.patient === p.name || t.metadata?.patient_name === p.name);
+                    return matchId || matchName;
+                });
+
+                const finalLtv = pTrans
+                    .filter((t: any) => t.status === 'paid')
+                    .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
+
+                const finalDebt = pTrans
+                    .filter((t: any) => t.status === 'pending')
+                    .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
+
+                // Tier Logic
+                let tier: PatientTier = 'novo';
+                const now = new Date();
+                const lastVisit = new Date(p.lastVisitAt!);
+                const monthsSinceVisit = (now.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24 * 30.44); // Approx months
+                const vipThreshold = clinic?.vip_ltv_threshold || 10000;
+
+                if (finalLtv >= vipThreshold) tier = 'vip';
+                else if (monthsSinceVisit > 6) tier = 'inativo';
+                else if (p.salesCount >= 2) tier = 'recorrente';
+                else tier = 'novo';
+
+                const { _leadIds, ...cleanPatient } = p;
+                return { ...cleanPatient, ltv: finalLtv, outstandingBalance: finalDebt, tier };
+            });
+
+            setPatients(realPatients);
+        } catch (error) {
+            console.error("Erro ao carregar pacientes:", error);
+            toast.error("Erro ao carregar pacientes");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch patients with pending signatures
+    const fetchPendingSignatures = async () => {
+        if (!clinic?.id) return;
+        try {
+            const { data, error } = await supabase
+                .from('clinic_documents')
+                .select('lead_id')
+                .eq('clinic_id', clinic.id)
+                .in('status', ['pending', 'awaiting_signature']);
+
+            if (error) throw error;
+
+            const leadIdsSet = new Set(data?.map(doc => doc.lead_id) || []);
+            setPendingSignatureLeadIds(leadIdsSet);
+        } catch (error) {
+            console.error('Error fetching pending signatures:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchPatients();
+            fetchPendingSignatures();
+        }
+    }, [clinic?.id]);
+
+
+
+
+
+
+    const now = new Date();
+    const fiveMonthsAgo = subMonths(now, 5);
+    const twelveMonthsAgo = subDays(now, 365);
+
+    // Get available services for filter
+    const { services, fetchServices } = useServicesStore();
+
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchServices(clinic.id);
+        }
+    }, [clinic?.id]);
+
+    // Get unique procedures from real data (or use Services Store)
+    const uniqueProcedures = useMemo(() => {
+        // Use active services from store + any legacy procedure names from data
+        const serviceNames = services.map(s => s.name);
+        // Add procedures from patients that might not be in services anymore?
+        // For simplicity, let's use the services list + unique from patients
+        const patientProcedures = patients
+            .filter(p => p.lastProcedure?.name)
+            .map(p => p.lastProcedure!.name);
+
+        return [...new Set([...serviceNames, ...patientProcedures])].sort();
+    }, [patients, services]);
+
+    // Reset birthday month to current when switching to Aniversariantes tab
+    useEffect(() => {
+        if (activeTab === "aniversariantes") {
+            setBirthdayMonthFilter(String(now.getMonth() + 1));
+        }
+    }, [activeTab]);
+
+    // =============================================================================
+    // FILTERED PATIENTS (by Tab + Search + Filters)
+    // Must be defined before KPIs since KPIs depend on it
+    // =============================================================================
+    const filteredPatients = useMemo(() => {
+        let result = [...patients];
+
+        // Filter by Tab
+        switch (activeTab) {
+            case "ativos":
+                // Patients who became patients in last 6 months AND are not VIP or Inactive
+                result = result.filter(p => {
+                    const createdDate = new Date(p.createdAt);
+                    const monthsSinceCreated = differenceInMonths(now, createdDate);
+                    // Active: created in last 6 months, not VIP, not Inactive
+                    return monthsSinceCreated <= 6 && p.tier !== 'vip' && p.tier !== 'inativo';
+                });
+                break;
+            case "vips":
+                result = result.filter(p => p.tier === 'vip');
+                break;
+            case "retorno":
+                result = result.filter(p => {
+                    if (!p.lastVisitAt) return false;
+                    return new Date(p.lastVisitAt) <= fiveMonthsAgo;
+                });
+                break;
+            case "aniversariantes":
+                // Filter by selected birthday month
+                result = result.filter(p => {
+                    if (!p.birthday) return false;
+                    const bday = new Date(p.birthday);
+                    const targetMonth = birthdayMonthFilter === "current" ? (new Date().getMonth() + 1) : parseInt(birthdayMonthFilter);
+                    return (bday.getMonth() + 1) === targetMonth;
+                });
+                break;
+            case "inativos":
+                result = result.filter(p => p.tier === 'inativo');
+                break;
+            case "devedores":
+                result = result.filter(p => (p.outstandingBalance || 0) > 0);
+                break;
+            case "assinaturas":
+                result = result.filter(p => pendingSignatureLeadIds.has(p.id));
+                break;
+            default:
+                break;
+        }
+
+        // Filter by Search Term
+        if (searchTerm.trim()) {
+            const lowerSearch = searchTerm.toLowerCase();
+            result = result.filter(p => p.name.toLowerCase().includes(lowerSearch));
+        }
+
+        // Filter by Procedure
+        if (procedureFilter !== "all") {
+            result = result.filter(p => {
+                // Return true if name matches exactly
+                return p.lastProcedure?.name === procedureFilter;
+            });
+        }
+
+        // Filter by Date Range (Patient Since / createdAt) - Respect Period Filter
+        if (periodFilter === 'today') {
+            const todayStart = startOfDay(now);
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= todayStart;
+            });
+        } else if (periodFilter === 'yesterday') {
+            const yesterdayStart = startOfDay(subDays(now, 1));
+            const yesterdayEnd = endOfDay(subDays(now, 1));
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= yesterdayStart && createdDate <= yesterdayEnd;
+            });
+        } else if (periodFilter === 'thisWeek') {
+            const weekStart = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= weekStart;
+            });
+        } else if (periodFilter === 'lastWeek') {
+            const lastWeekStart = startOfWeek(subDays(now, 7), { weekStartsOn: 0 });
+            const lastWeekEnd = endOfWeek(subDays(now, 7), { weekStartsOn: 0 });
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= lastWeekStart && createdDate <= lastWeekEnd;
+            });
+        } else if (periodFilter === 'last14days') {
+            const fourteenDaysAgo = subDays(now, 14);
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= fourteenDaysAgo;
+            });
+        } else if (periodFilter === 'thisMonth') {
+            const startOfThisMonth = startOfMonth(now);
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= startOfThisMonth;
+            });
+        } else if (periodFilter === 'lastMonth') {
+            const lastMonthStart = startOfMonth(subMonths(now, 1));
+            const lastMonthEnd = endOfMonth(subMonths(now, 1));
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= lastMonthStart && createdDate <= lastMonthEnd;
+            });
+        } else if (periodFilter === 'thisYear') {
+            const yearStart = startOfYear(now);
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= yearStart;
+            });
+        } else if (periodFilter === '365days') {
+            const oneYearAgo = subMonths(now, 12);
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= oneYearAgo;
+            });
+        } else if (periodFilter === 'custom') {
+            // Custom date range
+            result = result.filter(p => {
+                const createdDate = new Date(p.createdAt);
+                return createdDate >= startOfDay(dateRange.from) && createdDate <= endOfDay(dateRange.to);
+            });
+        }
+        // If 'all', no date filtering
+
+        return result;
+    }, [activeTab, searchTerm, procedureFilter, periodFilter, birthdayMonthFilter, patients, fiveMonthsAgo, twelveMonthsAgo, now, dateRange]);
+
+
+    // =============================================================================
+    // KPIs (Calculated from Real Data)
+    // =============================================================================
+    // =============================================================================
+    // KPIs (Calculated from FILTERED Data for dynamism)
+    // =============================================================================
+    const kpis = useMemo(() => {
+        // Use filteredPatients to calculate KPIs dynamically
+        const sourceData = filteredPatients;
+
+        const activePatients = sourceData.filter(p => {
+            // Logic for 'Active Base' KPI might differ from 'Active Status'.
+            // Usually Base Ativa = Customers in last X months.
+            // Let's use 6 months.
+            if (!p.lastVisitAt) return false;
+            return differenceInMonths(now, new Date(p.lastVisitAt)) <= 6;
+        });
+
+        const totalLtv = sourceData.reduce((acc, p) => acc + (p.ltv || 0), 0);
+        const avgLtv = sourceData.length > 0 ? totalLtv / sourceData.length : 0;
+
+        // Calculate Average Sales Cycle
+        const closedLeadsWithCycle = sourceData.filter(l => typeof l.sales_cycle_days === 'number');
+        const avgCycle = closedLeadsWithCycle.length > 0
+            ? (closedLeadsWithCycle.reduce((acc, curr) => acc + (curr.sales_cycle_days || 0), 0) / closedLeadsWithCycle.length).toFixed(1)
+            : "0.0";
+
+        // Recurrence Pending (Logic: active tier but old LastVisit - e.g. 4-6 months)
+        const recurrencePending = sourceData.filter(p => {
+            if (!p.lastVisitAt) return false;
+            const monthsDiff = differenceInMonths(now, new Date(p.lastVisitAt));
+            return monthsDiff >= 4 && monthsDiff <= 6;
+        });
+
+        return {
+            baseAtiva: activePatients.length,
+            ltvMedio: avgLtv,
+            ticketMedioTotal: totalLtv,
+            recorrenciaPendente: recurrencePending.length,
+            avgSalesCycle: avgCycle
+        };
+    }, [filteredPatients, now]);
+
+    // Calculate Average Sales Cycle in separate Memo? No, included in KPIs now. But UI uses avgSalesCycle var.
+    const avgSalesCycleDisplay = kpis.avgSalesCycle; // Bridge for UI compatibility
+
+
+    // =============================================================================
+    // PAGINATION
+    // =============================================================================
+    const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+    const paginatedPatients = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        return filteredPatients.slice(startIndex, endIndex);
+    }, [filteredPatients, currentPage]);
+
+    const startItem = filteredPatients.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+    const endItem = Math.min(currentPage * ITEMS_PER_PAGE, filteredPatients.length);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchTerm, procedureFilter, dateRange, birthdayMonthFilter]);
+
+    // =============================================================================
+    // HANDLERS
+    // =============================================================================
+    const handleRowClick = (patient: Patient) => {
+        // Correct path with stage: /crm/[etapadolead]/[id DO LEAD]
+        const stage = patient.stage || 'Venda Realizada'; // Fallback safely
+        navigate(`/crm/${stage}/${patient.id}`);
+    };
+
+    const toggleSelectPatient = (id: string) => {
+        setSelectedPatients(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedPatients.size === paginatedPatients.length) {
+            setSelectedPatients(new Set());
+        } else {
+            setSelectedPatients(new Set(paginatedPatients.map(p => p.id)));
+        }
+    };
+
+    const clearFilters = () => {
+        setProcedureFilter("all");
+        setPeriodFilter("thisMonth");
+        setDateRange(getDefaultDateRange());
+        setIsDateRangeDefault(true);
+        setSearchTerm("");
+        if (activeTab === "aniversariantes") {
+            setBirthdayMonthFilter("current");
+        }
+    };
+
+    // =============================================================================
+    // EXPORT HANDLERS
+    // =============================================================================
+    const handleExportExcel = () => {
+        const dataToExport = filteredPatients.map(p => ({
+            "Paciente": p.name,
+            "Status": TIER_CONFIG[p.tier]?.label || p.tier,
+            "Paciente Desde": format(new Date(p.createdAt), "dd/MM/yyyy"),
+            "Último Procedimento": p.lastProcedure?.name || "-",
+            "Data Último Proc.": p.lastProcedure ? format(new Date(p.lastProcedure.date), "dd/MM/yyyy") : "-",
+            "Receita Total Gerada": p.ltv,
+            "Próx. Agendamento": p.nextAppointment ? format(new Date(p.nextAppointment), "dd/MM/yyyy") : "Sem Agendamento",
+            "Telefone": p.phone
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Pacientes");
+        XLSX.writeFile(wb, "pacientes_sevenn.xlsx");
+        toast.success("Planilha exportada com sucesso!");
+    };
+
+    const handleExportPDF = () => {
+        const doc = new jsPDF();
+
+        // Title
+        const titleName = clinic?.name || profile?.full_name || "Sevenn Clinic";
+        doc.setFontSize(16);
+        doc.text(`Relatório de Pacientes - ${titleName}`, 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 28);
+        doc.text(`Total de Pacientes: ${filteredPatients.length}`, 14, 34);
+
+        // Table
+        const tableBody = filteredPatients.map(p => [
+            p.name,
+            TIER_CONFIG[p.tier]?.label || p.tier,
+            format(new Date(p.createdAt), "dd/MM/yyyy"),
+            p.lastProcedure?.name || "-",
+            formatCurrency(p.ltv),
+            p.nextAppointment ? format(new Date(p.nextAppointment), "dd/MM/yyyy") : "-"
+        ]);
+
+        autoTable(doc, {
+            startY: 40,
+            head: [["Paciente", "Status", "Desde", "Últ. Procedimento", "LTV", "Próx. Agenda"]],
+            body: tableBody,
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [16, 185, 129] } // Emerald color
+        });
+
+        doc.save("pacientes_sevenn.pdf");
+        toast.success("PDF exportado com sucesso!");
+    };
+
+    // Handler for date range changes
+    const handleDateRangeChange = (newRange: { from: Date; to: Date }) => {
+        setDateRange(newRange);
+        setIsDateRangeDefault(false);
+    };
+
+    const resetDateRange = () => {
+        setDateRange(getDefaultDateRange());
+        setIsDateRangeDefault(true);
+    };
+
+    const hasActiveFilters = procedureFilter !== "all" || searchTerm.trim() !== "" || (periodFilter !== "thisMonth" && periodFilter !== "custom") || (periodFilter === "custom" && !isDateRangeDefault);
+
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        }).format(value);
+    };
+
+    const formatPhone = (phone: string) => {
+        const cleaned = phone.replace(/\D/g, "");
+        if (cleaned.length === 11) {
+            return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+        }
+        return phone;
+    };
+
+    // =============================================================================
+    // RENDER
+    // =============================================================================
+    return (
+        <div className="h-full flex flex-col bg-slate-50 font-manrope overflow-hidden">
+            {/* Header */}
+            <div className="bg-white border-b border-slate-200 px-6 py-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-xl font-semibold tracking-tight text-slate-900 font-space">
+                            Meus Pacientes
+                        </h1>
+                        <span className="text-sm text-slate-500 mt-1">
+                            - Gestão de Carteira e Retenção
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={fetchPatients}
+                            className="gap-2 text-xs font-medium"
+                            disabled={loading}
+                        >
+                            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                            {loading ? "Atualizando..." : "Atualizar"}
+                        </Button>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex items-center justify-center px-2.5"
+                                    title="Exportar"
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={handleExportExcel} className="gap-2 cursor-pointer">
+                                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                                    Exportar Excel (.xlsx)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                                    <FileType2 className="w-4 h-4 text-rose-600" />
+                                    Exportar PDF (.pdf)
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
+
+                {/* KPI Cards - Compact */}
+                <div className="grid grid-cols-5 gap-4 mt-4">
+                    <Card className="relative overflow-hidden bg-white border-l-[3px] border-l-emerald-500 border-t border-r border-b border-slate-100 rounded-xl shadow-sm">
+                        <CardContent className="py-3 px-4">
+                            <div className="flex items-center justify-between mb-1">
+                                <CardTitle className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                                    Base Ativa de Pacientes
+                                </CardTitle>
+                                <div className="p-1.5 bg-emerald-50 rounded-lg">
+                                    <Users className="w-3.5 h-3.5 text-emerald-600" />
+                                </div>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-xl font-bold text-slate-900 font-space">
+                                    {kpis.baseAtiva}
+                                </p>
+                                <span className="text-[10px] text-slate-400">últimos 6 meses</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="relative overflow-hidden bg-white border-l-[3px] border-l-blue-500 border-t border-r border-b border-slate-100 rounded-xl shadow-sm">
+                        <CardContent className="py-3 px-4">
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-1">
+                                    <CardTitle className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                                        LTV Médio
+                                    </CardTitle>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="w-3 h-3 text-slate-300 hover:text-slate-500 cursor-help transition-colors" />
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-[280px] text-xs bg-slate-900 text-white border-slate-800 p-3">
+                                                <p className="font-semibold mb-1">Lifetime Value (LTV) Médio</p>
+                                                <p className="text-slate-300">
+                                                    É a receita total média gerada por paciente durante todo o relacionamento com a clínica.
+                                                    Calculado como: Receita Total / Número de Pacientes.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                                <div className="p-1.5 bg-blue-50 rounded-lg">
+                                    <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
+                                </div>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-xl font-bold text-slate-900 font-space">
+                                    {formatCurrency(kpis.ltvMedio)}
+                                </p>
+                                <span className="text-[10px] text-slate-400">por paciente</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="relative overflow-hidden bg-white border-l-[3px] border-l-purple-500 border-t border-r border-b border-slate-100 rounded-xl shadow-sm">
+                        <CardContent className="py-3 px-4">
+                            <div className="flex items-center justify-between mb-1">
+                                <CardTitle className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                                    Faturamento Total
+                                </CardTitle>
+                                <div className="p-1.5 bg-purple-50 rounded-lg">
+                                    <DollarSign className="w-3.5 h-3.5 text-purple-600" />
+                                </div>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-xl font-bold text-slate-900 font-space">
+                                    {formatCurrency(kpis.ticketMedioTotal)}
+                                </p>
+                                <span className="text-[10px] text-slate-400">todos pacientes</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="relative overflow-hidden bg-white border-l-[3px] border-l-amber-500 border-t border-r border-b border-slate-100 rounded-xl shadow-sm">
+                        <CardContent className="py-3 px-4">
+                            <div className="flex items-center justify-between mb-1">
+                                <CardTitle className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                                    Recorrência Pendente
+                                </CardTitle>
+                                <div className="p-1.5 bg-amber-50 rounded-lg">
+                                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                </div>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-xl font-bold text-slate-900 font-space">
+                                    {kpis.recorrenciaPendente}
+                                </p>
+                                <span className="text-[10px] text-slate-400">vence este mês</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="relative overflow-hidden bg-white border-l-[3px] border-l-cyan-500 border-t border-r border-b border-slate-100 rounded-xl shadow-sm">
+                        <CardContent className="py-3 px-4">
+                            <div className="flex items-center justify-between mb-1">
+                                <CardTitle className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                                    Ciclo Médio de Venda
+                                </CardTitle>
+                                <div className="p-1.5 bg-cyan-50 rounded-lg">
+                                    <Timer className="w-3.5 h-3.5 text-cyan-600" />
+                                </div>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-xl font-bold text-slate-900 font-space">
+                                    {avgSalesCycleDisplay} <span className="text-sm font-medium text-slate-500">dias</span>
+                                </p>
+                                <span className="text-[10px] text-slate-400">até fechar</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Tabs with subtle gradient */}
+            <div className="bg-gradient-to-r from-emerald-50/50 via-white to-emerald-50/30 border-b border-slate-200 px-6">
+                <div className="flex items-center gap-1">
+                    {TABS.map(tab => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all",
+                                    isActive
+                                        ? "border-emerald-600 text-emerald-700"
+                                        : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                                )}
+                            >
+                                <Icon className={cn("w-4 h-4", isActive ? "text-emerald-600" : "text-slate-400")} />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Filter Toolbar */}
+            <div className="bg-white border-b border-slate-200 px-6 py-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                    {/* Filter Icon */}
+                    <div className="flex items-center gap-2 text-slate-500">
+                        <Filter className="w-4 h-4" />
+                        <span className="text-xs font-semibold uppercase tracking-wide">Filtros</span>
+                    </div>
+
+                    <div className="h-6 w-px bg-slate-200" />
+
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            type="text"
+                            placeholder="Buscar paciente..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 h-9 w-56 bg-slate-50 border-slate-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500"
+                        />
+                    </div>
+
+                    {/* Procedure Filter - with active state styling */}
+                    <Select value={procedureFilter} onValueChange={setProcedureFilter}>
+                        <SelectTrigger className={cn(
+                            "h-9 w-48 text-sm transition-colors",
+                            procedureFilter !== "all"
+                                ? "bg-slate-800 border-slate-700 text-white [&>svg]:text-white"
+                                : "bg-slate-50 border-slate-200"
+                        )}>
+                            <Syringe className={cn(
+                                "w-4 h-4 mr-2",
+                                procedureFilter !== "all" ? "text-white" : "text-slate-400"
+                            )} />
+                            <SelectValue placeholder="Procedimento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos Procedimentos</SelectItem>
+                            {uniqueProcedures.map(proc => (
+                                <SelectItem key={proc} value={proc}>{proc}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Period Filter */}
+                    <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                        <SelectTrigger className={cn(
+                            "h-9 w-44 text-sm transition-colors",
+                            periodFilter !== "thisMonth"
+                                ? "bg-slate-800 border-slate-700 text-white [&>svg]:text-white"
+                                : "bg-slate-50 border-slate-200"
+                        )}>
+                            <CalendarDays className={cn(
+                                "w-4 h-4 mr-2",
+                                periodFilter !== "thisMonth" ? "text-white" : "text-slate-400"
+                            )} />
+                            <SelectValue placeholder="Período" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="today">Hoje</SelectItem>
+                            <SelectItem value="yesterday">Ontem</SelectItem>
+                            <SelectItem value="thisWeek">Esta Semana</SelectItem>
+                            <SelectItem value="lastWeek">Última Semana</SelectItem>
+                            <SelectItem value="last14days">Últimos 14 dias</SelectItem>
+                            <SelectItem value="thisMonth">Este Mês</SelectItem>
+                            <SelectItem value="lastMonth">Último Mês</SelectItem>
+                            <SelectItem value="thisYear">Este Ano</SelectItem>
+                            <SelectItem value="365days">Últimos 365 dias</SelectItem>
+                            <SelectItem value="all">Todo o Período</SelectItem>
+                            <SelectItem value="custom">Personalizado</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* Custom Date Range - Only visible when 'custom' is selected */}
+                    {periodFilter === 'custom' && (
+                        <div className="flex items-center gap-2">
+                            <Input
+                                type="date"
+                                value={dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : ''}
+                                onChange={(e) => {
+                                    const newFrom = e.target.value ? new Date(e.target.value) : new Date();
+                                    setDateRange({ ...dateRange, from: newFrom });
+                                    setIsDateRangeDefault(false);
+                                }}
+                                className="h-9 w-36 text-sm"
+                                placeholder="Data início"
+                            />
+                            <span className="text-xs text-slate-400">até</span>
+                            <Input
+                                type="date"
+                                value={dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : ''}
+                                onChange={(e) => {
+                                    const newTo = e.target.value ? new Date(e.target.value) : new Date();
+                                    setDateRange({ ...dateRange, to: newTo });
+                                    setIsDateRangeDefault(false);
+                                }}
+                                className="h-9 w-36 text-sm"
+                                placeholder="Data fim"
+                            />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setDateRange(getDefaultDateRange());
+                                    setIsDateRangeDefault(true);
+                                    setPeriodFilter("thisMonth"); // Reset to default period
+                                }}
+                                className="h-8 px-2 text-slate-400 hover:text-slate-600"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Date Range Picker (Patient Since) - Hidden for now, can be re-enabled */}
+                    {/* <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500 font-medium">Tornou-se Paciente em:</span>
+                        <DateRangePicker
+                            value={dateRange}
+                            onChange={handleDateRangeChange}
+                        />
+                        {!isDateRangeDefault && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={resetDateRange}
+                                className="h-8 px-2 text-slate-400 hover:text-slate-600"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </Button>
+                        )}
+                    </div> */}
+
+                    {/* Birthday Month Filter - Only visible on Aniversariantes tab */}
+                    {activeTab === "aniversariantes" && (
+                        <Select value={birthdayMonthFilter} onValueChange={setBirthdayMonthFilter}>
+                            <SelectTrigger className="h-9 w-52 bg-amber-50 border-amber-200 text-sm">
+                                <Cake className="w-4 h-4 text-amber-500 mr-2" />
+                                <SelectValue placeholder="Mês" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[280px] overflow-y-auto">
+                                {MONTHS.map(month => (
+                                    <SelectItem key={month.value} value={month.value}>
+                                        {month.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {/* Clear Filters Button */}
+                    {hasActiveFilters && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearFilters}
+                            className="h-9 text-xs text-slate-500 hover:text-slate-700 gap-1"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                            Limpar filtros
+                        </Button>
+                    )}
+
+                    {/* Results Count */}
+                    <div className="ml-auto">
+                        <Badge variant="secondary" className="text-xs font-medium">
+                            {filteredPatients.length} paciente{filteredPatients.length !== 1 ? "s" : ""}
+                        </Badge>
+                    </div>
+                </div>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-auto px-6 py-4">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                                <TableHead className="w-12">
+                                    <Checkbox
+                                        checked={selectedPatients.size === paginatedPatients.length && paginatedPatients.length > 0}
+                                        onCheckedChange={toggleSelectAll}
+                                    />
+                                </TableHead>
+                                <TableHead className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                    Paciente
+                                </TableHead>
+                                <TableHead className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                    Status
+                                </TableHead>
+                                <TableHead className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                    Paciente Desde
+                                </TableHead>
+                                <TableHead className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                    Último Procedimento
+                                </TableHead>
+                                <TableHead className="text-[11px] font-bold uppercase tracking-wide text-slate-500 ">
+                                    Receita Total Gerada
+                                </TableHead>
+                                <TableHead className="text-[11px] font-bold uppercase tracking-wide text-slate-500 text-center">
+                                    Saldo Devedor
+                                </TableHead>
+                                <TableHead className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                    Próx. Agendamento
+                                </TableHead>
+                                <TableHead className="w-12"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedPatients.map(patient => {
+                                const tierConfig = TIER_CONFIG[patient.tier];
+                                const isSelected = selectedPatients.has(patient.id);
+
+                                return (
+                                    <TableRow
+                                        key={patient.id}
+                                        className={cn(
+                                            "cursor-pointer transition-colors",
+                                            isSelected ? "bg-emerald-50/50" : "hover:bg-slate-50"
+                                        )}
+                                        onClick={() => handleRowClick(patient)}
+                                    >
+                                        <TableCell onClick={e => e.stopPropagation()}>
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onCheckedChange={() => toggleSelectPatient(patient.id)}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-9 w-9 border border-slate-200">
+                                                    <AvatarImage src={patient.avatar} />
+                                                    <AvatarFallback className="bg-slate-100 text-slate-600 text-xs font-bold">
+                                                        {patient.name.substring(0, 2).toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Link
+                                                            to={`/crm?leadId=${patient.id}`}
+                                                            className="font-semibold text-sm text-slate-800 hover:text-emerald-600 transition-colors"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                // If left click, we can still use navigate to the details page directly if preferred,
+                                                                // but the user wants the leadId query param logic.
+                                                            }}
+                                                        >
+                                                            {patient.name}
+                                                        </Link>
+                                                        {patient.hasAllergy && (
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent className="text-xs bg-rose-50 text-rose-700 border-rose-200">
+                                                                        Paciente com alergia registrada
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        )}
+                                                    </div>
+                                                    <a
+                                                        href={`https://wa.me/55${patient.phone}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={e => e.stopPropagation()}
+                                                        className="flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-600 transition-colors"
+                                                    >
+                                                        <Phone className="w-3 h-3" />
+                                                        {formatPhone(patient.phone)}
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        "text-[10px] font-bold uppercase tracking-wide border px-2 py-0.5",
+                                                        tierConfig.bgColor,
+                                                        tierConfig.color
+                                                    )}
+                                                >
+                                                    {patient.tier === "vip" && <Crown className="w-3 h-3 mr-1" />}
+                                                    {tierConfig.label}
+                                                </Badge>
+                                                {pendingSignatureLeadIds.has(patient.id) && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-[10px] font-bold px-2 py-0.5 bg-amber-50 border-amber-200 text-amber-700"
+                                                    >
+                                                        <FileText className="w-3 h-3 mr-1" />
+                                                        Aguardando Assinatura
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm text-slate-700 font-medium">
+                                                    {format(new Date(patient.createdAt), "dd MMM yyyy", { locale: ptBR })}
+                                                </span>
+                                                <span className="text-xs text-slate-400">
+                                                    {formatDistanceToNow(new Date(patient.createdAt), { addSuffix: true, locale: ptBR })}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {patient.lastProcedure ? (
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm text-slate-700 font-medium">
+                                                        {patient.lastProcedure.name}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400">
+                                                        {format(new Date(patient.lastProcedure.date), "dd MMM yyyy", { locale: ptBR })}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">—</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <span className="text-sm font-bold text-slate-800 font-space">
+                                                {formatCurrency(patient.ltv)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            {(patient.outstandingBalance || 0) > 0 ? (
+                                                <span className="text-sm font-bold text-red-600 font-space">
+                                                    {formatCurrency(patient.outstandingBalance!)}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">—</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {patient.nextAppointment ? (
+                                                <div
+                                                    className="flex flex-col cursor-pointer group"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (patient.nextAppointmentId) {
+                                                            navigate('/calendar', {
+                                                                state: {
+                                                                    openAppointmentId: patient.nextAppointmentId
+                                                                }
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    <span className="text-xs font-bold text-emerald-600 group-hover:text-emerald-700 transition-colors flex items-center gap-1">
+                                                        <CalendarDays className="w-3 h-3" />
+                                                        {format(new Date(patient.nextAppointment), "dd MMM yyyy", { locale: ptBR })}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-medium group-hover:text-slate-500">
+                                                        Faltam {differenceInDays(new Date(patient.nextAppointment), new Date())} dias
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 font-normal shadow-sm">
+                                                    Sem Agendamento
+                                                </Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell onClick={e => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem asChild>
+                                                        <a
+                                                            href={`/crm/${patient.stage || 'Venda Realizada'}/${patient.id}?tab=prontuario`}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                const stage = patient.stage || 'Venda Realizada';
+                                                                navigate(`/crm/${stage}/${patient.id}?tab=prontuario`);
+                                                            }}
+                                                            className="flex items-center gap-2 text-sm cursor-pointer w-full"
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                            Ver Prontuário
+                                                        </a>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <a
+                                                            href="/calendar"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                navigate('/calendar', {
+                                                                    state: {
+                                                                        openAddModal: true,
+                                                                        leadId: patient.id,
+                                                                        leadName: patient.name
+                                                                    }
+                                                                });
+                                                            }}
+                                                            className="flex items-center gap-2 text-sm cursor-pointer w-full"
+                                                        >
+                                                            <CalendarDays className="h-4 w-4" />
+                                                            Agendar Retorno
+                                                        </a>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+
+                            {paginatedPatients.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="h-32 text-center">
+                                        <p className="text-sm text-slate-400">Nenhum paciente encontrado com os filtros selecionados.</p>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+
+                    {/* Pagination Footer */}
+                    {filteredPatients.length > ITEMS_PER_PAGE && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50">
+                            <p className="text-sm text-slate-500">
+                                Exibindo <span className="font-semibold text-slate-700">{startItem}</span> a{" "}
+                                <span className="font-semibold text-slate-700">{endItem}</span> de{" "}
+                                <span className="font-semibold text-slate-700">{filteredPatients.length}</span> pacientes
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 px-3 text-xs gap-1"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Anterior
+                                </Button>
+                                <span className="text-sm text-slate-600 px-2">
+                                    Página {currentPage} de {totalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 px-3 text-xs gap-1"
+                                >
+                                    Próximo
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Bulk Action Bar */}
+            {selectedPatients.size >= 2 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+                    <div className="bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-300">
+                        <div className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            <span className="text-sm font-medium">
+                                {selectedPatients.size} pacientes selecionados
+                            </span>
+                        </div>
+                        <div className="w-px h-5 bg-slate-700" />
+                        <Button
+                            size="sm"
+                            className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-4 text-xs font-semibold"
+                            onClick={() => {
+                                alert(`Enviando campanha para ${selectedPatients.size} pacientes...`);
+                            }}
+                        >
+                            <Send className="h-3.5 w-3.5" />
+                            Enviar Campanha de Retorno
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-slate-400 hover:text-white h-8 px-3 text-xs"
+                            onClick={() => setSelectedPatients(new Set())}
+                        >
+                            Cancelar
+                        </Button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

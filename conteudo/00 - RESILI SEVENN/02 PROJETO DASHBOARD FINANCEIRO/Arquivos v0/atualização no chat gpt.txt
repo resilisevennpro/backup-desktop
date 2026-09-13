@@ -1,0 +1,43 @@
+confirmei, estou como super admin
+
+Antes de realizar os próximos passos de : "Próxima etapa prática (no Cursor) — o que vamos construir primeiro
+
+Sem gerar código aqui, a ordem lógica é:
+
+Rotas e proteção
+
+/login
+
+/dashboard (só logado)
+
+/admin (só superadmin)
+
+Supabase client SSR
+
+sessão por cookie
+
+Admin actions server-side
+
+“Create clinic”
+
+“Create user + link profile”
+
+“Reset password”
+
+Dashboard usar clinic.sheetId do usuário logado
+
+buscar profiles → clinics → sheetId
+
+chamar leitura do Sheets"
+
+
+
+CRIAR NO CURSOR (GEMINI INSTRUIU)
+sheet.tsx, popover.tsx, accordion.tsx, tooltip.tsx
+
+
+Dependências e env vars (obrigatório antes de rodar)
+
+No terminal do projeto:
+
+npm i @supabase/ssr

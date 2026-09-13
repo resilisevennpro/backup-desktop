@@ -1,0 +1,369 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Leaf, Plus, MoreVertical, Copy, LogOut, Users, Check } from "lucide-react"
+
+interface Client {
+  id: string
+  clinica: string
+  email: string
+  sheetId: string
+  status: "active" | "inactive"
+}
+
+const mockClients: Client[] = [
+  {
+    id: "1",
+    clinica: "Odonto Premium",
+    email: "admin@odontopremium.com",
+    sheetId: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+    status: "active",
+  },
+  {
+    id: "2",
+    clinica: "Sorriso Clínica",
+    email: "contato@sorrisoclinica.com",
+    sheetId: "2CyiNWt1YSB6oGNeLwCeCalhmVVrquumct85PjwF3vqnt",
+    status: "active",
+  },
+  {
+    id: "3",
+    clinica: "DentCare Plus",
+    email: "financeiro@dentcare.com",
+    sheetId: "3DzjOXu2ZTC7pHOfMxDfDbmiNWWsrvvndu96QkxG4wrou",
+    status: "inactive",
+  },
+  {
+    id: "4",
+    clinica: "Oral Health Center",
+    email: "admin@oralhealth.com",
+    sheetId: "4EakPYv3AUD8qIPgNyEgEcnjOXXtswwoev07RlyH5xspv",
+    status: "active",
+  },
+]
+
+export default function AdminPage() {
+  const [clients, setClients] = useState<Client[]>(mockClients)
+  const [isAddClientOpen, setIsAddClientOpen] = useState(false)
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // New client form state
+  const [newClinica, setNewClinica] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [newSheetId, setNewSheetId] = useState("")
+
+  // Reset password state
+  const [tempPassword, setTempPassword] = useState("")
+
+  const handleCopySheetId = (sheetId: string, clientId: string) => {
+    navigator.clipboard.writeText(sheetId)
+    setCopiedId(clientId)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleAddClient = (e: React.FormEvent) => {
+    e.preventDefault()
+    const newClient: Client = {
+      id: String(clients.length + 1),
+      clinica: newClinica,
+      email: newEmail,
+      sheetId: newSheetId,
+      status: "active",
+    }
+    setClients([...clients, newClient])
+    setIsAddClientOpen(false)
+    setNewClinica("")
+    setNewEmail("")
+    setNewPassword("")
+    setNewSheetId("")
+  }
+
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault()
+    // In a real app, this would send the new password to the backend
+    setIsResetPasswordOpen(false)
+    setTempPassword("")
+    setSelectedClient(null)
+  }
+
+  const handleToggleStatus = (clientId: string) => {
+    setClients(
+      clients.map((client) =>
+        client.id === clientId ? { ...client, status: client.status === "active" ? "inactive" : "active" } : client,
+      ),
+    )
+  }
+
+  const truncateSheetId = (sheetId: string) => {
+    return sheetId.length > 16 ? `${sheetId.substring(0, 16)}...` : sheetId
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#6fca3a] flex items-center justify-center">
+                <Leaf className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">Resili Sevenn</span>
+              <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 border-0">
+                Modo Administrador
+              </Badge>
+            </div>
+
+            {/* Exit Button */}
+            <Button
+              variant="outline"
+              className="text-gray-600 hover:text-gray-900 border-gray-200 bg-transparent"
+              onClick={() => (window.location.href = "/login")}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Title and Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-[#6fca3a]/10 flex items-center justify-center">
+              <Users className="w-6 h-6 text-[#6fca3a]" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Gestão de Clientes</h1>
+              <p className="text-gray-500 text-sm">{clients.length} clínicas cadastradas</p>
+            </div>
+          </div>
+
+          {/* Add Client Dialog */}
+          <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-[#6fca3a] hover:bg-[#5db832] text-white">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Cliente
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Adicionar Novo Cliente</DialogTitle>
+                <DialogDescription>Preencha os dados para cadastrar uma nova clínica no sistema.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddClient}>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="clinica">Nome da Clínica</Label>
+                    <Input
+                      id="clinica"
+                      placeholder="Ex: Odonto Premium"
+                      value={newClinica}
+                      onChange={(e) => setNewClinica(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email (Login)</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="admin@clinica.com"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Senha Inicial</Label>
+                    <Input
+                      id="password"
+                      type="text"
+                      placeholder="senha123"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="font-mono"
+                      required
+                    />
+                    <p className="text-xs text-gray-500">Visível para você copiar e enviar ao cliente</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sheetId">Google Sheet ID</Label>
+                    <Input
+                      id="sheetId"
+                      placeholder="1BxiMVs0XRA5nFMdKvBdBZjg..."
+                      value={newSheetId}
+                      onChange={(e) => setNewSheetId(e.target.value)}
+                      className="font-mono text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsAddClientOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="bg-[#6fca3a] hover:bg-[#5db832]">
+                    Adicionar Cliente
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Clients Table */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/50">
+                <TableHead className="font-semibold text-gray-700">Clínica</TableHead>
+                <TableHead className="font-semibold text-gray-700">Email de Acesso</TableHead>
+                <TableHead className="font-semibold text-gray-700">Sheet ID</TableHead>
+                <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                <TableHead className="font-semibold text-gray-700 text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {clients.map((client) => (
+                <TableRow key={client.id} className="hover:bg-gray-50/50">
+                  <TableCell className="font-medium text-gray-900">{client.clinica}</TableCell>
+                  <TableCell className="text-gray-600">{client.email}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 font-mono">
+                        {truncateSheetId(client.sheetId)}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-gray-400 hover:text-[#6fca3a]"
+                        onClick={() => handleCopySheetId(client.sheetId, client.id)}
+                      >
+                        {copiedId === client.id ? (
+                          <Check className="w-4 h-4 text-[#6fca3a]" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={client.status === "active" ? "default" : "secondary"}
+                      className={
+                        client.status === "active"
+                          ? "bg-[#6fca3a]/10 text-[#6fca3a] border-0 hover:bg-[#6fca3a]/20"
+                          : "bg-gray-100 text-gray-500 border-0"
+                      }
+                    >
+                      {client.status === "active" ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedClient(client)
+                            setIsResetPasswordOpen(true)
+                          }}
+                        >
+                          Resetar Senha
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>Editar Planilha</DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleToggleStatus(client.id)}
+                          className={client.status === "active" ? "text-red-600" : "text-[#6fca3a]"}
+                        >
+                          {client.status === "active" ? "Desativar" : "Ativar"}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={isResetPasswordOpen} onOpenChange={setIsResetPasswordOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Resetar Senha</DialogTitle>
+              <DialogDescription>
+                {selectedClient && (
+                  <>
+                    Defina uma nova senha temporária para <strong>{selectedClient.clinica}</strong>.
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleResetPassword}>
+              <div className="py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tempPassword">Nova Senha Temporária</Label>
+                  <Input
+                    id="tempPassword"
+                    type="text"
+                    placeholder="novaSenha123"
+                    value={tempPassword}
+                    onChange={(e) => setTempPassword(e.target.value)}
+                    className="font-mono"
+                    required
+                  />
+                  <p className="text-xs text-gray-500">O cliente deverá alterar esta senha no primeiro acesso</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsResetPasswordOpen(false)
+                    setSelectedClient(null)
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" className="bg-[#6fca3a] hover:bg-[#5db832]">
+                  Confirmar Reset
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </main>
+    </div>
+  )
+}

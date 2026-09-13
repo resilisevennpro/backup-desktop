@@ -1,0 +1,20 @@
+Atualizações: Adicione uma margem de espaçamento entre o depoimento do Dr Arlan e o depoimento da Ellen dias. Tire o Negrito do nome deles também.
+
+Diminua em 15% a largura dos botões, e também o espaçamento interior que está entre a letra e a margem de cima e de baixo do botão.Aumente as bordas do botão em 15% a mais em relação ao número que já está atualmente
+
+Na timeline de etapas, atualmente tem uma linha horizontal, e na vertical alinhado com cada etapa tem um quadrado, porém gostaria que fosse um circulo (50% menor) com uma linha vertical ligando a linha horizontal até o nome "ETAPA". 
+
+Além disso, a linha no mobile deve estar  horizontal igual ao desktop (mesmo que fique reduzida para caber na tela mobile) , atualmente na versão desktop a timeline de etapas não está na horizontal, e sim na vertical
+
+Por ultimo, adicione a foto do "jackson-resili-sevenn" no Topo da página (logo acima da primeira sessão no mobile), e no desktop deverá ficar do lado esquerdo.
+
+Na sessão "chegou o momento de vender", adicione a logomarca da Resili seven centralizado acima do titulo (caminho da imagem: public/images/resili-sevenn-logo.png)
+
+
+
+
+
+
+
+
+Ajuste a estrutura para o site ser acessado na url "https://www.resilisevenn.com.br/scale-facetas-resina" ao invés de "https://www.resilisevenn.com.br/scale-facetas-resina.html"

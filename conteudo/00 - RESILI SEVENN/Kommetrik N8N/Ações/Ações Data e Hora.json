@@ -1,0 +1,127 @@
+{
+  "name": "[KOMMETRIK][COMUNIDADE][AÇÕES][DATA-HORA]",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "longLivedToken",
+        "resource": "leads",
+        "operation": "updateLeads",
+        "collection": {
+          "lead": [
+            {
+              "id": "={{ $('Start').first().json.lead_id_firstItem }}",
+              "name": "={{ $json.output.nome }}",
+              "pipeline_id": 11929448,
+              "status_id": 0,
+              "custom_fields_values": {
+                "custom_field": [
+                  {
+                    "data": "{\"id\":1110019,\"type\":\"text\"}",
+                    "value": "={{ $json.output.email }}"
+                  },
+                  {
+                    "data": "{\"id\":1099537,\"type\":\"text\"}",
+                    "value": "={{ $json.output.googleMeet }}"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-kommo.kommo",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        -1696
+      ],
+      "id": "4b80e9c3-0b94-408a-b841-b175c2fb78be",
+      "name": "Update leads9",
+      "credentials": {
+        "kommoLongLivedApi": {
+          "id": "4icgaxcSMG2A0weG",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Start').first().json.domain_firstItem }}/api/v4/leads/{{ $('Start').first().json.lead_id_firstItem }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('Start').first().json.token_firstItem }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \n  \"custom_fields_values\": [ \n    {\n      \"field_id\": 1108027, \n      \"values\": [ \n        {\n          \"value\":  {{ $json.output.dataHora }}\n        }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        -1920
+      ],
+      "id": "d880589a-5122-4225-9b80-d08859c0f3a1",
+      "name": "preencheData"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Function node\n// items = [\n//   {\n//     json: {\n//       output: {\n//         nome: \"Owen\",\n//         email: \"owenmarqes011@gmail.com\",\n//         dataHora: \"2025-07-23T09:30:00-03:00\",\n//         googleMeet: \"https://meet.google.com/gwr-fqto-hci\"\n//       }\n//     }\n//   }\n// ]\n\nreturn items.map(item => {\n  const isoString = item.json.output.dataHora;      // \"2025-07-23T09:30:00-03:00\"\n  const unixTime  = Math.floor(new Date(isoString).getTime() / 1000); // segundos\n\n  item.json.output.dataHora = unixTime;             // troca o campo pelo unixtime\n  return item;                                      // devolve o item alterado\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -1920
+      ],
+      "id": "485375df-357c-4920-8116-17d217da9df0",
+      "name": "Code"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "preencheData",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update leads9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d2b171ef-be98-4625-aecb-65abb50888d7",
+  "meta": {
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "vv6igZuyzfVEyNTd",
+  "tags": []
+}

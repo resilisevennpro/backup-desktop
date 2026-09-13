@@ -1,0 +1,311 @@
+{
+  "name": "Threads Monitor – Clínica Estética",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "hours", "hoursInterval": 1 }
+          ]
+        }
+      },
+      "id": "node-schedule",
+      "name": "1. Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [260, 60],
+      "notes": "⚙️ CONFIGURE: Ajuste os horários conforme preferir. Atualmente roda a cada 1h mas o fluxo tem controle interno de limite de 25 posts/dia."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// CONTROLE DIÁRIO DE LIMITE\n// Reseta o contador a meia-noite e para o fluxo\n// se já atingiu 25 posts relevantes no dia.\n// ─────────────────────────────────────────────\nconst hoje = new Date().toISOString().slice(0, 10);\nconst chave = `relevantes_${hoje}`;\n\n// Lê o contador salvo no Static Data do workflow\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData[chave]) staticData[chave] = 0;\n\nconst total = staticData[chave];\n\nif (total >= 25) {\n  // Já atingiu o limite do dia — para o fluxo\n  return [];\n}\n\n// Passa adiante com o contador atual\nreturn [{ json: { relevantes_hoje: total, chave_contador: chave, pagina_cursor: null } }];"
+      },
+      "id": "node-check-limit",
+      "name": "2. Verificar limite diário",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 60]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// TERMOS DE BUSCA\n// Adicione ou remova termos conforme necessário.\n// O fluxo vai rodar uma busca para cada termo.\n// ─────────────────────────────────────────────\nconst termos = [\n  \"gestor de tráfego clínica\",\n  \"agenda vazia clínica\",\n  \"agendamento clínica estética\",\n  \"processo comercial clínica\",\n  \"marketing clínica estética\",\n  \"captação pacientes harmonização\",\n  \"harmonização orofacial\",\n  \"HOF botox\"\n];\n\nreturn termos.map(termo => ({\n  json: {\n    termo,\n    relevantes_hoje: $input.first().json.relevantes_hoje,\n    chave_contador: $input.first().json.chave_contador\n  }\n}));"
+      },
+      "id": "node-termos",
+      "name": "3. Definir termos de busca",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 60],
+      "notes": "⚙️ CONFIGURE: Edite o array 'termos' com as palavras-chave que quiser monitorar."
+    },
+    {
+      "parameters": {
+        "url": "https://graph.threads.net/v1.0/threads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "q", "value": "={{ $json.termo }}" },
+            { "name": "fields", "value": "id,text,timestamp,permalink,username,name,biography" },
+            { "name": "limit", "value": "25" },
+            { "name": "after", "value": "={{ $json.next_cursor || '' }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-http",
+      "name": "4. Buscar posts no Threads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 60],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "THREADS_CREDENTIAL_ID",
+          "name": "Threads API Token"
+        }
+      },
+      "notes": "⚙️ CONFIGURE: Crie uma credencial do tipo 'Query Auth' no n8n com:\n  - Name: access_token\n  - Value: SEU_TOKEN_DA_API_DO_THREADS\n\nPara obter o token:\n1. Acesse developers.facebook.com\n2. Crie um app com 'Threads API'\n3. Adicione sua conta como tester\n4. Gere o User Access Token com scope: threads_basic,threads_keyword_search"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// EXTRAIR POSTS DA RESPOSTA DA API\n// A API do Threads retorna { data: [...], paging: {...} }\n// ─────────────────────────────────────────────\nconst resposta = $input.first().json;\nconst posts = resposta.data || [];\nconst cursor_proximo = resposta.paging?.cursors?.after || null;\nconst termo = $('3. Definir termos de busca').first().json.termo;\nconst chave_contador = $('2. Verificar limite diário').first().json.chave_contador;\nconst relevantes_hoje = $('2. Verificar limite diário').first().json.relevantes_hoje;\n\nif (posts.length === 0) return [];\n\nreturn posts.map(post => ({\n  json: {\n    post_id: post.id,\n    texto: post.text || '',\n    data: post.timestamp,\n    link: post.permalink,\n    username: post.username || '',\n    nome_perfil: post.name || '',\n    bio: post.biography || '',\n    termo_busca: termo,\n    cursor_proximo,\n    chave_contador,\n    relevantes_hoje\n  }\n}));"
+      },
+      "id": "node-extrair",
+      "name": "5. Extrair posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 60]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Você é um assistente especializado em identificar profissionais de saúde estética. Responda APENAS com uma palavra: PROFISSIONAL ou IGNORAR. Nenhuma explicação."
+            },
+            {
+              "role": "user",
+              "content": "Analise o nome e a bio do perfil abaixo.\n\nO perfil pertence a uma profissional ou profissional de saúde da área estética facial? Considere indicadores como: Dra., Dr., Biomédica, Médica, Dentista, CRM, CRO, CRBM, Harmonização, HOF, Botox, Estética Facial, Bioestimulador, Preenchimento.\n\nResponda APENAS: PROFISSIONAL (se for da área de saúde estética) ou IGNORAR (se for agência, prestador de serviço, influencer sem indicação de ser profissional de saúde, ou perfil sem informação suficiente).\n\nNome do perfil: {{ $json.nome_perfil }}\nUsername: @{{ $json.username }}\nBio: {{ $json.bio }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "node-gpt-perfil",
+      "name": "6. GPT – Filtro de perfil",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1260, 60],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "notes": "⚙️ CONFIGURE: Adicione sua credencial OpenAI no n8n.\nUsamos gpt-4o-mini para economizar créditos neste filtro binário."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message.content }}",
+              "rightValue": "PROFISSIONAL",
+              "operator": { "type": "string", "operation": "contains" }
+            }
+          ]
+        }
+      },
+      "id": "node-if-perfil",
+      "name": "7. É profissional de saúde?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1460, 60]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Você é um assistente especializado em prospecção B2B para serviços de marketing, tráfego pago e gestão comercial voltados a clínicas de estética facial. Responda APENAS com: RELEVANTE ou IRRELEVANTE. Nenhuma explicação."
+            },
+            {
+              "role": "user",
+              "content": "Analise o post abaixo de uma profissional de saúde estética.\n\nMarque RELEVANTE se o post indicar que ela:\n- Está procurando gestor de tráfego, gestor de marketing, assistente comercial ou profissional de vendas\n- Está reclamando de agenda vazia, poucos agendamentos ou queda de pacientes\n- Está insatisfeita com seu marketing atual ou com uma agência\n- Está com dificuldade de captar, converter ou fidelizar pacientes\n- Demonstra dor relacionada a gestão, processos comerciais, atendimento ou crescimento da clínica\n- Está pedindo indicação de ferramenta, sistema ou profissional para área comercial/marketing\n\nMarque IRRELEVANTE se o post:\n- For resultado de procedimento estético em paciente\n- For conteúdo educativo sobre técnicas ou procedimentos\n- For publicidade, promoção de produto ou evento\n- For de motivação pessoal sem relação com gestão/marketing\n- Não demonstrar nenhuma dor ou oportunidade de prospecção\n\nNome: {{ $json.nome_perfil }}\nPost: {{ $json.texto }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "node-gpt-conteudo",
+      "name": "8. GPT – Filtro de conteúdo",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1660, 60],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message.content }}",
+              "rightValue": "RELEVANTE",
+              "operator": { "type": "string", "operation": "contains" }
+            }
+          ]
+        }
+      },
+      "id": "node-if-conteudo",
+      "name": "9. Tem dor/oportunidade?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1860, 60]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Você é um especialista em copywriting e prospecção B2B. Seja direto e prático. Responda em português."
+            },
+            {
+              "role": "user",
+              "content": "Com base no post abaixo de uma profissional de saúde estética, escreva em UMA frase curta (máximo 15 palavras) qual é a dor ou oportunidade identificada que pode ser usada como gancho de prospecção.\n\nExemplo de resposta: \"Reclamando de agência que não entrega resultado e considera trocar.\"\n\nPost: {{ $json.texto }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "node-gpt-gancho",
+      "name": "10. GPT – Gerar gancho",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [2060, 60],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// ATUALIZAR CONTADOR DIÁRIO\n// Incrementa o contador de relevantes do dia\n// ─────────────────────────────────────────────\nconst staticData = $getWorkflowStaticData('global');\nconst chave = $('5. Extrair posts').first().json.chave_contador;\n\nif (!staticData[chave]) staticData[chave] = 0;\nstaticData[chave] += 1;\n\nconst gancho = $json.message?.content || '';\nconst dadosPost = $('5. Extrair posts').first().json;\n\nreturn [{\n  json: {\n    data_coleta: new Date().toLocaleDateString('pt-BR'),\n    hora_coleta: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),\n    nome_perfil: dadosPost.nome_perfil,\n    username: `@${dadosPost.username}`,\n    bio: dadosPost.bio,\n    link_post: dadosPost.link,\n    texto_post: dadosPost.texto,\n    gancho_prospeccao: gancho,\n    termo_busca: dadosPost.termo_busca,\n    relevantes_hoje: staticData[chave]\n  }\n}];"
+      },
+      "id": "node-contador",
+      "name": "11. Atualizar contador",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2260, 60]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "value": "SEU_GOOGLE_SHEETS_ID_AQUI",
+          "__rl": true,
+          "mode": "id"
+        },
+        "sheetName": {
+          "value": "Posts Relevantes",
+          "__rl": true,
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data": "={{ $json.data_coleta }}",
+            "Hora": "={{ $json.hora_coleta }}",
+            "Nome": "={{ $json.nome_perfil }}",
+            "Username": "={{ $json.username }}",
+            "Bio": "={{ $json.bio }}",
+            "Link do Post": "={{ $json.link_post }}",
+            "Texto do Post": "={{ $json.texto_post }}",
+            "Gancho de Prospecção": "={{ $json.gancho_prospeccao }}",
+            "Termo de Busca": "={{ $json.termo_busca }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "node-sheets",
+      "name": "12. Salvar no Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2460, 60],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      },
+      "notes": "⚙️ CONFIGURE:\n1. Substitua 'SEU_GOOGLE_SHEETS_ID_AQUI' pelo ID da sua planilha\n   (está na URL: docs.google.com/spreadsheets/d/SEU_ID/edit)\n2. Crie uma aba chamada 'Posts Relevantes' com as colunas:\n   Data | Hora | Nome | Username | Bio | Link do Post | Texto do Post | Gancho de Prospecção | Termo de Busca\n3. Conecte sua conta Google nas credenciais do n8n"
+    }
+  ],
+  "connections": {
+    "1. Schedule Trigger": {
+      "main": [[{ "node": "2. Verificar limite diário", "type": "main", "index": 0 }]]
+    },
+    "2. Verificar limite diário": {
+      "main": [[{ "node": "3. Definir termos de busca", "type": "main", "index": 0 }]]
+    },
+    "3. Definir termos de busca": {
+      "main": [[{ "node": "4. Buscar posts no Threads", "type": "main", "index": 0 }]]
+    },
+    "4. Buscar posts no Threads": {
+      "main": [[{ "node": "5. Extrair posts", "type": "main", "index": 0 }]]
+    },
+    "5. Extrair posts": {
+      "main": [[{ "node": "6. GPT – Filtro de perfil", "type": "main", "index": 0 }]]
+    },
+    "6. GPT – Filtro de perfil": {
+      "main": [[{ "node": "7. É profissional de saúde?", "type": "main", "index": 0 }]]
+    },
+    "7. É profissional de saúde?": {
+      "main": [
+        [{ "node": "8. GPT – Filtro de conteúdo", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "8. GPT – Filtro de conteúdo": {
+      "main": [[{ "node": "9. Tem dor/oportunidade?", "type": "main", "index": 0 }]]
+    },
+    "9. Tem dor/oportunidade?": {
+      "main": [
+        [{ "node": "10. GPT – Gerar gancho", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "10. GPT – Gerar gancho": {
+      "main": [[{ "node": "11. Atualizar contador", "type": "main", "index": 0 }]]
+    },
+    "11. Atualizar contador": {
+      "main": [[{ "node": "12. Salvar no Google Sheets", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

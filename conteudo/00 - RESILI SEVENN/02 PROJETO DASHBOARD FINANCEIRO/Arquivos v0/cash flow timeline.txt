@@ -1,0 +1,138 @@
+"use client"
+
+import { Card } from "@/components/ui/card"
+import { Calendar, Target, ArrowRight } from "lucide-react"
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts"
+
+const timelineData = [
+  { month: "Jan", guaranteed: 3200, target: 5000 },
+  { month: "Fev", guaranteed: 5000, target: 5000 },
+  { month: "Mar", guaranteed: 4100, target: 4500 },
+  { month: "Abr", guaranteed: 3800, target: 4000 },
+  { month: "Mai", guaranteed: 4500, target: 4500 },
+  { month: "Jun", guaranteed: 3600, target: 4000 },
+  { month: "Jul", guaranteed: 2800, target: 3500 },
+  { month: "Ago", guaranteed: 2100, target: 3000 },
+  { month: "Set", guaranteed: 1500, target: 2500 },
+  { month: "Out", guaranteed: 900, target: 2000 },
+  { month: "Nov", guaranteed: 400, target: 1500 },
+  { month: "Dez", guaranteed: 200, target: 1000 },
+]
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200">
+        <p className="text-xs text-slate-500 font-medium mb-2">{payload[0].payload.month} 2026</p>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-xs text-slate-600">Garantido:</span>
+            <span className="text-sm font-bold text-[#6fca3a]">R$ {payload[0].value.toLocaleString("pt-BR")}</span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-xs text-slate-600">Meta:</span>
+            <span className="text-sm font-bold text-slate-900">R$ {payload[1].value.toLocaleString("pt-BR")}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
+export function CashFlowTimeline() {
+  const totalGuaranteed = timelineData.reduce((sum, item) => sum + item.guaranteed, 0)
+
+  return (
+    <Card className="p-8 shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-10 h-10 bg-[#6fca3a]/10 rounded-xl flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-[#6fca3a]" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">Timeline de Recebíveis</h2>
+          </div>
+          <p className="text-slate-500 text-sm">Parcelas garantidas vs. metas mensais</p>
+        </div>
+      </div>
+
+      <div className="mb-6 flex items-center gap-4 p-4 bg-gradient-to-r from-[#6fca3a]/5 to-transparent rounded-xl border-l-4 border-[#6fca3a]">
+        <Target className="w-8 h-8 text-[#6fca3a] flex-shrink-0" />
+        <div>
+          <p className="text-sm text-slate-600 mb-1">Total Garantido (12 meses)</p>
+          <p className="text-2xl font-bold text-[#6fca3a]">R$ {totalGuaranteed.toLocaleString("pt-BR")}</p>
+        </div>
+        <ArrowRight className="w-5 h-5 text-slate-300 ml-auto" />
+        <div className="text-right">
+          <p className="text-xs text-slate-500">Pico</p>
+          <p className="text-lg font-bold text-slate-900">Fevereiro</p>
+        </div>
+      </div>
+
+      <div className="relative">
+        <ResponsiveContainer width="100%" height={320}>
+          <ComposedChart data={timelineData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+            <defs>
+              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6fca3a" stopOpacity={1} />
+                <stop offset="100%" stopColor="#4ade80" stopOpacity={0.8} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="month" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+            <YAxis
+              stroke="#94A3B8"
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              dx={-10}
+              tickFormatter={(value) => `R$ ${(value / 1000).toFixed(1)}k`}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend
+              verticalAlign="top"
+              height={40}
+              iconType="circle"
+              wrapperStyle={{ fontSize: "12px", paddingBottom: "10px" }}
+            />
+            <Bar
+              dataKey="guaranteed"
+              fill="url(#barGradient)"
+              radius={[8, 8, 0, 0]}
+              name="Parcelas Garantidas"
+              animationDuration={1000}
+              animationEasing="ease-out"
+            />
+            <Line
+              type="monotone"
+              dataKey="target"
+              stroke="#1e293b"
+              strokeWidth={2.5}
+              dot={{ fill: "#1e293b", r: 4 }}
+              name="Linha de Meta"
+              strokeDasharray="5 5"
+              animationDuration={1500}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+          <div className="w-3 h-3 rounded-full bg-gradient-to-b from-[#6fca3a] to-[#4ade80]"></div>
+          <div>
+            <p className="text-xs text-slate-600">Parcelas Confirmadas</p>
+            <p className="text-sm font-semibold text-slate-900">Entrada garantida</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+          <div className="w-3 h-3 rounded-full bg-slate-900"></div>
+          <div>
+            <p className="text-xs text-slate-600">Meta de Receita</p>
+            <p className="text-sm font-semibold text-slate-900">Objetivo mensal</p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}

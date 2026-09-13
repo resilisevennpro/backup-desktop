@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOIP — Subcontas Twilio para clientes da agência</title>
+<style>
+  :root{
+    --verde:#0E3D2E; --verde-claro:#59A52C; --tinta:#0f172a; --texto:#334155;
+    --suave:#64748b; --linha:#e2e8f0; --fundo:#f8fafc; --branco:#fff;
+    --ambar-bg:#fffbeb; --ambar-borda:#f59e0b; --ambar-txt:#92400e;
+    --azul-bg:#eff6ff; --azul-borda:#3b82f6; --azul-txt:#1e40af;
+    --verm-bg:#fef2f2; --verm-borda:#ef4444; --verm-txt:#991b1b;
+    --verde-bg:#ecfdf5; --verde-borda:#10b981; --verde-txt:#065f46;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fundo);color:var(--texto);
+    font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:0 20px 80px}
+
+  header{background:linear-gradient(135deg,#021611 0%,var(--verde) 100%);color:#fff;
+    padding:44px 0 40px;margin-bottom:34px}
+  header .wrap{padding-bottom:0}
+  header h1{margin:0 0 8px;font-size:27px;letter-spacing:-.4px}
+  header p{margin:0;color:#a7d8c4;font-size:15px}
+  .tag{display:inline-block;background:rgba(255,255,255,.14);color:#d3f0e2;
+    font-size:11px;letter-spacing:.9px;text-transform:uppercase;
+    padding:4px 10px;border-radius:99px;margin-bottom:14px;font-weight:600}
+
+  h2{color:var(--tinta);font-size:20px;margin:38px 0 12px;padding-bottom:9px;
+    border-bottom:2px solid var(--linha);letter-spacing:-.3px}
+  /* Seções recolhíveis: o h2 vira o botão e o conteúdo até o próximo h2 é
+     agrupado por JS (ver o script no fim) — assim o corpo do documento continua
+     sendo HTML plano, legível mesmo com o script desativado. */
+  h2.sanfona{cursor:pointer;display:flex;align-items:center;gap:9px;user-select:none;
+    transition:color .15s}
+  h2.sanfona:hover{color:var(--verde-claro)}
+  h2.sanfona .seta{font-size:14px;color:var(--verde-claro);transition:transform .2s;
+    display:inline-block;flex-shrink:0}
+  h2.sanfona.fechada .seta{transform:rotate(-90deg)}
+  .corpo{overflow:hidden}
+  h2.sanfona.fechada + .corpo{display:none}
+  /* Fechada, a seção não tem corpo para criar respiro — a margem inferior
+     precisa vir do próprio título, senão os cabeçalhos ficam colados. */
+  h2.sanfona.fechada{margin-bottom:0}
+  h2.sanfona{margin-top:22px}
+  .barra-toggle{display:flex;justify-content:flex-end;margin:0 0 4px}
+  .barra-toggle button{background:var(--branco);border:1px solid var(--linha);
+    color:var(--suave);font:inherit;font-size:12px;padding:6px 13px;border-radius:7px;
+    cursor:pointer;transition:all .15s}
+  .barra-toggle button:hover{border-color:var(--verde-claro);color:var(--verde-claro)}
+  h3{color:var(--tinta);font-size:16px;margin:26px 0 8px}
+  p{margin:11px 0}
+  code{background:#f1f5f9;color:#0f766e;padding:2px 6px;border-radius:4px;
+    font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  a{color:#0d7a5f}
+
+  .card{background:var(--branco);border:1px solid var(--linha);border-radius:12px;
+    padding:20px 22px;margin:18px 0}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;background:var(--branco);
+    border:1px solid var(--linha);border-radius:10px;overflow:hidden}
+  th{background:#f1f5f9;color:var(--tinta);text-align:left;font-size:13px;
+    padding:10px 13px;border-bottom:1px solid var(--linha);font-weight:600}
+  td{padding:10px 13px;border-bottom:1px solid #f1f5f9;font-size:14px}
+  tr:last-child td{border-bottom:none}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr.destaque td{background:#f0fdf4;font-weight:600;color:var(--verde-txt)}
+  tr.alerta td{background:var(--verm-bg);font-weight:600;color:var(--verm-txt)}
+
+  .aviso{border-left:4px solid;border-radius:0 8px 8px 0;padding:13px 17px;margin:18px 0;font-size:14px}
+  .aviso b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
+  .aviso p{margin:6px 0 0}
+  .aviso.imp{background:var(--azul-bg);border-color:var(--azul-borda);color:var(--azul-txt)}
+  .aviso.cui{background:var(--ambar-bg);border-color:var(--ambar-borda);color:var(--ambar-txt)}
+  .aviso.per{background:var(--verm-bg);border-color:var(--verm-borda);color:var(--verm-txt)}
+  .aviso.ok{background:var(--verde-bg);border-color:var(--verde-borda);color:var(--verde-txt)}
+
+  .passo{background:var(--branco);border:1px solid var(--linha);border-radius:12px;
+    padding:20px 22px 20px 62px;margin:14px 0;position:relative}
+  .passo .n{position:absolute;left:19px;top:19px;width:29px;height:29px;border-radius:50%;
+    background:var(--verde-claro);color:#fff;font-weight:700;font-size:14px;
+    display:flex;align-items:center;justify-content:center}
+  .passo h3{margin:0 0 7px;font-size:16px}
+  .passo p{margin:7px 0}
+  .passo ol,.passo ul{margin:9px 0;padding-left:19px}
+  .passo li{margin:5px 0}
+
+  .cod{position:relative;background:#1e293b;border-radius:8px;margin:13px 0}
+  .cod pre{margin:0;padding:13px 88px 13px 15px;overflow-x:auto;
+    color:#e2e8f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .cod button{position:absolute;top:9px;right:9px;background:#475569;color:#e2e8f0;
+    border:none;padding:5px 11px;border-radius:5px;font-size:12px;cursor:pointer;
+    font-family:inherit;transition:background .15s}
+  .cod button:hover{background:#64748b}
+  .cod button.feito{background:var(--verde-claro);color:#fff}
+
+  /* 4 colunas fixas: os KPIs contam uma história em conjunto (custo celular →
+     custo fixo → o que se evita), então quebrar em duas fileiras separa o que
+     deve ser lido junto. */
+  .grade{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+  .kpi{background:var(--branco);border:1px solid var(--linha);border-left:3px solid var(--verde-claro);
+    border-radius:9px;padding:12px 13px;min-width:0}
+  .kpi .r{font-size:10px;color:var(--suave);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .kpi .v{font-size:20px;font-weight:700;color:var(--tinta);margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .kpi .o{font-size:11px;color:var(--suave);margin-top:2px;line-height:1.4}
+
+  .check{list-style:none;padding:0;margin:12px 0}
+  .check li{padding:8px 0 8px 29px;position:relative;border-bottom:1px solid #f1f5f9;font-size:14px}
+  .check li:last-child{border-bottom:none}
+  .check li::before{content:"☐";position:absolute;left:5px;top:8px;color:var(--verde-claro);font-size:15px}
+
+  footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--linha);
+    font-size:13px;color:var(--suave)}
+  @media(max-width:640px){
+    .passo{padding-left:20px;padding-top:52px}
+    .passo .n{top:15px}
+    header h1{font-size:22px}
+    table{font-size:13px}
+    /* Só no celular a linha única de KPIs cede — 4 colunas ali ficariam ilegíveis. */
+    .grade{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="tag">Documento interno — Resili Sevenn</span>
+    <h1>VOIP — Subcontas Twilio para clientes da agência</h1>
+    <p>Como ativar ligações para as clínicas que a agência opera, com a Sevenn como intermediária de cobrança</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="aviso imp">
+  <b>Este documento não é para o cliente final</b>
+  <p>Clínicas que assinam o SaaS criam a <em>própria</em> conta Twilio (modelo BYO) e são
+  atendidas pela Central de Ajuda → Ligações (VOIP). Este guia cobre o outro caminho:
+  subcontas dentro da organização da agência, onde <strong>a Sevenn paga a Twilio e repassa</strong>.</p>
+</div>
+
+<h2>Decisões travadas</h2>
+
+<table>
+  <tr><th>Item</th><th>Definição</th></tr>
+  <tr><td>Modelo de conta</td><td><strong>Subcontas</strong> na organização Resili Sevenn</td></tr>
+  <tr><td>Quem paga a Twilio</td><td><strong>A agência</strong>, no cartão da organização</td></tr>
+  <tr><td>Caller ID</td><td><strong>Verified Caller ID</strong> — o número que a clínica já usa</td></tr>
+  <tr class="destaque"><td>Custo real (celular)</td><td>R$ 0,40 por minuto (dólar a R$ 5,70)</td></tr>
+</table>
+
+<h2>Quanto custa de verdade</h2>
+
+<p>Toda ligação do discador soma <strong>duas pernas</strong> — é fácil esquecer a primeira
+ao estimar. Valores da tabela pública da Twilio para o Brasil, convertidos a
+<strong>US$ 1,00 = R$ 5,70</strong> (câmbio de referência conservador, para o custo não
+ficar subestimado em caso de alta).</p>
+
+<table>
+  <tr><th>Perna da chamada</th><th>USD/min</th><th>R$/min</th></tr>
+  <tr><td>Navegador → Twilio (WebRTC)</td><td class="num">0,0040</td><td class="num">R$ 0,023</td></tr>
+  <tr><td>Twilio → <strong>celular</strong> do lead</td><td class="num">0,0663</td><td class="num">R$ 0,378</td></tr>
+  <tr class="destaque"><td>Total por minuto — celular</td><td class="num">0,0703</td><td class="num">R$ 0,40</td></tr>
+  <tr><td>Total por minuto — fixo</td><td class="num">0,0350</td><td class="num">R$ 0,20</td></tr>
+</table>
+
+<p>Lead de clínica é quase sempre celular, então <strong>R$ 0,40/min é o número que
+importa</strong> para planejar — e é exatamente o valor repassado à clínica, sem
+acréscimo.</p>
+
+<div class="aviso cui">
+  <b>Cuidado — o arredondamento infla a conta</b>
+  <p>A Twilio cobra <strong>por minuto iniciado, arredondando para cima</strong>. Uma ligação de
+  15 segundos custa 1 minuto cheio. Em cold call, onde a maioria não atende, isso
+  pesa muito mais do que a duração média sugere: 100 tentativas de 15s custam o
+  mesmo que 100 ligações de 1 minuto.</p>
+</div>
+
+<h3>Simulações mensais por clínica</h3>
+
+<table>
+  <tr><th>Volume</th><th>Minutos faturados</th><th>Custo (R$ 0,40/min)</th></tr>
+  <tr><td>50 ligações × 1 min</td><td class="num">50</td><td class="num">R$ 20,00</td></tr>
+  <tr><td>100 ligações × 1 min</td><td class="num">100</td><td class="num">R$ 40,00</td></tr>
+  <tr><td>150 ligações × 1 min</td><td class="num">150</td><td class="num">R$ 60,00</td></tr>
+  <tr><td>50 ligações × 2 min</td><td class="num">100</td><td class="num">R$ 40,00</td></tr>
+  <tr><td>100 ligações × 2 min</td><td class="num">200</td><td class="num">R$ 80,00</td></tr>
+  <tr><td>50 ligações × 3 min</td><td class="num">150</td><td class="num">R$ 60,00</td></tr>
+  <tr><td>25 ligações × 4 min</td><td class="num">100</td><td class="num">R$ 40,00</td></tr>
+  <tr><td>25 ligações × 5 min</td><td class="num">125</td><td class="num">R$ 50,00</td></tr>
+  <tr><td>50 ligações × 5 min</td><td class="num">250</td><td class="num">R$ 100,00</td></tr>
+</table>
+
+<div class="aviso ok">
+  <b>O objetivo aqui é conversão, não receita</b>
+  <p>O VOIP não é um produto para lucrar: existe para a clínica <strong>falar com o lead
+  enquanto ele está quente</strong> e converter mais. Os R$ 0,40/min cobrem o custo da
+  Twilio com uma folga mínima para o câmbio — não são uma linha de receita.</p>
+  <p>Avalie o resultado pela <strong>taxa de conversão</strong> em <em>Ligações → Relatório de
+  chamadas</em>, não pelo faturamento da telefonia. Uma única venda fechada por
+  telefone paga meses de ligações.</p>
+</div>
+
+<div class="grade">
+  <div class="kpi"><div class="r">Custo / min</div><div class="v">R$ 0,40</div><div class="o">celular, dólar a 5,70</div></div>
+  <div class="kpi"><div class="r">Custo / min — fixo</div><div class="v">R$ 0,20</div><div class="o">metade do celular</div></div>
+  <div class="kpi"><div class="r">Aluguel de número</div><div class="v">R$ 0</div><div class="o">evitado pelo Caller ID</div></div>
+  <div class="kpi"><div class="r">Anatel</div><div class="v">—</div><div class="o">não se aplica ao Caller ID</div></div>
+</div>
+
+<div class="aviso per">
+  <b>Inadimplência é risco da agência</b>
+  <p>A Twilio já foi paga quando o cliente atrasa. Um cliente que ligou R$ 800 e sumiu
+  é perda integral da agência — risco que não existe no modelo BYO, onde a clínica
+  paga a Twilio direto. Considere um teto mensal de minutos por clínica.</p>
+</div>
+
+<h2>Como criar uma subconta (por clínica)</h2>
+
+<p>Repita para cada clínica. Leva cerca de 10 minutos depois da primeira.</p>
+
+<div class="aviso per">
+  <b>⚠️ Desligue a tradução automática do navegador ANTES de começar</b>
+  <p>Não é preciosismo: com a tradução do Chrome ligada, o assistente de criação da
+  API Key <strong>quebra de verdade</strong>. Ao clicar em <em>Próximo</em>, a chave é criada
+  (o aviso verde confirma), mas a tela <em>“Copiar segredo”</em> nunca aparece — o
+  formulário volta vazio, e o Secret se perde para sempre. Cada tentativa deixa
+  uma chave inutilizável na lista.</p>
+  <p><strong>Causa:</strong> o tradutor reescreve os nós do DOM e o console, que é uma aplicação
+  React, perde a etapa seguinte do fluxo. Já aconteceu neste projeto
+  (04/set/2026) — duas chaves precisaram ser descartadas.</p>
+  <p><strong>Como desligar:</strong> clique no ícone do Google Tradutor na barra de endereço →
+  <em>Mostrar original</em>, e recarregue a página. Se persistir, use uma janela
+  anônima, sem extensões.</p>
+</div>
+
+<div class="aviso imp">
+  <b>Glossário: o console traduzido</b>
+  <p>Se ainda assim topar com a interface traduzida, estes são os termos que mais
+  confundem:</p>
+  <p><code>Standard</code> → <strong>Padrão</strong> · <code>Trial</code> → <strong>Julgamento</strong> ·
+  <code>Upgrade</code> → <strong>Atualizar</strong> · <code>Friendly name</code> → <strong>Nome amigável</strong> ·
+  <code>Key type</code> → <strong>Tipo de chave</strong></p>
+  <p>“Julgamento: $15,50” não é aviso jurídico — é o saldo de teste da conta.</p>
+</div>
+
+<div class="passo">
+  <div class="n">1</div>
+  <h3>Criar a subconta</h3>
+  <ol>
+    <li>No <strong>Admin da Twilio</strong> (organização Resili Sevenn), abra <strong>Contas</strong>.</li>
+    <li>Clique em <strong>Criar nova conta</strong> (não <em>Adicionar conta existente</em>, que
+    serve para trazer uma conta de fora para a organização).</li>
+    <li><strong>Nome amigável da conta</strong>: identifique a clínica — padrão adotado:
+    <code>Ligações - Dra [Nome]</code>.</li>
+    <li><strong>Para que será utilizada esta conta?</strong> → marque <strong>Twilio</strong>
+    (SMS, Voz, Verificar, Consultar). <em>Flex</em> é outro produto, não serve aqui.</li>
+    <li>Em <strong>Análise</strong>, confira os dados e escolha o <strong>País de cobrança</strong>:
+    <strong>Brazil</strong>. É a moeda em que o consumo será cobrado.</li>
+    <li>Clique em <strong>Criar nova conta</strong>. Ela nasce com <strong>Account SID próprio</strong>
+    (começa com <code>AC</code>).</li>
+  </ol>
+</div>
+
+<div class="passo">
+  <div class="n">2</div>
+  <h3>Fazer o upgrade da subconta (sair do trial)</h3>
+  <p>A subconta <strong>nasce em trial</strong> — o topo do console mostra
+  <em>“Julgamento: $15.50”</em> (tradução automática de <em>Trial</em>) com um link
+  <strong>Upgrade</strong>.</p>
+
+  <div class="aviso per" style="margin:11px 0">
+    <b>Sem o upgrade, a clínica não consegue ligar para leads</b>
+    <p>Conta em trial só liga para <strong>números previamente verificados</strong> e toca uma
+    <strong>mensagem da Twilio antes de cada chamada</strong>. Como o objetivo é discar para
+    leads novos, o upgrade é obrigatório — não é opcional nem “para depois”.</p>
+  </div>
+
+  <p>O upgrade abre um fluxo de <strong>4 etapas</strong> (a Twilio estima 5 minutos):</p>
+  <ol>
+    <li><strong>Criar perfil de cliente</strong> — verificação de identidade, com documento válido</li>
+    <li><strong>Informações fiscais</strong> — endereço e número de identificação fiscal</li>
+    <li><strong>Saldo inicial</strong> — o crédito que a conta passa a ter</li>
+    <li><strong>Detalhes do pagamento</strong> — o método de cobrança</li>
+  </ol>
+  <p>Tenha em mãos: documento de identidade, dados cadastrais, CNPJ e cartão de crédito.</p>
+
+  <div class="aviso cui" style="margin:11px 0 0">
+    <b>⚠️ A verificar: de quem são os dados nas etapas 1, 2 e 4</b>
+    <p>O fluxo pede identidade, dados fiscais e cartão <strong>por subconta</strong>. Ainda não está
+    confirmado se a Twilio aceita repetir os dados da agência em todas — o que
+    mantém o modelo de intermediação — ou se espera os dados de cada clínica, o
+    que mudaria o desenho combinado.</p>
+    <p>Confirme isso na primeira subconta antes de criar as demais: é o ponto que
+    decide se a agência segue como pagadora única.</p>
+  </div>
+</div>
+
+<div class="passo">
+  <div class="n">3</div>
+  <h3>Entrar na subconta</h3>
+  <p>Use o seletor de conta no topo do console (onde hoje aparece
+  <em>“Sevenn Clinic 360 - Calls”</em>) e escolha a subconta recém-criada.</p>
+  <div class="aviso cui" style="margin:11px 0 0">
+    <b>Confira sempre em qual conta você está</b>
+    <p>Todos os passos seguintes precisam acontecer <strong>dentro da subconta da clínica</strong>.
+    Criar o TwiML App na conta errada é o erro mais comum — e só aparece na hora
+    de ligar, com a chamada caindo.</p>
+  </div>
+</div>
+
+<div class="passo">
+  <div class="n">4</div>
+  <h3>Copiar Account SID e Auth Token</h3>
+  <p>No <strong>Account Dashboard</strong> da subconta, copie:</p>
+  <ul>
+    <li><strong>Account SID</strong> — começa com <code>AC</code></li>
+    <li><strong>Auth Token</strong> — clique em <em>Show</em> para revelar</li>
+  </ul>
+</div>
+
+<div class="passo">
+  <div class="n">5</div>
+  <h3>Criar a API Key</h3>
+  <p>Menu <strong>Account → Keys &amp; Credentials → API keys &amp; tokens</strong>. Clique em
+  <strong>Criar chave de API</strong> e preencha:</p>
+  <ol>
+    <li><strong>Nome amigável</strong> — identifique sistema e clínica:
+    <code>Sevenn Clinic 360 - Calls (Dra [Nome])</code></li>
+    <li><strong>Região</strong> → <strong>Estados Unidos - Padrão (US1)</strong>. Não existe região
+    Brasil, e nem faz falta: a região diz onde ficam os servidores da Twilio, não
+    para onde se liga. O Brasil é atendido pela US1. Austrália e Irlanda só
+    interessam a quem tem exigência de residência de dados.</li>
+    <li><strong>Tipo de chave</strong> → <strong>Standard</strong> (aparece como <em>Padrão</em> se o
+    navegador estiver traduzindo a página).</li>
+    <li>Crie e copie o <strong>SID</strong> (começa com <code>SK</code>) e o <strong>Secret</strong>.</li>
+  </ol>
+
+  <div class="aviso per" style="margin:11px 0">
+    <b>O Secret aparece uma única vez — e a tradução impede que ele apareça</b>
+    <p>O assistente tem duas etapas: <em>Detalhes da chave</em> → <em>Copiar segredo</em>.
+    <strong>Com a tradução do navegador ligada, a segunda nunca carrega</strong>: a chave é
+    criada, o aviso verde confirma, mas o formulário volta vazio e o Secret se
+    perde. Desligue a tradução antes deste passo.</p>
+    <p>Não há como recuperar um Secret perdido — nem pelo painel, nem pela API, nem
+    pelo suporte da Twilio (eles guardam só um hash). Apague a chave órfã e crie
+    outra.</p>
+    <p><strong>Antes de clicar em criar</strong>, deixe o formulário do CRM aberto noutra aba:
+    cole SID e Secret ali direto, sem passar por bloco de notas ou mensageiro.</p>
+  </div>
+
+  <div class="aviso cui" style="margin:11px 0 0">
+    <b>Não use “Credenciais de teste”</b>
+    <p>Na mesma página, abaixo das chaves, a Twilio mostra dois blocos:
+    <strong>Credenciais ao vivo</strong> e <strong>Credenciais de teste</strong>. O Account SID e o Auth
+    Token do CRM saem sempre das <strong>ao vivo</strong>.</p>
+    <p>As de teste apenas simulam chamadas: o CRM pareceria configurado, mas
+    nenhuma ligação real sairia.</p>
+  </div>
+
+  <div class="aviso imp" style="margin:11px 0 0">
+    <b>Sobre o tipo “Restrito”</b>
+    <p>A Twilio sugere chaves restritas, com permissões limitadas. <strong>Não use por
+    ora</strong>: seria preciso mapear exatamente as permissões que o <code>voip-token</code>
+    exige para assinar os Access Tokens, e uma permissão faltando gera erro difícil
+    de diagnosticar. A chave Standard é a que este guia cobre.</p>
+  </div>
+</div>
+
+<div class="passo">
+  <div class="n">6</div>
+  <h3>Criar o TwiML App</h3>
+  <ol>
+    <li>Vá em <strong>Voice → Manage → TwiML Apps → Create new TwiML App</strong>.</li>
+    <li><strong>Friendly name</strong>: <code>Sevenn Discador</code>.</li>
+    <li>Em <strong>Voice → Request URL</strong>, cole exatamente esta URL, com método <strong>HTTP POST</strong>:</li>
+  </ol>
+  <div class="cod">
+    <pre>https://degdbpstlcrmpibtqwiy.supabase.co/functions/v1/voip-voice</pre>
+    <button type="button" data-copiar>Copiar</button>
+  </div>
+  <ol start="4">
+    <li>Deixe <em>Status Callback</em>, <em>Fallback URL</em> e a seção <em>Messaging</em> em branco.</li>
+    <li>Crie e copie o <strong>SID do app</strong> (começa com <code>AP</code>).</li>
+  </ol>
+  <p><strong>A URL é a mesma para todas as clínicas</strong> — o que muda é o SID do app, único
+  por subconta.</p>
+</div>
+
+<div class="passo">
+  <div class="n">7</div>
+  <h3>Verificar o número da clínica (Caller ID)</h3>
+  <ol>
+    <li>Dentro da subconta, vá em <strong>Phone Numbers → Manage → Verified Caller IDs</strong>.</li>
+    <li>Clique em <strong>Add a new Caller ID</strong>.</li>
+    <li>Informe o número da clínica no formato <code>+5548991234567</code>.</li>
+    <li>A Twilio liga ou manda SMS com um código — <strong>alguém da clínica precisa estar
+    com o aparelho em mãos</strong> para passar o código.</li>
+    <li>Confirme o código no console.</li>
+  </ol>
+  <p>Pronto: as ligações sairão exibindo o número que a clínica já usa, sem custo de
+  aluguel e sem espera por Anatel.</p>
+</div>
+
+<h2>Configurar no CRM</h2>
+
+<p>Com as 5 credenciais em mãos, entre no CRM <strong>como a clínica</strong> (ou pelo modo
+inspeção) e vá em <strong>Configurações → Avançado → VOIP (Twilio)</strong>:</p>
+
+<table>
+  <tr><th>Campo no CRM</th><th>Valor</th><th>Prefixo</th></tr>
+  <tr><td>Account SID</td><td>Da subconta (passo 3)</td><td><code>AC</code></td></tr>
+  <tr><td>Auth Token</td><td>Da subconta (passo 3)</td><td>—</td></tr>
+  <tr><td>API Key SID</td><td>Passo 4</td><td><code>SK</code></td></tr>
+  <tr><td>API Key Secret</td><td>Passo 4</td><td>—</td></tr>
+  <tr><td>TwiML App SID</td><td>Passo 5</td><td><code>AP</code></td></tr>
+  <tr><td>Número (caller ID)</td><td>O número verificado no passo 6</td><td><code>+55</code></td></tr>
+</table>
+
+<p>Salve, clique em <strong>Testar conexão</strong> e faça uma <strong>ligação de teste</strong>.</p>
+
+<div class="aviso imp">
+  <b>O “Testar conexão” não valida tudo</b>
+  <p>Ele confere as credenciais, mas <strong>não o TwiML App</strong>. Pode dar sucesso mesmo com a
+  Request URL errada. Só a ligação de teste prova que o passo 5 ficou certo — se
+  você ouvir <em>“we're sorry, an application error has occurred”</em>, o problema está
+  na Request URL.</p>
+</div>
+
+<h2>Limitação do Verified Caller ID</h2>
+
+<div class="aviso cui">
+  <b>Retorno de ligação não entra no CRM</b>
+  <p>O número é apenas <strong>exibido</strong> — ele continua na operadora atual da clínica.
+  Quando o lead liga de volta, a chamada toca no <strong>celular físico</strong>: não aparece no
+  histórico, não é gravada e não conta no relatório.</p>
+  <p>Combine isso com o cliente na contratação, para não virar reclamação depois.
+  Quem precisar de retorno registrado precisa de <strong>número Twilio comprado</strong>
+  (US$ 4,25/mês ≈ R$ 21,25) com encaminhamento configurado.</p>
+</div>
+
+<h2>Antes de ativar a primeira clínica</h2>
+
+<div class="aviso per">
+  <b>Saldo é compartilhado entre as subcontas</b>
+  <p>Subcontas puxam do crédito da organização. Sem alerta configurado, uma clínica
+  que ligar demais <strong>derruba as ligações de todas as outras</strong> ao zerar o saldo.</p>
+  <p>Configure em <strong>Billing → Billing Alerts</strong>: recarga automática e um alerta de
+  saldo mínimo. É o item que mais dói esquecer.</p>
+</div>
+
+<h2>Checklist por clínica</h2>
+
+<div class="card">
+  <ul class="check">
+    <li><strong>Tradução automática do navegador DESLIGADA</strong> (quebra a criação da API Key)</li>
+    <li>Subconta criada, com País de cobrança = Brazil e uso = Twilio</li>
+    <li><strong>Upgrade feito</strong> — a conta saiu do trial (sem isso não liga para leads)</li>
+    <li>Account SID e Auth Token copiados <strong>da subconta</strong> (não da conta principal)</li>
+    <li>API Key criada — SID e Secret salvos antes de fechar a tela</li>
+    <li>TwiML App criado <strong>dentro da subconta</strong>, com a URL correta e método POST</li>
+    <li>Número da clínica verificado em Verified Caller IDs</li>
+    <li>6 campos preenchidos no CRM e “Testar conexão” com sucesso</li>
+    <li>Ligação de teste feita e ouvida (valida o TwiML App)</li>
+    <li>Limitação do retorno de chamada combinada com o cliente</li>
+    <li>Alerta de saldo e recarga automática configurados na organização</li>
+    <li>Preço de R$ 0,40/min acordado, com regra de reajuste por câmbio</li>
+  </ul>
+</div>
+
+<h2>Repasse mensal</h2>
+
+<p>Para faturar o cliente, use o uso real da subconta:</p>
+<ol>
+  <li>No console, entre na subconta e vá em <strong>Monitor → Usage → Summary</strong>.</li>
+  <li>Filtre pelo mês e veja os minutos de <em>Voice</em>.</li>
+  <li>Multiplique por <strong>R$ 0,40</strong>.</li>
+</ol>
+<p>O CRM também mostra volume por clínica em <strong>Ligações → Relatório de chamadas</strong>,
+com exportação em CSV — útil para conferir se bate com a Twilio.</p>
+
+<div class="aviso ok">
+  <b>Onde conferir o custo real</b>
+  <p>A tabela pública é referência; o valor efetivamente cobrado (já com descontos por
+  volume da sua conta) aparece em <strong>Monitor → Usage</strong>. Confira nos primeiros meses
+  para validar se R$ 0,40/min se confirma na prática.</p>
+</div>
+
+<h2>Problemas comuns</h2>
+
+<table>
+  <tr><th>Sintoma</th><th>Causa provável</th></tr>
+  <tr><td><em>“we're sorry, an application error has occurred”</em></td><td>Request URL errada no TwiML App, ou app criado na conta errada</td></tr>
+  <tr><td>“Testar conexão” falha</td><td>SID/Secret copiados pela metade, ou credenciais da conta principal em vez da subconta</td></tr>
+  <tr><td>Ligações param de repente</td><td>Saldo da organização zerado</td></tr>
+  <tr><td>Chamada completa mas sem áudio</td><td>Permissão de microfone negada no navegador</td></tr>
+  <tr><td>Botão de ligar não aparece</td><td>Plano abaixo do intermediário, ou conta VOIP inativa no CRM</td></tr>
+  <tr><td>A tela “Copiar segredo” não aparece ao criar a API Key</td><td>Tradução automática do navegador — desligue e recrie a chave</td></tr>
+  <tr><td>Chaves sem Secret acumuladas na lista</td><td>Tentativas anteriores com a tradução ligada; apague-as, são inutilizáveis</td></tr>
+</table>
+
+<p>O log detalhado de cada chamada fica em <strong>Monitor → Logs → Calls</strong>, dentro da
+subconta — costuma apontar a causa exata.</p>
+
+<footer>
+  Documento interno da Resili Sevenn · Preços convertidos a US$ 1,00 = R$ 5,70 ·
+  Referência técnica da feature: <code>z-DOCUMENTAÇÃO/DOCUMENTACAO_VOIP_LIGACOES.md</code> ·
+  Guia do cliente final: Central de Ajuda → Ligações (VOIP)
+</footer>
+
+</div>
+
+<script>
+// ── Seções recolhíveis ────────────────────────────────────────────────────
+// Cada <h2> vira cabeçalho clicável e tudo até o próximo <h2> é envolvido num
+// .corpo. Feito em JS para o HTML acima seguir plano: sem script, o documento
+// continua legível por inteiro (nada nasce escondido no markup).
+(function () {
+  document.querySelectorAll('.wrap > h2').forEach(function (h2) {
+    var corpo = document.createElement('div');
+    corpo.className = 'corpo';
+    var no = h2.nextSibling;
+    while (no && !(no.nodeType === 1 && no.tagName === 'H2')) {
+      var proximo = no.nextSibling;
+      corpo.appendChild(no);
+      no = proximo;
+    }
+    h2.parentNode.insertBefore(corpo, h2.nextSibling);
+
+    // Todas as seções começam FECHADAS: o documento é longo e serve de
+    // referência para consulta pontual — o índice de títulos é a porta de
+    // entrada, não a leitura corrida.
+    h2.classList.add('sanfona', 'fechada');
+    var seta = document.createElement('span');
+    seta.className = 'seta';
+    seta.textContent = '▼';
+    h2.insertBefore(seta, h2.firstChild);
+
+    h2.addEventListener('click', function () {
+      h2.classList.toggle('fechada');
+    });
+  });
+
+  // Atalho para quem quer ler tudo de uma vez ou imprimir o documento.
+  var titulos = document.querySelectorAll('h2.sanfona');
+  if (!titulos.length) return;
+
+  var barra = document.createElement('div');
+  barra.className = 'barra-toggle';
+  var botao = document.createElement('button');
+  botao.type = 'button';
+  botao.textContent = 'Expandir tudo';
+  barra.appendChild(botao);
+  titulos[0].parentNode.insertBefore(barra, titulos[0]);
+
+  botao.addEventListener('click', function () {
+    var abrir = botao.textContent === 'Expandir tudo';
+    titulos.forEach(function (h) { h.classList.toggle('fechada', !abrir); });
+    botao.textContent = abrir ? 'Recolher tudo' : 'Expandir tudo';
+  });
+})();
+
+// ── Botão de copiar dos blocos de código ──────────────────────────────────
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest('[data-copiar]');
+  if (!btn) return;
+  var texto = btn.parentElement.querySelector('pre').textContent.trim();
+  navigator.clipboard.writeText(texto).then(function () {
+    var antes = btn.textContent;
+    btn.textContent = 'Copiado!';
+    btn.classList.add('feito');
+    setTimeout(function () {
+      btn.textContent = antes;
+      btn.classList.remove('feito');
+    }, 1500);
+  }).catch(function () {
+    btn.textContent = 'Copie manualmente';
+    setTimeout(function () { btn.textContent = 'Copiar'; }, 2500);
+  });
+});
+</script>
+
+</body>
+</html>

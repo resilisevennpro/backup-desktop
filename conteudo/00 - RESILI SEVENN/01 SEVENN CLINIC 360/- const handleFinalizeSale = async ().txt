@@ -1,0 +1,115 @@
+ const handleFinalizeSale = async () => {
+        if (!lead || !quickSaleValue) return;
+        setIsProcessingSale(true);
+
+        try {
+            const numericValue = Number(quickSaleValue.toString().replace(/[^0-9.]/g, ''));
+
+            if (isNaN(numericValue) || numericValue <= 0) {
+                toast.error("Por favor, insira um valor válido.");
+                setIsProcessingSale(false);
+                return;
+            }
+
+            // 1. Busca Obrigatória (Atomic LTV Check)
+            const { data: dbLead, error: fetchError } = await supabase
+                .from('leads')
+                .select('total_ltv, stage_history')
+                .eq('id', lead.id)
+                .single();
+
+            if (fetchError || !dbLead) throw new Error("Erro de segurança: Não foi possível sincronizar o LTV.");
+
+            const currentLtv = Number(dbLead.total_ltv || 0);
+            const newLtv = currentLtv + numericValue;
+
+            // Histórico de Etapa
+            const newHistoryItem = {
+                action: `Venda Rápida: ${quickSaleMethod} (R$ ${numericValue})`,
+                date: new Date().toISOString()
+            };
+            const updatedHistory = [...(dbLead.stage_history || []), newHistoryItem];
+
+            // 2. Cálculo do Ciclo de Venda
+            const now = new Date();
+            const createdAt = new Date(lead.created_at || now);
+            const diffTime = Math.abs(now.getTime() - createdAt.getTime());
+            const diffDays = parseFloat((diffTime / (1000 * 60 * 60 * 24)).toFixed(2));
+
+            // 3. Atualizar Lead (Status + Atomic LTV + Histórico + Closed At + Sales Cycle + Clear Budget)
+            const { error: updateError } = await supabase
+                .from('leads')
+                .update({
+                    status: 'Venda Realizada',
+                    total_ltv: newLtv,
+                    budget: null, // CRITICAL: Clear budget after sale confirmation
+                    stage_history: updatedHistory,
+                    closed_at: now.toISOString(),
+                    sales_cycle_days: diffDays
+                })
+                .eq('id', lead.id);
+
+            if (updateError) throw updateError;
+
+            // Identificar Procedimento e Médico para Metadata
+            const procedureName = services.find(s => s.id === lead.procedure_id)?.name || lead.procedure || "Procedimento Geral";
+            const professionalName = professionals.find(p => p.id === lead.doctor_id)?.name || "Sem Responsável";
+
+            // 3. Lançar Financeiro (Com todos os campos necessários para Dashboard e Financeiro)
+            const { error: finError } = await supabase
+                .from('financial_transactions')
+                .insert({
+                    lead_id: lead.id,
+                    clinic_id: clinic?.id,
+                    professional_id: lead.doctor_id || profile?.id, // CRITICAL: Save professional_id UUID for join relation, with fallback
+                    amount: numericValue,
+                    status: 'paid',
+                    type: 'income', // CRÍTICO: Necessário para aparecer nos gráficos de Receita
+                    category: 'Vendas',
+                    payment_method: quickSaleMethod,
+                    installments: quickSaleMethod === 'Cartão de Crédito' ? (Number(quickSaleInstallments) || 1) : 1, // CRITICAL: Save as INTEGER
+                    description: quickSaleObs || `Venda Rápida - ${procedureName}`,
+                    transaction_date: new Date().toISOString(), // CRÍTICO: Necessário para filtros de data
+                    metadata: {
+                        patient_name: lead.name,
+                        procedure_name: procedureName,
+                        professional_name: professionalName,
+                        payment_method: quickSaleMethod
+                    }
+                });
+
+            if (finError) {
+                console.error("Erro ao lançar financeiro:", finError);
+                toast.error("Venda salva, mas houve erro no registro financeiro.");
+                setIsProcessingSale(false); // CRITICAL: End loading state
+                return;
+            }
+
+            // 4. Registro de Atividade (type: 'venda' para histórico do paciente)
+            const formattedValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(numericValue);
+            const activityDescription = `Venda de ${formattedValue} via ${quickSaleMethod} - ${procedureName}. ${quickSaleObs ? `Obs: ${quickSaleObs}` : ''}`;
+
+            await supabase.from('lead_activities').insert({
+                lead_id: lead.id,
+                type: 'venda', // CRITICAL: Changed to 'venda' for complete patient history
+                description: activityDescription,
+                clinic_id: clinic?.id || lead.clinic_id, // CRITICAL: Mandatory clinic_id
+                created_at: new Date().toISOString()
+            });
+
+            // 5. Conversão e Refresh
+            await fetchLeadById(lead.id);
+            await fetchBoardData(clinic?.id || '');
+
+            toast.success(`Venda de ${formattedValue} processada com sucesso! 🚀`, {
+                duration: 4000
+            });
+            setIsQuickSaleModalOpen(false);
+            setIsProcessingSale(false); // SUCCESS RESET
+
+        } catch (error) {
+            console.error("Erro na Venda Rápida:", error);
+            toast.error("Erro ao processar venda. Verifique sua conexão.");
+            setIsProcessingSale(false);
+        }
+    };

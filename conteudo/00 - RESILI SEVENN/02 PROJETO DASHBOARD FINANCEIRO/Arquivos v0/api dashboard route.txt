@@ -1,0 +1,175 @@
+// app/api/dashboard/route.ts
+import { NextResponse } from "next/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { requireApiAuth } from "@/lib/auth"
+import { readClinicSheetData } from "@/lib/googleSheets"
+import type { DashboardPayload, PeriodValue } from "@/lib/dashboard-types"
+
+// ===== Anti-abuso (rate limit) =====
+const RL_WINDOW_MS = 30_000 
+const RL_MAX = 30           
+type RLItem = { count: number; resetAt: number }
+const rlStore = new Map<string, RLItem>()
+
+function rateLimitOrThrow(key: string) {
+  const now = Date.now()
+  const item = rlStore.get(key)
+  if (!item || now > item.resetAt) {
+    rlStore.set(key, { count: 1, resetAt: now + RL_WINDOW_MS })
+    return
+  }
+  item.count += 1
+  if (item.count > RL_MAX) {
+    const retryAfterSec = Math.ceil((item.resetAt - now) / 1000)
+    const err: any = new Error("RATE_LIMIT")
+    err.status = 429
+    err.retryAfterSec = retryAfterSec
+    throw err
+  }
+}
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
+const ALLOWED_PERIODS: PeriodValue[] = [
+  "este-mes",
+  "mes-passado",
+  "ultimos-7",
+  "ultimos-14",
+  "todo-historico",
+  "personalizado",
+]
+
+const MAX_PROFISSIONAIS = 10
+const MAX_STR = 80
+
+function isPeriodValue(v: string | null): v is PeriodValue {
+  if (!v) return false
+  return (ALLOWED_PERIODS as string[]).includes(v)
+}
+
+function cleanStr(input: string, maxLen = MAX_STR) {
+  const s = (input ?? "").toString().trim()
+  return s.length > maxLen ? s.slice(0, maxLen) : s
+}
+
+export async function GET(req: Request) {
+  try {
+    // 1) Auth & Contexto
+    const ctx = await requireApiAuth()
+    if (!ctx) return NextResponse.json({ error: "Não autenticado." }, { status: 401 })
+
+    const { clinicId, userId } = ctx
+    if (!clinicId) return NextResponse.json({ error: "Usuário sem clínica vinculada." }, { status: 403 })
+
+    rateLimitOrThrow(`dashboard:${clinicId}`)
+
+    const supabase = await createSupabaseServerClient()
+
+    // 2) Buscar dados da Clínica (incluindo NOME) e do Perfil
+    // ATUALIZAÇÃO: Adicionado campo 'name' na query da clinics
+    const [clinicRes, profileRes] = await Promise.all([
+      supabase.from("clinics").select("sheet_id, active, name").eq("id", clinicId).single(),
+      supabase.from("profiles").select("email").eq("user_id", userId).single()
+    ])
+
+    const clinic = clinicRes.data
+    const profile = profileRes.data
+
+    if (!clinic) return NextResponse.json({ error: "Clínica não encontrada." }, { status: 404 })
+    if (!clinic.active) return NextResponse.json({ error: "Clínica inativa." }, { status: 403 })
+
+    const sheetId = String(clinic.sheet_id || "").trim()
+    if (!sheetId) return NextResponse.json({ error: "Clinic missing sheet_id" }, { status: 400 })
+
+    // 3) Query Params
+    const url = new URL(req.url)
+    const periodRaw = url.searchParams.get("period")
+    const period: PeriodValue = isPeriodValue(periodRaw) ? periodRaw : "este-mes"
+    const startDate = cleanStr(url.searchParams.get("startDate") ?? "", 10)
+    const endDate = cleanStr(url.searchParams.get("endDate") ?? "", 10)
+
+    // ATUALIZAÇÃO: Proteção para datas vazias no modo personalizado
+    // Se o usuário selecionou "Personalizado" mas ainda não preencheu datas,
+    // retornamos um payload vazio com sucesso (200) em vez de erro (400).
+    if (period === "personalizado") {
+      const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+      if (!startDate || !endDate || !ISO_DATE_RE.test(startDate) || !ISO_DATE_RE.test(endDate)) {
+        // Retorno "Silencioso" para aguardar o preenchimento
+        return NextResponse.json({
+          ok: true,
+          waitingForDates: true,
+          kpis: { metaFaturamento: 0, faturamentoBruto: 0, lucroLiquido: 0, margemLiquida: 0, ticketMedio: 0, marketingTotal: 0 },
+          vendasDiarias: [],
+          extrato: [],
+          procedures: [],
+          user: { 
+            email: profile?.email || "", 
+            name: clinic.name || "Minha Clínica" // Nome correto do Banco
+          }
+        }, { status: 200 })
+      }
+    }
+
+    // Profissionais
+    const profissionalRaw = url.searchParams.getAll("profissional") || []
+    const profissional = profissionalRaw
+      .map((p) => cleanStr(p, MAX_STR))
+      .filter((p) => p.length > 0)
+
+    // Procedimento (Filtro)
+    const procedimento = cleanStr(url.searchParams.get("procedimento") ?? "todos", MAX_STR) || "todos"
+
+    // 4) Ler Google Sheets
+    const payload: DashboardPayload = await readClinicSheetData(sheetId, {
+      filters: {
+        period,
+        profissional,
+        procedimento: procedimento === "todos" ? "todos" : procedimento, 
+        ...(period === "personalizado" ? { startDate, endDate } : {}),
+      },
+    })
+
+    // 5) Extração Dinâmica de Listas (Procedimentos)
+    const proceduresList = Array.from(new Set(
+        (payload.extrato || []).map((row: any) => row.procedimento)
+    )).filter(Boolean).sort()
+
+    // 6) Montar resposta enriquecida
+    return NextResponse.json({
+      ...payload,
+      procedures: proceduresList,
+      user: {
+        email: profile?.email || "usuario@clinica.com",
+        // ATUALIZAÇÃO: Prioriza o nome da clínica vindo do banco
+        name: clinic.name || (profile?.email ? profile.email.split("@")[0] : "Usuário")
+      }
+    }, {
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
+    })
+
+  } catch (err: any) {
+    console.error("[/api/dashboard] error:", err)
+    
+    if (err?.message === "RATE_LIMIT") {
+      return NextResponse.json(
+        { error: "Muitas requisições. Aguarde." },
+        { status: 429, headers: { "Retry-After": "30" } }
+      )
+    }
+
+    // Fallback seguro em caso de erro na planilha
+    return NextResponse.json(
+      { 
+        ok: true, 
+        extrato: [], 
+        kpis: { metaFaturamento: 0, faturamentoBruto: 0, lucroLiquido: 0, margemLiquida: 0, ticketMedio: 0, marketingTotal: 0 },
+        vendasDiarias: [],
+        procedures: [],
+        user: { name: "Erro ao carregar", email: "" }
+      },
+      { status: 200 }
+    )
+  }
+}

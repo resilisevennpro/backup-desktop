@@ -1,0 +1,317 @@
+{
+  "name": "Move Etapa Follow-Up - Template",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "entity_id"
+            },
+            {
+              "name": "last_interaction_at"
+            },
+            {
+              "name": " followup_flow_name"
+            },
+            {
+              "name": "subdomainKommo"
+            },
+            {
+              "name": "tokenKommo"
+            },
+            {
+              "name": "Funil-Etapa"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        80,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        432,
+        192
+      ],
+      "id": "8ecb0254-3561-419a-9763-355e992ac0f2",
+      "name": "Wait",
+      "webhookId": "3c80e5a4-9d25-49fc-a693-a89374142d14"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "followup_lead_table",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "entity_id",
+              "keyValue": "={{ $('When Executed by Another Workflow').item.json.entity_id }}"
+            },
+            {
+              "keyName": "last_interaction_at",
+              "keyValue": "={{ $('When Executed by Another Workflow').item.json.last_interaction_at }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        640,
+        192
+      ],
+      "id": "49ab6a79-0a53-4a16-a4de-033f65a08680",
+      "name": "puxaLead",
+      "credentials": {
+        "supabaseApi": {
+          "id": "P67Q57jKF1n2vKch",
+          "name": "FOLLOWUP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Importante\n-> Valor de Wait precisa ser menor do que Intervalo da Primeira Cadência + Trigger Interval \n\n\nW < C1 + It\n\n\n\n\n\n\n\n- w: valor de wait\n- C1: espera para primeira cadência (workflow do agente de followup)\n- It: Intervalo do Schedule Trigger (workflow do agente de followup)",
+        "height": 368,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        288,
+        48
+      ],
+      "id": "5ab84dbb-b3c0-4c41-8a04-6790e1bdb749",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('When Executed by Another Workflow').item.json.subdomainKommo }}.kommo.com/api/v4/leads/pipelines",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('When Executed by Another Workflow').item.json.tokenKommo }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        832,
+        192
+      ],
+      "id": "7d1a7bdf-e2cc-4de2-91ce-096e2dc12bb1",
+      "name": "buscaFunisEtapas",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node — confereFunilEtapa (Run Once for All Items)\n\ntry {\n  // === Nomes dos nós de entrada ===\n  const TRIGGER_NODE = 'When Executed by Another Workflow';\n  const PIPES_NODE   = 'buscaFunisEtapas';\n\n  // --- Helpers ---\n  const norm = (s) =>\n    String(s ?? '')\n      .normalize('NFD')               // remove acentos para comparação robusta\n      .replace(/\\p{Diacritic}/gu, '')\n      .toLowerCase()\n      .replace(/\\s+/g, ' ')\n      .trim();\n\n  const firstItem = (name) => {\n    const arr = $items(name);\n    if (!Array.isArray(arr) || !arr.length) {\n      throw new Error(`Sem itens no nó \"${name}\".`);\n    }\n    return arr[0]?.json ?? {};\n  };\n\n  // --- Lê entradas ---\n  const trigger = firstItem(TRIGGER_NODE);\n  const funilEtapaRaw = trigger['Funil-Etapa'];\n  if (!funilEtapaRaw || typeof funilEtapaRaw !== 'string') {\n    throw new Error('Campo \"Funil-Etapa\" ausente ou inválido no trigger.');\n  }\n\n  // separa antes/depois do primeiro hífen\n  const sepIdx = funilEtapaRaw.indexOf('-');\n  if (sepIdx < 0) {\n    throw new Error(\n      `Formato inválido em \"Funil-Etapa\": \"${funilEtapaRaw}\". Use \"Nome do Funil - Nome da Etapa\".`\n    );\n  }\n  const nomeFunil = funilEtapaRaw.slice(0, sepIdx).trim();\n  const nomeEtapa = funilEtapaRaw.slice(sepIdx + 1).trim();\n  if (!nomeFunil || !nomeEtapa) {\n    throw new Error(\n      `Formato inválido em \"Funil-Etapa\": \"${funilEtapaRaw}\". Faltou nome do funil ou da etapa.`\n    );\n  }\n\n  const pipelinesRoot = firstItem(PIPES_NODE);\n  const pipelines = pipelinesRoot?._embedded?.pipelines ?? [];\n  if (!pipelines.length) {\n    throw new Error('Nenhum funil retornado por \"buscaFunisEtapas\".');\n  }\n\n  // --- Busca funil ---\n  const alvoFunil = pipelines.find((p) => norm(p.name) === norm(nomeFunil));\n  if (!alvoFunil) {\n    throw new Error(`Funil \"${nomeFunil}\" não encontrado.`);\n  }\n\n  // --- Busca etapa dentro do funil encontrado ---\n  const statuses = alvoFunil?._embedded?.statuses ?? [];\n  const alvoEtapa = statuses.find((s) => norm(s.name) === norm(nomeEtapa));\n  if (!alvoEtapa) {\n    throw new Error(\n      `Etapa \"${nomeEtapa}\" não encontrada dentro do funil \"${alvoFunil.name}\".`\n    );\n  }\n\n  // --- Saída ---\n  return [\n    {\n      json: {\n        pipeline_name: alvoFunil.name,\n        pipeline_id: alvoFunil.id,\n        status_name: alvoEtapa.name,\n        status_id: alvoEtapa.id,\n      },\n    },\n  ];\n} catch (err) {\n  // Deixe o erro explícito para depuração do fluxo\n  throw new Error(`confereFunilEtapa: ${err.message}`);\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        192
+      ],
+      "id": "4c3f7a2a-319c-4a89-aca8-624fec28d5d9",
+      "name": "confereFunilEtapa"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://{{ $('When Executed by Another Workflow').first().json.subdomainKommo }}.kommo.com/api/v4/leads/{{ $('When Executed by Another Workflow').first().json.entity_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('When Executed by Another Workflow').first().json.tokenKommo }}"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "status_id",
+              "value": "={{ Number($('confereFunilEtapa').first().json.status_id) }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1264,
+        192
+      ],
+      "id": "d8bb2344-026c-4375-9202-4f3d8ef03a05",
+      "name": "mudaEtapaFollowUp"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "196dc13a-21a2-4f30-9a3a-560d05918bd6",
+              "name": "entity_id",
+              "value": "={{ $json.entity_id }}",
+              "type": "string"
+            },
+            {
+              "id": "9a0e7f6f-0d53-494c-bb6a-42006838e6fc",
+              "name": "last_interaction_at",
+              "value": "={{ $json.last_interaction_at }}",
+              "type": "string"
+            },
+            {
+              "id": "40d513a3-700c-4109-887f-30862b8c0d1f",
+              "name": " followup_flow_name",
+              "value": "={{ $json.followup_flow_name }}",
+              "type": "string"
+            },
+            {
+              "id": "a7142196-3d1c-43fb-a3da-b52bf3a1a9c0",
+              "name": "subdomainKommo",
+              "value": "={{ $('Webhook').item.json.body[\"account[subdomain]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b31dd28b-0020-4364-bf9f-1eb173515b6e",
+              "name": "tokenKommo",
+              "value": "={{ $('CONFIGURAÇÃO IA').item.json.kommo_token }}",
+              "type": "string"
+            },
+            {
+              "id": "07ac8862-afae-481f-aee6-708ac80ee06f",
+              "name": "Funil-Etapa",
+              "value": "=Celulares-Follow-Up (Contato Inicial)",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        0
+      ],
+      "id": "a7b35be9-f002-47a3-89d4-69cbbb5db34b",
+      "name": "receberDados"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "puxaLead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "puxaLead": {
+      "main": [
+        [
+          {
+            "node": "buscaFunisEtapas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscaFunisEtapas": {
+      "main": [
+        [
+          {
+            "node": "confereFunilEtapa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "confereFunilEtapa": {
+      "main": [
+        [
+          {
+            "node": "mudaEtapaFollowUp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "752a5103-da12-48bc-a1dc-c6ed2983456d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "k5YrejtUxGDaKAbe",
+  "tags": []
+}

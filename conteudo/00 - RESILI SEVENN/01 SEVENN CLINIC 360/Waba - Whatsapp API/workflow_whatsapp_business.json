@@ -1,0 +1,114 @@
+{
+  "name": "waba-SevennClinic",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "9ec46d15-3c18-4721-baa0-232a62a9223a",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "id": "b05516dd-cc65-42f8-9638-59ba754c3d26",
+      "name": "enviarmensagem",
+      "webhookId": "9ec46d15-3c18-4721-baa0-232a62a9223a"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "aa42a996-331e-4f1f-96ac-512450f78614",
+              "leftValue": "={{ $json.body.token }}",
+              "rightValue": "tokeninternoO?",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        20,
+        0
+      ],
+      "id": "a7f6ebc7-bea4-49f9-9975-1454ea94e209",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $json.body.from_phone_number_id }}/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer __SUBSTITUIR_PELO_WHATSAPP_CLOUD_API_TOKEN__"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.body.to }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"{{ $json.body.template.name }}\",\n    \"language\": {\n      \"code\": \"{{ $json.body.template.language.code }}\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "id": "47f34aac-06f5-4740-ad40-934b016fae82",
+      "name": "Enviar mensagem"
+    }
+  ],
+  "connections": {
+    "enviarmensagem": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Enviar mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

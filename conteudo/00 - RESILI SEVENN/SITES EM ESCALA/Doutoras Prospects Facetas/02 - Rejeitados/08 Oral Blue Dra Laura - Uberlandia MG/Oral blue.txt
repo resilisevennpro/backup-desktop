@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Implantes Dentários em Uberlândia | Oral Blue Centro Odontológico</title>
+    <meta name="description" content="Transforme seu sorriso na Oral Blue Centro Odontológico em Uberlândia, MG. Especialistas em Implantes Dentários, Facetas e Ortodontia. Agende sua avaliação!">
+    
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Implantes Dentários em Uberlândia | Oral Blue Centro Odontológico">
+    <meta property="og:description" content="Clínica odontológica premium em Uberlândia. Especialistas em Implantes Dentários, Facetas em Resina e Ortodontia.">
+    <meta property="og:url" content="https://www.instagram.com/oralblueudia/">
+    <meta property="og:site_name" content="Oral Blue Centro Odontológico">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['DM Sans', 'sans-serif'],
+                        heading: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#0EA5E9', 
+                        primaryDark: '#0284C7',
+                        secondary: '#10B981', 
+                        secondaryDark: '#059669',
+                        accent: '#0F172A', 
+                        bgLight: '#F8FAFC', 
+                        resili: '#0b1120', 
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 40px -10px rgba(14, 165, 233, 0.15)',
+                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                    },
+                    borderRadius: {
+                        'blob': '60% 40% 30% 70% / 60% 30% 70% 40%',
+                    }
+                }
+             }
+        }
+    </script>
+
+    <style>
+        /* Efeito de Cursor Piscando */
+        .typing-effect::after {
+            content: '|';
+            animation: blink 1s step-start infinite;
+            color: #0EA5E9; /* Cor do cursor adaptada para a primária */
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* Efeito Border Flow (Azul Sky) para Modelo 2 */
+        @keyframes border-rotate {
+            from { --angle: 0deg; }
+            to { --angle: 360deg; }
+        }
+        @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+        
+        .img-border-flow {
+            position: relative;
+            z-index: 0;
+            margin: 5px; 
+        }
+
+        .img-border-flow::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset: -4px; 
+            animation: border-rotate 6s linear infinite;
+            border-radius: 1.2rem;
+            background: conic-gradient(from var(--angle), transparent 20%, #0EA5E9, #ffffff, #0EA5E9, transparent 80%);
+        }
+
+        .img-border-flow::after {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset: 0; 
+            background: #ffffff; 
+            border-radius: 1rem;
+        }
+
+        /* Animações Customizadas */
+        .fade-up-element {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+        
+        .fade-up-element.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Ajuste fino para o blob do hero */
+        .blob-bg {
+            position: absolute;
+            z-index: -1;
+            filter: blur(60px);
+            opacity: 0.6;
+        }
+
+        /* Smooth Accordion */
+        .faq-content {
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .faq-content.open {
+            opacity: 1;
+        }
+        
+        /* Map Container ensuring responsiveness */
+        .map-container {
+            position: relative;
+            padding-bottom: 56.25%; 
+            height: 0;
+            overflow: hidden;
+            border-radius: 1.5rem;
+        }
+        .map-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        /* Hide scrollbar for clean horizontal scroll */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none; 
+        }
+
+        /* Active Dot Animation */
+        .dot.active {
+            background-color: #0EA5E9;
+            width: 24px;
+            border-radius: 99px;
+        }
+    </style>
+</head>
+<body class="bg-bgLight text-slate-600 antialiased selection:bg-primary selection:text-white">
+
+    <header>
+        <nav class="fixed w-full z-50 bg-accent/95 backdrop-blur-md border-b border-slate-800 transition-all duration-300" id="navbar">
+            <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+                <a href="#" class="flex items-center gap-2 group" aria-label="Oral Blue Home">
+                    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white text-lg">
+                        <i class="fa-solid fa-tooth"></i>
+                    </div>
+                    <span class="font-heading font-bold text-xl text-white tracking-tight group-hover:text-primary transition-colors">
+                        Oral<span class="text-primary">Blue</span>
+                    </span>
+                </a>
+
+                <div class="hidden md:flex items-center gap-8 font-medium text-sm text-slate-300">
+                    <a href="#differentials" class="hover:text-primary transition-colors">Diferenciais</a>
+                    <a href="#treatments" class="hover:text-primary transition-colors">Tratamentos</a>
+                    <a href="#team" class="hover:text-primary transition-colors">Equipe</a>
+                    <a href="#clinic" class="hover:text-primary transition-colors">A Clínica</a>
+                    <a href="#location" class="hover:text-primary transition-colors">Localização</a>
+                    <a href="#faq" class="hover:text-primary transition-colors">Dúvidas</a>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <a href="https://wa.me/553432290700" target="_blank" rel="noopener noreferrer" class="hidden md:flex items-center gap-2 bg-primary hover:bg-primaryDark text-white px-6 py-2.5 rounded-full font-bold text-sm transition-all shadow-lg shadow-blue-500/20 transform hover:scale-105">
+                        <i class="fa-brands fa-whatsapp text-lg"></i>
+                        Agendar Agora
+                    </a>
+                    <button id="mobile-menu-btn" class="md:hidden text-2xl text-white focus:outline-none" aria-label="Abrir menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="mobile-menu" class="hidden absolute top-full left-0 w-full bg-accent border-b border-slate-800 shadow-xl md:hidden flex-col p-6 gap-4">
+                <a href="#differentials" class="block font-medium text-slate-300 hover:text-primary">Diferenciais</a>
+                <a href="#treatments" class="block font-medium text-slate-300 hover:text-primary">Tratamentos</a>
+                <a href="#team" class="block font-medium text-slate-300 hover:text-primary">Equipe</a>
+                <a href="#clinic" class="block font-medium text-slate-300 hover:text-primary">A Clínica</a>
+                <a href="#location" class="block font-medium text-slate-300 hover:text-primary">Localização</a>
+                <a href="https://wa.me/553432290700" target="_blank" rel="noopener noreferrer" class="block text-center bg-primary hover:bg-primaryDark text-white py-3 rounded-xl font-bold transition-colors">
+                    Agendar via WhatsApp
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
+            <div class="blob-bg w-96 h-96 bg-blue-200 rounded-full top-0 left-[-100px]"></div>
+            <div class="blob-bg w-80 h-80 bg-emerald-100 rounded-full bottom-0 right-[-50px]"></div>
+
+            <div class="container mx-auto px-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                    <div class="max-w-xl fade-up-element">
+                        <div class="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-primary px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+                            <i class="fa-solid fa-star text-yellow-400"></i> Tecnologia & Conforto
+                        </div>
+                        <h1 class="font-heading text-4xl lg:text-6xl font-bold text-accent leading-[1.1] mb-6">
+                            O cuidado que o <span class="text-primary bg-blue-50 px-2 rounded-lg decoration-wavy decoration-emerald-400 underline-offset-4">sorriso</span> da sua família merece.
+                        </h1>
+                        <p class="text-lg text-slate-500 mb-8 leading-relaxed">
+                            Esqueça o consultório antigo. Unimos tecnologia digital, ambiente relaxante e especialistas que entendem o seu medo para transformar sua saúde bucal em Uberlândia.
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <a href="https://wa.me/553432290700" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 bg-primary hover:bg-primaryDark text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-blue-500/30 transform hover:-translate-y-1">
+                                Agendar Avaliação
+                            </a>
+                            <a href="#treatments" class="flex items-center justify-center gap-2 bg-white border-2 border-slate-200 hover:border-primary text-slate-600 hover:text-primary px-8 py-4 rounded-2xl font-bold text-lg transition-all">
+                                Ver Tratamentos
+                            </a>
+                        </div>
+                        
+                        <div class="mt-8 flex items-center gap-4 text-sm text-slate-500 font-medium">
+                            <div class="flex -space-x-3">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64" alt="Paciente Satisfeito Oral Blue 1" loading="eager" class="w-10 h-10 rounded-full border-2 border-white object-cover">
+                                <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64" alt="Paciente Satisfeito Oral Blue 2" loading="eager" class="w-10 h-10 rounded-full border-2 border-white object-cover">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64" alt="Paciente Satisfeito Oral Blue 3" loading="eager" class="w-10 h-10 rounded-full border-2 border-white object-cover">
+                            </div>
+                            <p>Junte-se a <span class="text-accent font-bold">+500</span> pacientes felizes</p>
+                        </div>
+                    </div>
+
+                    <div class="relative fade-up-element delay-200">
+                        <div class="relative z-10 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-blue-900/10">
+                            <img src="https://images.unsplash.com/photo-1606811841689-23dfddce3e95?q=80&w=1974&auto=format&fit=crop" alt="Família sorrindo após tratamento na Oral Blue Uberlândia" loading="eager" class="w-full h-auto object-cover">
+                        </div>
+
+                        <div class="absolute -bottom-6 -left-6 z-20 bg-white p-4 rounded-2xl shadow-xl flex items-center gap-4 animate-bounce" style="animation-duration: 3s;">
+                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-secondary text-2xl">
+                                <i class="fa-solid fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-400 font-bold uppercase">Nota Média</p>
+                                <div class="flex text-yellow-400 text-sm">
+                                    <i class="fa-solid fa-star"></i>
+                                    <i class="fa-solid fa-star"></i>
+                                    <i class="fa-solid fa-star"></i>
+                                    <i class="fa-solid fa-star"></i>
+                                    <i class="fa-solid fa-star"></i>
+                                </div>
+                                <p class="font-bold text-accent text-sm">5.0 no Google</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white border-y border-slate-100 py-8">
+            <div class="container mx-auto px-6">
+                <p class="text-center text-sm text-primary font-medium mb-6 uppercase tracking-widest">Convênios Parceiros</p>
+                <div class="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-60">
+                    <div class="flex items-center gap-2 text-2xl font-bold text-slate-400 grayscale hover:grayscale-0 hover:text-[#0054A6] transition-all cursor-default">
+                        <i class="fa-solid fa-shield-heart"></i> Amil
+                    </div>
+                    <div class="flex items-center gap-2 text-2xl font-bold text-slate-400 grayscale hover:grayscale-0 hover:text-[#E40046] transition-all cursor-default">
+                        <i class="fa-solid fa-heart-pulse"></i> Bradesco
+                    </div>
+                    <div class="flex items-center gap-2 text-2xl font-bold text-slate-400 grayscale hover:grayscale-0 hover:text-[#009688] transition-all cursor-default">
+                        <i class="fa-solid fa-tooth"></i> OdontoPrev
+                    </div>
+                    <div class="flex items-center gap-2 text-2xl font-bold text-slate-400 grayscale hover:grayscale-0 hover:text-[#FBBF24] transition-all cursor-default">
+                        <i class="fa-solid fa-star-of-life"></i> SulAmérica
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="differentials" class="py-10 bg-bgLight">
+            <div class="container mx-auto px-6">
+                <div class="text-center max-w-2xl mx-auto mb-10 fade-up-element">
+                    <span class="text-primary font-bold text-sm uppercase tracking-wider">Por que a Oral Blue?</span>
+                    <h2 class="font-heading text-3xl md:text-4xl font-bold text-accent mt-2 mb-4 min-h-[5rem] md:min-h-[6rem]">Excelência em cada detalhe</h2>
+                    <p class="text-slate-500">Unimos a precisão digital ao calor humano para oferecer uma experiência odontológica totalmente sem traumas em Uberlândia. Nossa abordagem moderna garante conforto, segurança e resultados estéticos impecáveis em cada etapa do seu tratamento, priorizando o seu bem-estar do início ao fim.</p>
+                </div>
+
+                <div id="differentials-carousel" class="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 pr-12 md:pr-0 md:grid md:grid-cols-3 md:pb-0 md:gap-8 no-scrollbar scroll-smooth">
+                    
+                    <div class="min-w-[85%] md:min-w-0 bg-white p-8 rounded-3xl shadow-card hover:shadow-soft transition-all duration-300 hover:-translate-y-2 group fade-up-element snap-center">
+                        <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-primary text-2xl mb-6 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-user-doctor"></i>
+                        </div>
+                        <h3 class="font-heading text-xl font-bold text-accent mb-3">Equipe Especializada</h3>
+                        <p class="text-slate-500 text-sm leading-relaxed">Profissionais multidisciplinares prontos para diagnosticar e resolver suas dores com precisão e agilidade.</p>
+                    </div>
+
+                    <div class="min-w-[85%] md:min-w-0 bg-white p-8 rounded-3xl shadow-card hover:shadow-soft transition-all duration-300 hover:-translate-y-2 group fade-up-element delay-100 snap-center">
+                        <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-secondary text-2xl mb-6 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-building"></i>
+                        </div>
+                        <h3 class="font-heading text-xl font-bold text-accent mb-3">Ambiente Sofisticado</h3>
+                        <p class="text-slate-500 text-sm leading-relaxed">Uma estrutura moderna e acolhedora, desenhada para que você se sinta em um hotel, não em uma clínica.</p>
+                    </div>
+
+                    <div class="min-w-[85%] md:min-w-0 bg-white p-8 rounded-3xl shadow-card hover:shadow-soft transition-all duration-300 hover:-translate-y-2 group fade-up-element delay-200 snap-center">
+                        <div class="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-500 text-2xl mb-6 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-heart-pulse"></i>
+                        </div>
+                        <h3 class="font-heading text-xl font-bold text-accent mb-3">Assistência Personalizada</h3>
+                        <p class="text-slate-500 text-sm leading-relaxed">Cada paciente é único. Desenvolvemos planos de tratamento exclusivos focados na sua necessidade real.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center gap-2 mt-4 md:hidden" id="carousel-dots">
+                    <button class="dot active w-2 h-2 rounded-full bg-slate-300 transition-all duration-300" aria-label="Slide 1"></button>
+                    <button class="dot w-2 h-2 rounded-full bg-slate-300 transition-all duration-300" aria-label="Slide 2"></button>
+                    <button class="dot w-2 h-2 rounded-full bg-slate-300 transition-all duration-300" aria-label="Slide 3"></button>
+                </div>
+            </div>
+        </section>
+
+       <section id="treatments" class="py-10 bg-white relative">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-10 fade-up-element">
+                <div>
+                    <span class="text-primary font-bold text-sm uppercase tracking-wider">Especialidades</span>
+                    <h2 class="font-heading text-3xl md:text-4xl font-bold text-accent mt-2">Tudo em um só lugar</h2>
+                </div>
+                <a href="https://wa.me/553432290700" target="_blank" rel="noopener noreferrer" class="hidden md:inline-flex items-center gap-2 text-secondary font-bold hover:text-secondaryDark hover:underline mt-4 md:mt-0">
+                    Ver tabela de preços <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="group relative h-96 w-full rounded-3xl overflow-hidden cursor-pointer shadow-lg fade-up-element">
+                    <img src="https://images.unsplash.com/photo-1606811841689-23dfddce3e95?q=80&w=1974&auto=format&fit=crop" alt="Implantes Dentários em Uberlândia" loading="lazy" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                    
+                    <div class="absolute bottom-0 left-0 w-full h-[50%] bg-gradient-to-t from-black via-black/50 to-transparent z-10 pointer-events-none"></div>
+                    
+                    <div class="absolute bottom-0 left-0 p-6 z-20 w-full">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fa-solid fa-tooth text-2xl text-white drop-shadow-md"></i>
+                            <h3 class="text-white font-heading font-bold text-xl drop-shadow-md">Implantes Dentários</h3>
+                        </div>
+                        <p class="text-slate-200 text-sm leading-relaxed border-l-2 border-primary pl-3">Recupere a função e estética com materiais importados.</p>
+                    </div>
+                </div>
+
+                <div class="group relative h-96 w-full rounded-3xl overflow-hidden cursor-pointer shadow-lg fade-up-element delay-100">
+                    <img src="https://images.unsplash.com/photo-1598256989800-fea5ce5146f5?q=80&w=1974&auto=format&fit=crop" alt="Próteses Dentárias em Uberlândia" loading="lazy" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                    
+                    <div class="absolute bottom-0 left-0 w-full h-[50%] bg-gradient-to-t from-black via-black/50 to-transparent z-10 pointer-events-none"></div>
+                    
+                    <div class="absolute bottom-0 left-0 p-6 z-20 w-full">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fa-solid fa-teeth-open text-2xl text-white drop-shadow-md"></i>
+                            <h3 class="text-white font-heading font-bold text-xl drop-shadow-md">Próteses Dentárias</h3>
+                        </div>
+                        <p class="text-slate-200 text-sm leading-relaxed border-l-2 border-secondary pl-3">Sorriso completo e naturalidade para o seu dia a dia.</p>
+                    </div>
+                </div>
+
+                <div class="group relative h-96 w-full rounded-3xl overflow-hidden cursor-pointer shadow-lg fade-up-element delay-200">
+                    <img src="https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?q=80&w=1974&auto=format&fit=crop" alt="Facetas em Resina e Estética Dental em Uberlândia" loading="lazy" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                    
+                    <div class="absolute bottom-0 left-0 w-full h-[50%] bg-gradient-to-t from-black via-black/50 to-transparent z-10 pointer-events-none"></div>
+                    
+                    <div class="absolute bottom-0 left-0 p-6 z-20 w-full">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fa-solid fa-wand-magic text-2xl text-white drop-shadow-md"></i>
+                            <h3 class="text-white font-heading font-bold text-xl drop-shadow-md">Facetas em Resina</h3>
+                        </div>
+                        <p class="text-slate-200 text-sm leading-relaxed border-l-2 border-sky-400 pl-3">Transformação estética rápida e minimamente invasiva.</p>
+                    </div>
+                </div>
+
+                <div class="group relative h-96 w-full rounded-3xl overflow-hidden cursor-pointer shadow-lg fade-up-element delay-300">
+                    <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=1974&auto=format&fit=crop" alt="Ortodontia em Uberlândia" loading="lazy" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                    
+                    <div class="absolute bottom-0 left-0 w-full h-[50%] bg-gradient-to-t from-black via-black/50 to-transparent z-10 pointer-events-none"></div>
+                    
+                    <div class="absolute bottom-0 left-0 p-6 z-20 w-full">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fa-solid fa-child-reaching text-2xl text-white drop-shadow-md"></i>
+                            <h3 class="text-white font-heading font-bold text-xl drop-shadow-md">Ortodontia</h3>
+                        </div>
+                        <p class="text-slate-200 text-sm leading-relaxed border-l-2 border-pink-400 pl-3">Alinhamento perfeito com aparelhos modernos.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 text-center md:hidden">
+                    <a href="https://wa.me/553432290700" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-secondary font-bold hover:text-secondaryDark hover:underline">
+                    Ver tabela de preços <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+        <section id="team" class="py-10 bg-bgLight">
+            <div class="container mx-auto px-6">
+                <div class="text-center max-w-2xl mx-auto mb-10 fade-up-element">
+                    <span class="text-primary font-bold text-sm uppercase tracking-wider">Nossa Equipe</span>
+                    <h2 class="font-heading text-3xl md:text-4xl font-bold text-accent mt-2 mb-4 min-h-[5rem] md:min-h-[6rem]">Conheça nossos especialistas</h2>
+                    <p class="text-slate-500 mt-2">Profissionais experientes e qualificados para transformar o seu sorriso com segurança.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                    
+                    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-card transition-all duration-300 hover:-translate-y-1 text-center fade-up-element mx-auto max-w-[90%] md:max-w-none md:mx-0 w-full">
+                        <div class="w-36 h-36 md:w-40 md:h-40 mx-auto mb-5 relative img-border-flow rounded-2xl">
+                            <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=300&q=80" alt="Dra. Laura - Implantodontista em Uberlândia" loading="lazy" class="relative w-full h-full object-cover rounded-2xl shadow-inner z-10">
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-accent">Dra. Laura</h3>
+                        <p class="text-primary font-medium text-sm mb-2">Implantodontista</p>
+                        <p class="text-slate-400 text-xs tracking-wider">CRO/MG 12345</p>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-card transition-all duration-300 hover:-translate-y-1 text-center fade-up-element delay-100 mx-auto max-w-[90%] md:max-w-none md:mx-0 w-full">
+                        <div class="w-36 h-36 md:w-40 md:h-40 mx-auto mb-5 relative img-border-flow rounded-2xl">
+                            <img src="https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=300&q=80" alt="Dra. Letícia Costa - Estética Dental em Uberlândia" loading="lazy" class="relative w-full h-full object-cover rounded-2xl shadow-inner z-10">
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-accent">Dra. Letícia Costa</h3>
+                        <p class="text-primary font-medium text-sm mb-2">Estética Dental</p>
+                        <p class="text-slate-400 text-xs tracking-wider">CRO/MG 12345</p>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-3xl shadow-sm hover:shadow-card transition-all duration-300 hover:-translate-y-1 text-center fade-up-element delay-200 mx-auto max-w-[90%] md:max-w-none md:mx-0 w-full">
+                        <div class="w-36 h-36 md:w-40 md:h-40 mx-auto mb-5 relative img-border-flow rounded-2xl">
+                            <img src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80" alt="Dr. Pablo Protase - Cirurgião Dentista em Uberlândia" loading="lazy" class="relative w-full h-full object-cover rounded-2xl shadow-inner z-10">
+                        </div>
+                        <h3 class="font-heading font-bold text-lg text-accent">Dr. Pablo Protase</h3>
+                        <p class="text-primary font-medium text-sm mb-2">Cirurgião Dentista</p>
+                        <p class="text-slate-400 text-xs tracking-wider">CRO/MG 12345</p>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <section id="clinic" class="py-10 bg-blue-50/50">
+            <div class="container mx-auto px-6">
+                <div class="flex flex-col lg:flex-row-reverse items-center gap-12">
+                    <div class="lg:w-1/2 fade-up-element">
+                        <span class="text-primary font-bold text-sm uppercase tracking-wider">Experiência</span>
+                        <h2 class="font-heading text-3xl md:text-4xl font-bold text-accent mt-2 mb-6">Nosso Ambiente</h2>
+                        <p class="text-slate-500 text-lg mb-6">
+                            Cadeiras ergonômicas com sistema de massagem e telas no teto para você assistir sua série favorita durante o atendimento. Desenhamos cada detalhe para reduzir sua ansiedade.
+                        </p>
+                        <div class="grid grid-cols-3 gap-3 mt-8">
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-tv text-2xl text-primary mb-2"></i>
+                                <p class="text-sm font-bold text-accent leading-tight">TV no Teto</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-wifi text-2xl text-primary mb-2"></i>
+                                <p class="text-sm font-bold text-accent leading-tight">Wi-Fi Grátis</p>
+                            </div>
+                             <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-mug-hot text-2xl text-primary mb-2"></i>
+                                <p class="text-sm font-bold text-accent leading-tight">Cafezinho</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lg:w-1/2 relative fade-up-element">
+                        <div class="absolute -inset-4 bg-secondary/10 rounded-[2rem] -rotate-3 -z-10"></div>
+                        <img src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1000&q=80" alt="Consultório Odontológico Oral Blue Uberlândia" loading="lazy" class="rounded-[2rem] shadow-xl w-full">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="location" class="py-10 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="flex flex-col lg:flex-row gap-12 items-center">
+                    <div class="lg:w-1/2 fade-up-element">
+                         <span class="text-primary font-bold text-sm uppercase tracking-wider">Onde Estamos</span>
+                        <h2 class="font-heading text-3xl md:text-4xl font-bold text-accent mt-2 mb-6">Fácil acesso para você</h2>
+                        <p class="text-slate-500 text-lg mb-8">
+                            Duas unidades em Uberlândia para melhor atendê-lo. Venha nos conhecer!
+                        </p>
+                         <ul class="space-y-4 mb-8">
+                            <li class="flex items-start gap-4">
+                                <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-primary flex-shrink-0">
+                                    <i class="fa-solid fa-location-dot text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-accent text-lg">Consultório 01 (Granada)</h4>
+                                    <p class="text-slate-600">Av. Seme Simão, 1840<br>Granada, Uberlândia - MG</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-4">
+                                <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-primary flex-shrink-0">
+                                    <i class="fa-solid fa-location-dot text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-accent text-lg">Consultório 02 (Centro)</h4>
+                                    <p class="text-slate-600">Rua Marechal Deodoro, 101<br>Centro, Uberlândia - MG</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-4">
+                                 <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-secondary flex-shrink-0">
+                                    <i class="fa-solid fa-clock text-xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-accent text-lg">Horários</h4>
+                                    <p class="text-slate-600">Seg a Sex: 09h às 19h<br>Sáb: 08h às 12h</p>
+                                </div>
+                            </li>
+                        </ul>
+                        <a href="https://www.google.com/maps/place/Oral+Blue+Uberl%C3%A2ndia+-+Implantes+Dentarios/@-18.9534859,-48.2516853,1568m/data=!3m1!1e3!4m6!3m5!1s0x94a45bb459f6f82b:0x9933920bef95671f!8m2!3d-18.9534215!4d-48.2462342!16s%2Fg%2F11tjj6qmq1?entry=ttu&g_ep=EgoyMDI2MDIyMy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-secondary font-bold hover:text-secondaryDark hover:underline">
+                            Traçar rota no Maps <i class="fa-solid fa-arrow-right-long"></i>
+                        </a>
+                    </div>
+                     <div class="lg:w-1/2 w-full fade-up-element delay-200">
+                        <div class="map-container shadow-xl rounded-3xl">
+                            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3773.832961502422!2d-48.24880912401889!3d-18.95342148222624!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94a45bb459f6f82b%3A0x9933920bef95671f!2sOral%20Blue%20Uberl%C3%A2ndia%20-%20Implantes%20Dentarios!5e0!3m2!1spt-BR!2sbr!4v1709060000000!5m2!1spt-BR!2sbr" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Mapa Localização Oral Blue Uberlândia"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="faq" class="py-10 bg-bgLight">
+            <div class="container mx-auto px-6 max-w-3xl">
+                <div class="text-center mb-10 fade-up-element">
+                    <h2 class="font-heading text-3xl md:text-4xl font-bold text-accent">Dúvidas Frequentes</h2>
+                    <p class="text-slate-500 mt-2">Tiramos o "medo" até das perguntas.</p>
+                </div>
+
+                <div class="space-y-4 fade-up-element">
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                        <button class="faq-toggle w-full flex justify-between items-center p-6 bg-white hover:bg-slate-50 transition-colors text-left focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-accent text-lg">Aceitam convênios?</span>
+                            <i class="fa-solid fa-chevron-down text-primary transition-transform duration-300"></i>
+                        </button>
+                        <div class="faq-content bg-slate-50 px-6">
+                            <div class="py-4 text-slate-600">
+                                Sim! Atendemos os principais convênios (Amil, Bradesco, SulAmérica, etc) para a maioria dos procedimentos clínicos. Para estética (lentes, clareamento), oferecemos condições especiais de parcelamento.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                        <button class="faq-toggle w-full flex justify-between items-center p-6 bg-white hover:bg-slate-50 transition-colors text-left focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-accent text-lg">O tratamento de implante dói?</span>
+                            <i class="fa-solid fa-chevron-down text-primary transition-transform duration-300"></i>
+                        </button>
+                        <div class="faq-content bg-slate-50 px-6">
+                            <div class="py-4 text-slate-600">
+                                Absolutamente não na Oral Blue. Utilizamos técnicas modernas e anestesia de ponta. A maioria dos pacientes relata um pós-operatório muito tranquilo e sem dor.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                        <button class="faq-toggle w-full flex justify-between items-center p-6 bg-white hover:bg-slate-50 transition-colors text-left focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-accent text-lg">Quanto custa um implante?</span>
+                            <i class="fa-solid fa-chevron-down text-primary transition-transform duration-300"></i>
+                        </button>
+                        <div class="faq-content bg-slate-50 px-6">
+                            <div class="py-4 text-slate-600">
+                                O valor varia conforme o tipo de prótese e a saúde óssea. Por ética do CRO, não podemos divulgar preços sem avaliação. Agende uma consulta sem compromisso para recebermos um orçamento personalizado.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                        <button class="faq-toggle w-full flex justify-between items-center p-6 bg-white hover:bg-slate-50 transition-colors text-left focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-accent text-lg">As facetas em resina desgastam os dentes?</span>
+                            <i class="fa-solid fa-chevron-down text-primary transition-transform duration-300"></i>
+                        </button>
+                        <div class="faq-content bg-slate-50 px-6">
+                            <div class="py-4 text-slate-600">
+                                Na grande maioria dos casos, não. O procedimento com resina é aditivo, ou seja, adicionamos material sobre o dente natural, preservando ao máximo a estrutura saudável do seu sorriso.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                        <button class="faq-toggle w-full flex justify-between items-center p-6 bg-white hover:bg-slate-50 transition-colors text-left focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-accent text-lg">Quanto tempo leva para fazer as facetas em resina?</span>
+                            <i class="fa-solid fa-chevron-down text-primary transition-transform duration-300"></i>
+                        </button>
+                        <div class="faq-content bg-slate-50 px-6">
+                            <div class="py-4 text-slate-600">
+                                A grande vantagem da resina é a agilidade. Na maioria dos casos, conseguimos transformar o seu sorriso por completo em uma única sessão, logo após a fase de aprovação do planejamento.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                        <button class="faq-toggle w-full flex justify-between items-center p-6 bg-white hover:bg-slate-50 transition-colors text-left focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-accent text-lg">O tratamento de canal é dolorido?</span>
+                            <i class="fa-solid fa-chevron-down text-primary transition-transform duration-300"></i>
+                        </button>
+                        <div class="faq-content bg-slate-50 px-6">
+                            <div class="py-4 text-slate-600">
+                                De forma alguma! Com as tecnologias atuais e anestesias de ponta que utilizamos na clínica, o tratamento de canal é rápido, seguro e totalmente indolor, priorizando o seu conforto.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                        <button class="faq-toggle w-full flex justify-between items-center p-6 bg-white hover:bg-slate-50 transition-colors text-left focus:outline-none" aria-expanded="false">
+                            <span class="font-bold text-accent text-lg">Qual a diferença entre os alinhadores e o aparelho convencional?</span>
+                            <i class="fa-solid fa-chevron-down text-primary transition-transform duration-300"></i>
+                        </button>
+                        <div class="faq-content bg-slate-50 px-6">
+                            <div class="py-4 text-slate-600">
+                                Os alinhadores transparentes são placas removíveis, quase invisíveis e muito mais confortáveis, permitindo que você coma e escove os dentes normalmente, além de oferecerem resultados mais rápidos em muitos casos.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center fade-up-element delay-100">
+                    <a href="https://wa.me/553432290700" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-primary hover:bg-primaryDark text-white px-8 py-3 rounded-full font-bold text-lg transition-all shadow-lg shadow-blue-500/20 transform hover:-translate-y-1">
+                        <i class="fa-brands fa-whatsapp text-xl"></i>
+                        Falar com Equipe
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-accent text-slate-300 pt-16 pb-0 rounded-t-[3rem] mt-10 overflow-hidden">
+        <div class="container mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
+                <div>
+                    <div class="flex items-center gap-2 mb-6">
+                        <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white text-lg">
+                            <i class="fa-solid fa-tooth"></i>
+                        </div>
+                        <span class="font-heading font-bold text-xl text-white">
+                            Oral<span class="text-primary">Blue</span>
+                        </span>
+                    </div>
+                    <p class="text-sm leading-relaxed mb-6">
+                        Transformando sorrisos com tecnologia e empatia. Sua saúde bucal em outro nível em Uberlândia.
+                        <br><br>
+                        Responsável Técnico:<br>
+                        Dra. Laura - CRO/MG 12345
+                    </p>
+                    <div class="flex gap-4">
+                        <a href="https://www.instagram.com/oralblueudia/" target="_blank" rel="noopener noreferrer" aria-label="Instagram Oral Blue" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors text-white"><i class="fa-brands fa-instagram"></i></a>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-bold text-lg mb-6">Links Rápidos</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="hover:text-primary transition-colors">Início</a></li>
+                        <li><a href="#differentials" class="hover:text-primary transition-colors">Diferenciais</a></li>
+                        <li><a href="#treatments" class="hover:text-primary transition-colors">Tratamentos</a></li>
+                        <li><a href="#team" class="hover:text-primary transition-colors">Equipe</a></li>
+                        <li><a href="#clinic" class="hover:text-primary transition-colors">Nosso Ambiente</a></li>
+                         <li><a href="#location" class="hover:text-primary transition-colors">Localização</a></li>
+                        <li><a href="#faq" class="hover:text-primary transition-colors">Dúvidas</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-bold text-lg mb-6">Contato</h4>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-3">
+                            <i class="fa-solid fa-location-dot text-primary mt-1"></i>
+                            <span>Av. Seme Simão, 1840 - Granada<br>Rua Marechal Deodoro, 101 - Centro<br>Uberlândia - MG</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <i class="fa-solid fa-phone text-primary"></i>
+                            <span>(34) 3229-0700</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-resili py-6 text-center text-white">
+            <div class="container mx-auto px-6 flex flex-col md:flex-row justify-center items-center gap-4">
+                <div class="flex flex-col md:text-left">
+                    <p class="text-xs opacity-60 tracking-wider">© 2024 Oral Blue Centro Odontológico. Todos os direitos reservados.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <a href="https://wa.me/553432290700" target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-[#20ba5a] transition-all hover:scale-110 animate-bounce group" aria-label="Agendar via WhatsApp">
+        <i class="fa-brands fa-whatsapp text-3xl"></i>
+        <span class="absolute right-16 bg-white text-slate-700 px-3 py-1 rounded-lg text-xs font-bold shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Agendar Agora</span>
+    </a>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "MedicalClinic",
+      "name": "Oral Blue Centro Odontológico",
+      "image": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1000&q=80",
+      "@id": "https://www.instagram.com/oralblueudia/",
+      "url": "https://www.instagram.com/oralblueudia/",
+      "telephone": "+553432290700",
+      "address": [
+        {
+          "@type": "PostalAddress",
+          "streetAddress": "Av. Seme Simão, 1840",
+          "addressLocality": "Uberlândia",
+          "addressRegion": "MG",
+          "addressCountry": "BR"
+        },
+        {
+          "@type": "PostalAddress",
+          "streetAddress": "Rua Marechal Deodoro, 101",
+          "addressLocality": "Uberlândia",
+          "addressRegion": "MG",
+          "addressCountry": "BR"
+        }
+      ],
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": -18.9534215,
+        "longitude": -48.2462342
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+          ],
+          "opens": "09:00",
+          "closes": "19:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Saturday",
+          "opens": "08:00",
+          "closes": "12:00"
+        }
+      ],
+      "sameAs": [
+        "https://www.instagram.com/oralblueudia/"
+      ],
+      "medicalSpecialty": [
+        "Dentistry",
+        "Orthodontic",
+        "Implantology"
+      ]
+    }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // 1. Menu Mobile Toggle
+            const btn = document.getElementById('mobile-menu-btn');
+            const menu = document.getElementById('mobile-menu');
+
+            if(btn && menu) {
+                btn.addEventListener('click', () => {
+                    menu.classList.toggle('hidden');
+                    menu.classList.toggle('flex');
+                });
+                menu.querySelectorAll('a').forEach(link => {
+                    link.addEventListener('click', () => {
+                        menu.classList.add('hidden');
+                        menu.classList.remove('flex');
+                    });
+                });
+            }
+
+            // 2. Scroll Animation (Fade-up)
+            const observerOptions = { root: null, rootMargin: '0px', threshold: 0.1 };
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+            document.querySelectorAll('.fade-up-element').forEach(el => observer.observe(el));
+
+            // 3. FAQ Accordion
+            document.querySelectorAll('.faq-toggle').forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    const content = toggle.nextElementSibling;
+                    const icon = toggle.querySelector('i');
+                    const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+                    
+                    toggle.setAttribute('aria-expanded', !isExpanded);
+
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                        content.classList.remove('open');
+                        icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + "px";
+                        content.classList.add('open');
+                        icon.style.transform = 'rotate(180deg)';
+                    }
+                });
+            });
+
+            // 4. Navbar Shadow on Scroll
+            window.addEventListener('scroll', () => {
+                const navbar = document.getElementById('navbar');
+                if(navbar) {
+                    if (window.scrollY > 50) {
+                        navbar.classList.add('shadow-md');
+                    } else {
+                        navbar.classList.remove('shadow-md');
+                    }
+                }
+            });
+
+            // 5. Advanced Auto Scroll & Dots Logic for "Diferenciais"
+            const carousel = document.getElementById('differentials-carousel');
+            const dots = document.querySelectorAll('.dot');
+            let scrollInterval;
+            
+            function updateActiveDot() {
+                if (!carousel) return;
+                const scrollLeft = carousel.scrollLeft;
+                const cardWidth = carousel.firstElementChild.offsetWidth + 24; 
+                const activeIndex = Math.round(scrollLeft / cardWidth);
+                dots.forEach((dot, index) => {
+                    if (index === activeIndex) {
+                        dot.classList.add('active');
+                        dot.classList.remove('bg-slate-300');
+                        dot.classList.add('bg-primary');
+                    } else {
+                        dot.classList.remove('active');
+                        dot.classList.add('bg-slate-300');
+                        dot.classList.remove('bg-primary');
+                    }
+                });
+            }
+
+            function startAutoScroll() {
+                scrollInterval = setInterval(() => {
+                    if (!carousel) return;
+                    const cardWidth = carousel.firstElementChild.offsetWidth + 24; 
+                    const maxScroll = carousel.scrollWidth - carousel.clientWidth;
+
+                    if (carousel.scrollLeft >= maxScroll - 10) {
+                        carousel.scrollTo({ left: 0, behavior: 'smooth' });
+                    } else {
+                        carousel.scrollBy({ left: cardWidth, behavior: 'smooth' });
+                    }
+                }, 5000);
+            }
+
+            function stopAutoScroll() {
+                clearInterval(scrollInterval);
+            }
+
+            if (carousel) {
+                carousel.addEventListener('scroll', updateActiveDot);
+                carousel.addEventListener('touchstart', stopAutoScroll, {passive: true});
+                carousel.addEventListener('mousedown', stopAutoScroll);
+                startAutoScroll();
+            }
+
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', () => {
+                    stopAutoScroll(); 
+                    if(carousel) {
+                        const cardWidth = carousel.firstElementChild.offsetWidth + 24;
+                        carousel.scrollTo({
+                            left: cardWidth * index,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+        });
+
+        // 6. Efeito de Digitação Infinita para H2
+        const typingHeadings = document.querySelectorAll('h2');
+        typingHeadings.forEach(heading => {
+            const originalText = heading.innerText;
+            heading.setAttribute('data-text', originalText);
+            heading.innerText = ''; 
+            
+            heading.classList.add('typing-effect');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        if (!heading.hasAttribute('data-typing')) {
+                            startTyping(heading, originalText);
+                            heading.setAttribute('data-typing', 'true'); 
+                        }
+                        observer.unobserve(entry.target); 
+                    }
+                });
+            }, { threshold: 0.5 }); 
+
+            observer.observe(heading);
+        });
+
+        function startTyping(element, text) {
+            let i = 0;
+            element.innerText = ''; 
+
+            function type() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(type, 80); 
+                } else {
+                    setTimeout(() => {
+                        element.innerText = ''; 
+                        i = 0; 
+                        startTyping(element, text); 
+                    }, 2000);
+                }
+            }
+            
+            type();
+        }
+    </script>
+</body>
+</html>

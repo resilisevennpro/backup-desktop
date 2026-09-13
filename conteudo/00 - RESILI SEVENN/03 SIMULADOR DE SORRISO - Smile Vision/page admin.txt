@@ -1,0 +1,376 @@
+"use client"
+
+import type React from "react"
+import { useState, useEffect } from "react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { 
+  Trash2, 
+  Plus, 
+  Lock, 
+  LogOut, 
+  User, 
+  Key, 
+  Power, 
+  Clock, 
+  RefreshCw,
+  Search,
+  AlertTriangle,
+  X,
+  ShieldCheck
+} from "lucide-react"
+import { getClients, saveClient, deleteClient, toggleClientStatus } from "@/app/admin/actions"
+
+// Interface completa para o novo sistema de dados [cite: 59]
+interface Client {
+  code: string
+  name: string
+  credits: number
+  status: string
+  lastUsed: string
+  updatedAt: string
+}
+
+export default function AdminPage() {
+  // --- ESTADOS DE AUTENTICAÇÃO [cite: 60] ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [password, setPassword] = useState("")
+  const [authError, setAuthError] = useState("")
+
+  // --- ESTADOS DA LISTA E BUSCA [cite: 61, 80] ---
+  const [clients, setClients] = useState<Client[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+
+  // --- ESTADOS PARA MODAIS DE CONFIRMAÇÃO ---
+  const [modalDelete, setModalDelete] = useState<{ open: boolean, client: Client | null }>({ open: false, client: null })
+  const [modalStatus, setModalStatus] = useState<{ open: boolean, client: Client | null }>({ open: false, client: null })
+
+  // --- ESTADOS DO FORMULÁRIO [cite: 74, 76] ---
+  const [newClientName, setNewClientName] = useState("")
+  const [newClientCode, setNewClientCode] = useState("")
+  const [newClientCredits, setNewClientCredits] = useState("10")
+  
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  // --- LÓGICA DE ACESSO [cite: 60, 68] ---
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
+      setIsAuthenticated(true)
+      setAuthError("")
+      loadClients()
+    } else {
+      setAuthError("Senha incorreta")
+    }
+  }
+
+  // --- CARREGAMENTO DE DADOS [cite: 61, 81] ---
+  const loadClients = async () => {
+    setIsLoading(true)
+    setError("")
+    try {
+      const result = await getClients()
+      if (result.success && result.clients) {
+        setClients(result.clients)
+      } else {
+        setError(result.error || "Erro ao carregar clientes")
+      }
+    } catch (err) {
+      setError("Erro ao conectar com o banco de dados")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // --- SALVAR CLIENTE [cite: 63, 64] ---
+  const handleSaveClient = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setSuccess("")
+
+    if (!newClientName.trim() || !newClientCode.trim()) {
+      setError("Nome e Código são obrigatórios")
+      return
+    }
+
+    const credits = Number.parseInt(newClientCredits)
+    setIsLoading(true)
+    try {
+      const result = await saveClient(newClientCode.trim().toUpperCase(), newClientName.trim(), credits)
+      if (result.success) {
+        setSuccess(`Cliente ${newClientName} cadastrado com sucesso!`)
+        setNewClientName(""); setNewClientCode(""); setNewClientCredits("10")
+        await loadClients()
+      } else {
+        setError(result.error || "Erro ao salvar")
+      }
+    } catch (err) {
+      setError("Erro ao salvar cliente")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // --- AÇÕES COM CONFIRMAÇÃO (MODAIS) ---
+  const executeDelete = async () => {
+    if (!modalDelete.client) return
+    setIsLoading(true)
+    try {
+      const result = await deleteClient(modalDelete.client.code)
+      if (result.success) loadClients()
+    } finally {
+      setModalDelete({ open: false, client: null })
+      setIsLoading(false)
+    }
+  }
+
+  const executeToggleStatus = async () => {
+    if (!modalStatus.client) return
+    setIsLoading(true)
+    try {
+      await toggleClientStatus(modalStatus.client.code)
+      loadClients()
+    } finally {
+      setModalStatus({ open: false, client: null })
+      setIsLoading(false)
+    }
+  }
+
+  const filteredClients = clients.filter(c => 
+    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    c.code?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // --- TELA DE LOGIN (MANTIDA ORIGINAL) [cite: 67, 68, 70] ---
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#000000] to-[#1e4105] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md p-8 shadow-2xl border-none animate-in fade-in duration-500">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-center mb-2">Painel Admin</h1>
+          <p className="text-slate-500 text-center mb-6 text-sm">Smile Vision - Controle de Créditos</p>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <Label htmlFor="password">Senha de Acesso</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="mt-1"
+              />
+            </div>
+            {authError && (
+              <Alert variant="destructive">
+                <AlertDescription>{authError}</AlertDescription>
+              </Alert>
+            )}
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11">
+              ACESSAR PAINEL
+            </Button>
+          </form>
+        </Card>
+      </div>
+    )
+  }
+
+  // --- TELA DO PAINEL (VISUAL NOVO + MODAIS) [cite: 71, 72, 82, 100] ---
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 relative">
+      
+      {/* MODAL DE EXCLUSÃO CUSTOMIZADO */}
+      {modalDelete.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-slate-900">Excluir permanentemente?</h3>
+                <p className="text-sm text-slate-500">
+                  Deseja remover o acesso de <span className="font-bold text-slate-800 underline">{modalDelete.client?.name}</span>? Esta ação não pode ser desfeita.
+                </p>
+              </div>
+              <div className="flex w-full gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setModalDelete({ open: false, client: null })}>Cancelar</Button>
+                <Button variant="destructive" className="flex-1 font-bold" onClick={executeDelete}>Sim, Excluir</Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* MODAL DE PAUSA COM DUPLA CONFIRMAÇÃO */}
+      {modalStatus.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${modalStatus.client?.status === 'active' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                <Power className="w-6 h-6" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-slate-900">
+                  {modalStatus.client?.status === 'active' ? 'Pausar este cliente?' : 'Reativar este cliente?'}
+                </h3>
+                <p className="text-sm text-slate-500">
+                  {modalStatus.client?.status === 'active' 
+                    ? `O código ${modalStatus.client?.code} será bloqueado para novas simulações até que você o reative.`
+                    : `O acesso será liberado imediatamente para ${modalStatus.client?.name}.`}
+                </p>
+              </div>
+              <div className="flex w-full gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setModalStatus({ open: false, client: null })}>Voltar</Button>
+                <Button 
+                  className={`flex-1 text-white font-bold ${modalStatus.client?.status === 'active' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`} 
+                  onClick={executeToggleStatus}
+                >
+                  Confirmar
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <div className="container mx-auto max-w-6xl space-y-6">
+        {/* Header [cite: 72] */}
+        <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="w-6 h-6 text-primary" /> Gerenciamento SmileVision
+            </h1>
+            <p className="text-slate-500 text-xs uppercase tracking-widest font-semibold">Painel Administrativo v2.0</p>
+          </div>
+          <Button variant="outline" onClick={() => setIsAuthenticated(false)} className="gap-2 border-red-200 text-red-600 hover:bg-red-50">
+            <LogOut className="w-4 h-4" /> Sair
+          </Button>
+        </div>
+
+        {/* Cadastro [cite: 73, 75, 76] */}
+        <Card className="p-6 border-slate-200 shadow-sm">
+          <h2 className="text-md font-bold mb-4 flex items-center gap-2 text-slate-700">
+            <Plus className="w-4 h-4 text-primary" /> ADICIONAR NOVO DENTISTA
+          </h2>
+          <form onSubmit={handleSaveClient} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-slate-400 font-bold">Nome Completo</Label>
+              <Input value={newClientName} onChange={(e) => setNewClientName(e.target.value)} placeholder="Ex: Dr. João Silva" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-slate-400 font-bold">Código de Acesso</Label>
+              <Input value={newClientCode} onChange={(e) => setNewClientCode(e.target.value.toUpperCase())} placeholder="Ex: JOAO2024" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase text-slate-400 font-bold">Créditos</Label>
+              <Input type="number" value={newClientCredits} onChange={(e) => setNewClientCredits(e.target.value)} />
+            </div>
+            <div className="flex items-end">
+              <Button type="submit" disabled={isLoading} className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-10 shadow-md">
+                {isLoading ? "PROCESSANDO..." : "CRIAR ACESSO"}
+              </Button>
+            </div>
+          </form>
+          {error && <Alert variant="destructive" className="mt-4"><AlertDescription>{error}</AlertDescription></Alert>}
+          {success && <Alert className="mt-4 bg-green-50 border-green-200"><AlertDescription className="text-green-800">{success}</AlertDescription></Alert>}
+        </Card>
+
+        {/* Tabela de Clientes [cite: 79, 82, 85, 90, 100] */}
+        <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <div className="p-4 bg-white border-b flex flex-col md:flex-row justify-between gap-4">
+            <div className="relative w-full md:w-96">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input placeholder="Filtrar por nome ou código..." className="pl-9 h-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+            <Button variant="ghost" onClick={loadClients} className="gap-2 text-slate-500 h-10">
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> ATUALIZAR LISTA
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase text-slate-400 font-bold">
+                <tr>
+                  <th className="px-6 py-4 text-center">Status</th>
+                  <th className="px-6 py-4">Cliente / Código</th>
+                  <th className="px-6 py-4 text-center">Créditos</th>
+                  <th className="px-6 py-4">Última Atividade</th>
+                  <th className="px-6 py-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredClients.map((client) => (
+                  <tr key={client.code} className={`hover:bg-slate-50/40 transition-colors ${client.status === 'paused' ? 'bg-slate-50 opacity-60' : ''}`}>
+                    <td className="px-6 py-4 text-center">
+                      <div className={`w-2.5 h-2.5 rounded-full mx-auto ${client.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
+                          <User className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 leading-none">{client.name}</p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-mono">{client.code}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`px-2.5 py-0.5 rounded text-xs font-black ${
+                        client.credits > 10 ? 'bg-green-100 text-green-700' :
+                        client.credits > 3 ? 'bg-yellow-100 text-yellow-700 animate-pulse' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {client.credits}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                        <Clock className="w-3 h-3" />
+                        <span>{client.lastUsed || "NUNCA USOU"}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setModalStatus({ open: true, client })}
+                          className={`h-8 w-8 p-0 ${client.status === 'active' ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+                        >
+                          <Power className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setModalDelete({ open: true, client })}
+                          className="h-8 w-8 p-0 text-red-400 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filteredClients.length === 0 && !isLoading && (
+            <div className="p-12 text-center text-slate-400 text-sm font-medium">Nenhum cliente encontrado na base de dados.</div>
+          )}
+        </Card>
+      </div>
+    </div>
+  )
+}

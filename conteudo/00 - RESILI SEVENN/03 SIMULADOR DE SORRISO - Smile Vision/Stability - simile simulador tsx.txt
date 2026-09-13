@@ -1,0 +1,224 @@
+"use client"
+
+import { useState } from "react"
+import { Upload, AlertCircle, Download } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ImageUpload } from "@/components/image-upload"
+import { ComparisonSlider } from "@/components/comparison-slider"
+import { processSmileImage } from "@/app/actions"
+import Image from "next/image"
+
+export function SmileSimulator() {
+  const [originalImage, setOriginalImage] = useState<string | null>(null)
+  const [processedImage, setProcessedImage] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [accessCode, setAccessCode] = useState("")
+
+  const handleImageSelect = (file: File) => {
+    setError(null)
+    setProcessedImage(null)
+    setSelectedFile(file)
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setOriginalImage(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleProcess = async () => {
+    if (!selectedFile) {
+      setError("Por favor, selecione uma imagem primeiro")
+      return
+    }
+
+    if (!accessCode.trim()) {
+      setError("Por favor, insira o código de acesso")
+      return
+    }
+
+    setError(null)
+    setIsProcessing(true)
+
+    try {
+      const formData = new FormData()
+      formData.append("image", selectedFile)
+      formData.append("accessCode", accessCode.trim())
+
+      const result = await processSmileImage(formData)
+
+      if (result.success && result.processedImageUrl) {
+        setProcessedImage(result.processedImageUrl)
+      } else {
+        setError(result.error || "Ops, esse código de acesso é Inválido - Tente digitar novamente!")
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleReset = () => {
+    setOriginalImage(null)
+    setProcessedImage(null)
+    setError(null)
+    setSelectedFile(null)
+    setAccessCode("")
+  }
+
+  const handleChangeImage = () => {
+    setOriginalImage(null)
+    setProcessedImage(null)
+    setSelectedFile(null)
+  }
+
+  const downloadImage = (base64Url: string) => {
+    const link = document.createElement("a")
+    link.href = base64Url
+    link.download = "sorriso_novo.png"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-12 max-w-6xl">
+      <div className="text-center mb-12">
+        <div className="flex flex-col items-center gap-6 mb-4">
+          <Image
+            src="/images/logo-resili-sevenn.png"
+            alt="Resili Sevenn Logo"
+            width={250}
+            height={60}
+            className="h-auto"
+            priority
+          />
+          <h1 className="text-3xl font-bold text-slate-900 text-balance">Smile Vision IA - Simulador de Sorriso</h1>
+        </div>
+        <p className="text-md text-slate-700 max-w-2xl mx-auto text-pretty">
+          Ferramenta profissional de visualização odontológica com inteligência artificial. Carregue a foto do sorriso
+          do paciente e veja uma prévia de sua potencial transformação com facetas de resina.
+        </p>
+      </div>
+
+      <Card className="p-8 bg-[#6fca3a]/10 border-1 border-[#000000]/50 shadow-lg">
+        {!processedImage && !isProcessing ? (
+          <div className="space-y-6">
+            {error && (
+              <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-red-800">{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="max-w-md mx-auto">
+              <Label htmlFor="accessCode" className="text-base font-semibold text-[#000000]">
+                Código de Acesso
+              </Label>
+              <Input
+                id="accessCode"
+                type="text"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                placeholder="Obrigatório - Digite seu código"
+                className="mt-2 bg-white"
+              />
+              <p className="text-sm text-slate-800 mt-2">
+                Insira o código de acesso fornecido pela Resili Sevenn para usar o simulador
+              </p>
+            </div>
+
+            {!originalImage ? (
+              <ImageUpload onImageUpload={handleImageSelect} isProcessing={false} />
+            ) : (
+              <div className="space-y-6">
+                <div className="flex justify-center">
+                  <img
+                    src={originalImage || "/placeholder.svg"}
+                    alt="Prévia"
+                    className="max-h-[400px] w-auto rounded-lg shadow-sm"
+                  />
+                </div>
+
+                <div className="flex flex-col items-center gap-3">
+                  <Button
+                    onClick={handleProcess}
+                    disabled={!accessCode.trim() || isProcessing}
+                    className={`gap-2 w-full max-w-xs transition-all ${
+                      !accessCode.trim() || isProcessing
+                        ? "bg-gray-400 cursor-not-allowed opacity-70"
+                        : "bg-primary hover:bg-primary/90 cursor-pointer"
+                    }`}
+                  >
+                    <Upload className="w-4 h-4" />
+                    {isProcessing ? "Processando..." : "Processar Imagem"}
+                  </Button>
+
+                  <Button
+                    onClick={handleChangeImage}
+                    variant="ghost"
+                    className="text-slate-500 hover:text-slate-700 text-sm"
+                  >
+                    Trocar imagem selecionada
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {error && (
+              <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-red-800">{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {isProcessing && (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center gap-3 px-6 py-4 bg-primary/10 rounded-xl">
+                  <div className="w-5 h-5 border-[3px] border-primary border-t-transparent rounded-full animate-spin" />
+                  <span className="text-primary font-medium">Processando a transformação do sorriso...</span>
+                </div>
+              </div>
+            )}
+
+            {processedImage && !isProcessing && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold text-slate-900 text-center">Comparação de Antes & Depois</h3>
+                <ComparisonSlider beforeImage={originalImage!} afterImage={processedImage} />
+              </div>
+            )}
+
+            <div className="flex justify-center gap-4 pt-4">
+              {processedImage && !isProcessing && (
+                <Button onClick={() => downloadImage(processedImage)} className="gap-2 bg-primary hover:bg-primary/90">
+                  <Download className="w-4 h-4" />
+                  Baixar Resultado
+                </Button>
+              )}
+              <Button onClick={handleReset} variant="outline" className="gap-2 bg-transparent">
+                <Upload className="w-4 h-4" />
+                Carregar nova Imagem
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <div className="mt-8 text-center text-sm text-slate-500">
+        <p>
+          Apenas para uso profissional. Os resultados são simulações geradas por IA e podem variar dos resultados reais
+          do tratamento.
+        </p>
+      </div>
+    </div>
+  )
+}

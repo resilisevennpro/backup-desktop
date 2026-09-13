@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Facetas em Resina em São José SC | Dra. Dayana Vargas</title>
+    <meta name="description" content="Transforme seu sorriso com Facetas em Resina em São José SC. Dra. Dayana Vargas, +5 anos de experiência e +2.000 pacientes atendidos. Agende sua avaliação!">
+    
+    <meta property="og:title" content="Facetas em Resina em São José SC | Dra. Dayana Vargas">
+    <meta property="og:description" content="Transforme seu sorriso com Facetas em Resina em São José SC. Dra. Dayana Vargas, +5 anos de experiência e +2.000 pacientes atendidos.">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="pt_BR">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6F5A47',   // Marrom Luxo (Briefing)
+                        gold: '#D4AF37',      // Dourado Premium
+                        surface: '#F9FAFB',   // Off-white
+                        paper: '#ffffff',     // Branco
+                        textMain: '#1a1a1a',  // Preto Suave (Texto)
+                        textMuted: '#4B5563', // Cinza (Texto secundário)
+                    },
+                    fontFamily: {
+                        serif: ['"Playfair Display"', 'serif'],
+                        sans: ['"DM Sans"', 'sans-serif'],
+                    },
+                    backgroundImage: {
+                        'gradient-light': 'linear-gradient(to bottom, #ffffff, #f9fafb)',
+                    },
+                    boxShadow: {
+                        'shadow-light': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                        'bottom-primary': '0 4px 6px -1px rgba(111, 90, 71, 0.25)', 
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Cursor Piscante */
+        .animate-blink {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Borda Giratória (Border Flow) - Botões */
+        @keyframes border-rotate {
+            from { --angle: 0deg; }
+            to { --angle: 360deg; }
+        }
+        @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+        .btn-border-flow {
+            position: relative;
+            background: #6F5A47;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .btn-border-flow::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset: -4px; 
+            animation: border-rotate 3s linear infinite;
+            border-radius: 12px;
+            background: conic-gradient(from var(--angle), transparent 20%, #6F5A47, #D4AF37, #6F5A47, transparent 80%);
+        }
+
+        .btn-border-flow::after {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset: 3px; 
+            background: #6F5A47;
+            border-radius: 6px;
+        }
+        
+        .btn-border-flow:hover::before {
+            animation-duration: 1.5s;
+        }
+
+        /* Glassmorphism Light */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(111, 90, 71, 0.2);
+            box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        /* Animations */
+        .reveal { opacity: 0; transform: translateY(30px); transition: all 1s cubic-bezier(0.5, 0, 0, 1); }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f3f4f6; }
+        ::-webkit-scrollbar-thumb { background: #6F5A47; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #D4AF37; }
+
+        /* Float Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes float-delayed {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-delayed { animation: float-delayed 5s ease-in-out infinite 2s; }
+        .animate-bounce-slow { animation: bounce 3s infinite; }
+    </style>
+</head>
+<body class="font-sans antialiased overflow-x-hidden selection:bg-primary selection:text-white bg-surface text-textMain">
+
+   <script>
+        // Efeito de Digitação
+        document.addEventListener('DOMContentLoaded', () => {
+            const typingSpan = document.querySelector('.typing-word');
+            
+            if (typingSpan) {
+                const words = ["com auto estima.", "com Facetas em Resina."]; 
+                let wordIndex = 0;
+                let charIndex = 0;
+                let isDeleting = false;
+                
+                const typeEffect = () => {
+                    const currentWord = words[wordIndex];
+                    const currentChar = currentWord.substring(0, charIndex);
+                    
+                    typingSpan.textContent = currentChar;
+                    
+                    let typeSpeed = isDeleting ? 50 : 100;
+
+                    if (!isDeleting && charIndex === currentWord.length) {
+                        typeSpeed = 2000; 
+                        isDeleting = true;
+                    } else if (isDeleting && charIndex === 0) {
+                        isDeleting = false;
+                        wordIndex = (wordIndex + 1) % words.length;
+                        typeSpeed = 500;
+                    }
+
+                    charIndex = isDeleting ? charIndex - 1 : charIndex + 1;
+                    
+                    setTimeout(typeEffect, typeSpeed);
+                }
+
+                typeEffect();
+            }
+        });
+    </script>
+
+    <nav class="fixed w-full z-50 top-0 transition-all duration-300 bg-primary/95 backdrop-blur-md border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#" class="font-serif text-xl md:text-2xl tracking-widest uppercase text-white transition-colors">Dra. Dayana Vargas<span class="text-gold">.</span></a>
+            
+            <div class="flex items-center gap-6">
+                <a href="https://wa.me/5548936181332" target="_blank" rel="noopener noreferrer" class="hidden md:inline-block border border-gold text-primary bg-white hover:bg-gold hover:text-white px-6 py-2 text-xs uppercase tracking-widest font-bold transition-all duration-300 rounded-sm shadow-md">
+                    Agendar
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="relative min-h-[100dvh] flex flex-col md:grid md:grid-cols-2 pt-16 md:pt-0 bg-paper">
+        
+        <div class="order-2 md:order-1 flex flex-col justify-center px-6 py-16 md:px-16 lg:px-24 relative z-10">
+            <div class="reveal">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="h-[1px] w-8 bg-primary"></span>
+                    <span class="text-primary tracking-[0.3em] text-xs font-bold uppercase">Odontologia Estética</span>
+                </div>
+                
+                <h1 class="font-serif text-5xl md:text-5xl lg:text-6xl font-medium leading-[1.1] mb-8 text-textMain min-h-[6.5em] md:min-h-[4.5em] lg:min-h-[3.3em]">
+    			Recupere a alegria de sorrir <span class="italic font-light text-primary drop-shadow-md typing-word"></span><span class="text-primary animate-blink">|</span>
+		        </h1>
+                
+                <p class="text-textMuted text-lg leading-relaxed mb-12 max-w-md font-light border-l border-primary/50 pl-6">
+                    Tratamentos especializados em Facetas de Resina em São José SC. Sorriso de Alto padrão, sem dor - sem desgaste.
+                </p>
+                
+                <a href="https://wa.me/5548936181332" target="_blank" rel="noopener noreferrer" class="group inline-flex items-center gap-4 text-textMain text-sm uppercase tracking-widest font-bold hover:text-primary transition-colors">
+                    <span class="border-b border-primary pb-1 transition-all shadow-bottom-primary">Iniciar Transformação</span>
+                    <i class="fas fa-arrow-right text-primary transform group-hover:translate-x-2 transition-transform drop-shadow-sm"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="order-1 md:order-2 relative h-[50vh] md:h-full w-full overflow-hidden">
+            <img src="/images/sites/06/06-dr-rodolfo-freitas2.jpg" 
+                 alt="Paciente sorrindo após tratamento de Facetas em Resina com Dra. Dayana Vargas em São José SC" 
+                 loading="eager"
+                 class="absolute inset-0 w-full h-full object-cover object-top filter brightness-[0.95] transition-all duration-500">
+            
+            <div class="absolute inset-0 bg-gradient-to-t from-paper via-transparent to-transparent md:bg-gradient-to-l md:from-paper/80 md:to-transparent transition-colors duration-500"></div>
+
+            <div class="absolute bottom-6 right-6 md:bottom-12 md:right-12 glass-card py-2 px-4 rounded-xl flex items-center gap-4 max-w-[200px] md:max-w-[240px] animate-float-delayed z-10">
+                <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-textMuted uppercase tracking-wider">Localização</p>
+                    <p class="text-sm text-textMain font-medium font-serif">São José - SC</p>
+                </div>
+            </div>
+        </div>
+    </header>

@@ -1,0 +1,474 @@
+import { useState, useMemo, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { useFinanceStore } from "@/store/useFinanceStore";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, TrendingUp, Users, Wallet, Eye, CircleDashed, CheckCircle, Check } from "lucide-react";
+import { toast } from "sonner";
+
+// Helper de formatação
+const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+const MONTHS = [
+    { value: "0", label: "Janeiro" },
+    { value: "1", label: "Fevereiro" },
+    { value: "2", label: "Março" },
+    { value: "3", label: "Abril" },
+    { value: "4", label: "Maio" },
+    { value: "5", label: "Junho" },
+    { value: "6", label: "Julho" },
+    { value: "7", label: "Agosto" },
+    { value: "8", label: "Setembro" },
+    { value: "9", label: "Outubro" },
+    { value: "10", label: "Novembro" },
+    { value: "11", label: "Dezembro" },
+];
+
+export function CommissionsTab() {
+    // Auth
+    const { clinic } = useAuth();
+
+    // Consome os dados JÁ CALCULADOS da Store (inteligência centralizada) e a função de fetch
+    const { transactions, loading, fetchFinanceData } = useFinanceStore();
+
+    // Estado para o Modal de Detalhes (Holerite)
+    const [selectedProfessionalId, setSelectedProfessionalId] = useState<string | null>(null);
+
+    // Estado do Filtro de Data
+    const [selectedDate, setSelectedDate] = useState(new Date());
+
+    // --- NOVO: Estado para Checkboxes e Pagamento ---
+    const [selectedTransactionIds, setSelectedTransactionIds] = useState<string[]>([]);
+    const [isPaying, setIsPaying] = useState(false);
+
+    // Effect: Busca dados quando a data ou clínica mudar
+    useEffect(() => {
+        if (clinic?.id) {
+            const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+            const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+
+            // Chama a nova função da store
+            fetchFinanceData(clinic.id, 'custom', start, end);
+        }
+    }, [clinic?.id, selectedDate, fetchFinanceData]);
+
+    const handleMonthChange = (monthStr: string) => {
+        const newDate = new Date(selectedDate);
+        newDate.setMonth(parseInt(monthStr));
+        setSelectedDate(newDate);
+    };
+
+    const handleYearChange = (yearStr: string) => {
+        const newDate = new Date(selectedDate);
+        newDate.setFullYear(parseInt(yearStr));
+        setSelectedDate(newDate);
+    };
+
+    // 1. Agrupamento de Dados (Transforma lista de transações em Resumo por Médico)
+    const commissionsSummary = useMemo(() => {
+        const summary: Record<string, {
+            id: string;
+            name: string;
+            appointments: number;
+            total_sales: number;
+            total_commission: number;
+            details: any[]; // Lista das vendas para o modal
+        }> = {};
+
+        transactions.forEach(t => {
+            // Filtra apenas receitas que tenham um profissional vinculado
+            if (!t.professional || t.type !== 'income' || t.professional === 'Não Atribuído') return;
+
+            // Usa ID do profissional como chave (ou nome se ID falhar)
+            const key = t.professional_id || t.professional;
+
+            if (!summary[key]) {
+                summary[key] = {
+                    id: key,
+                    name: t.professional,
+                    appointments: 0,
+                    total_sales: 0,
+                    total_commission: 0,
+                    details: []
+                };
+            }
+
+            // Acumula os valores
+            summary[key].appointments += 1;
+            summary[key].total_sales += Number(t.amount);
+
+            // LÊ O VALOR CALCULADO PELA STORE (Regra Híbrida já aplicada)
+            summary[key].total_commission += Number(t.calculated_commission || 0);
+
+            summary[key].details.push(t);
+        });
+
+        // Recalcular total_commission baseado nos details para garantir sincronia com os checkboxes
+        Object.values(summary).forEach(prof => {
+            prof.total_commission = prof.details.reduce((acc, d) => acc + (Number(d.calculated_commission) || 0), 0);
+        });
+
+        return Object.values(summary);
+    }, [transactions]);
+
+    // Totais Gerais para os Cards do Topo
+    const totalCommissionsValue = commissionsSummary.reduce((acc, curr) => acc + curr.total_commission, 0);
+    const totalProducedValue = commissionsSummary.reduce((acc, curr) => acc + curr.total_sales, 0);
+
+    // Dados do profissional selecionado para o Modal
+    const selectedProfData = commissionsSummary.find(p => p.id === selectedProfessionalId);
+
+    // --- NOVO: Lógica de Seleção ---
+    useEffect(() => {
+        if (selectedProfessionalId && selectedProfData) {
+            // Seleciona por padrão os que NÃO estão pagos
+            const pendingIds = selectedProfData.details
+                .filter(t => t.commission_status !== 'paid')
+                .map(t => t.id);
+            setSelectedTransactionIds(pendingIds);
+        } else {
+            setSelectedTransactionIds([]);
+        }
+    }, [selectedProfessionalId]); // Executa ao abrir o modal (mudar ID)
+
+    const handleToggleAll = (checked: boolean) => {
+        if (!selectedProfData) return;
+        if (checked) {
+            const payableIds = selectedProfData.details
+                .filter(t => t.commission_status !== 'paid')
+                .map(t => t.id);
+            setSelectedTransactionIds(payableIds);
+        } else {
+            setSelectedTransactionIds([]);
+        }
+    };
+
+    const handleToggleOne = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedTransactionIds(prev => [...prev, id]);
+        } else {
+            setSelectedTransactionIds(prev => prev.filter(tid => tid !== id));
+        }
+    };
+
+    const totalSelectedToPay = selectedProfData?.details
+        .filter(t => selectedTransactionIds.includes(t.id))
+        .reduce((acc, t) => acc + (Number(t.calculated_commission) || 0), 0) || 0;
+
+    const handlePayCommissions = async () => {
+        if (selectedTransactionIds.length === 0) return;
+        setIsPaying(true);
+
+        try {
+            const { error } = await supabase
+                .from('financial_transactions')
+                .update({
+                    commission_status: 'paid',
+                    commission_paid_at: new Date().toISOString()
+                })
+                .in('id', selectedTransactionIds);
+
+            if (error) throw error;
+
+            toast.success(`${selectedTransactionIds.length} comissões pagas com sucesso!`);
+
+            // Refresh Data
+            if (clinic?.id) {
+                const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+                fetchFinanceData(clinic.id, 'custom', start, end);
+            }
+            setSelectedTransactionIds([]);
+
+        } catch (error) {
+            console.error("Erro ao pagar:", error);
+            toast.error("Erro ao registrar pagamento.");
+        } finally {
+            setIsPaying(false);
+        }
+    };
+
+    if (loading) {
+        return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>;
+    }
+
+    return (
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+
+            {/* --- CABEÇALHO E FILTROS COMPACTOS --- */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Gestão de Comissões</h1>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {/* Seletor de Mês */}
+                    <Select
+                        value={selectedDate.getMonth().toString()}
+                        onValueChange={handleMonthChange}
+                    >
+                        <SelectTrigger className="w-[140px] h-9 bg-white">
+                            <SelectValue placeholder="Mês" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {MONTHS.map((m) => (
+                                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Seletor de Ano */}
+                    <Select
+                        value={selectedDate.getFullYear().toString()}
+                        onValueChange={handleYearChange}
+                    >
+                        <SelectTrigger className="w-[100px] h-9 bg-white">
+                            <SelectValue placeholder="Ano" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={(new Date().getFullYear()).toString()}>{new Date().getFullYear()}</SelectItem>
+                            <SelectItem value={(new Date().getFullYear() - 1).toString()}>{new Date().getFullYear() - 1}</SelectItem>
+                            <SelectItem value={(new Date().getFullYear() + 1).toString()}>{new Date().getFullYear() + 1}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            {/* 1. CARDS DE KPI COMPACTOS (Slim Version) */}
+            <div className="grid gap-4 md:grid-cols-3">
+                <Card className="bg-white border-slate-100 shadow-sm">
+                    <CardHeader className="p-4 pb-1">
+                        <CardTitle className="text-xs font-medium text-slate-500 uppercase flex items-center gap-2">
+                            <Users className="w-4 h-4 text-blue-500" /> Profissionais Ativos
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-1">
+                        <div className="text-2xl font-bold text-slate-800 tracking-tight">{commissionsSummary.length}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-white border-slate-100 shadow-sm">
+                    <CardHeader className="p-4 pb-1">
+                        <CardTitle className="text-xs font-medium text-slate-500 uppercase flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-emerald-500" /> Total Produzido
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-1">
+                        <div className="text-2xl font-bold text-slate-800 tracking-tight">
+                            {formatCurrency(totalProducedValue)}
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-slate-900 text-white border-slate-800 shadow-sm">
+                    <CardHeader className="p-4 pb-1">
+                        <CardTitle className="text-xs font-medium text-slate-400 uppercase flex items-center gap-2">
+                            <Wallet className="w-4 h-4 text-emerald-400" /> Total em Comissões
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-1">
+                        <div className="text-2xl font-bold text-white tracking-tight">
+                            {formatCurrency(totalCommissionsValue)}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* 2. TABELA DE REPASSES */}
+            <Card className="border-none shadow-sm bg-white">
+                <CardHeader>
+                    <CardTitle>Fechamento de Comissões</CardTitle>
+                    <CardDescription>Valores líquidos calculados conforme regra de cada profissional (Sócio/Parceiro).</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-slate-50 hover:bg-slate-50">
+                                <TableHead>Profissional</TableHead>
+                                <TableHead className="text-center">Vendas</TableHead>
+                                <TableHead className="text-right">Total Produzido</TableHead>
+                                <TableHead className="text-right">Comissão Líquida</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                                <TableHead className="text-center">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {commissionsSummary.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-8 text-slate-400">
+                                        Nenhuma comissão gerada no período selecionado.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                commissionsSummary.map((prof) => (
+                                    <TableRow key={prof.id} className="group hover:bg-slate-50/50 transition-colors">
+                                        <TableCell className="font-medium text-slate-700">
+                                            {prof.name}
+                                        </TableCell>
+                                        <TableCell className="text-center text-slate-500">{prof.appointments}</TableCell>
+                                        <TableCell className="text-right font-medium text-slate-600">
+                                            {formatCurrency(prof.total_sales)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-emerald-600 text-lg">
+                                            {formatCurrency(prof.total_commission)}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50">
+                                                <CircleDashed className="w-3 h-3 mr-1" /> Em Aberto
+                                            </Badge>
+                                            {(() => {
+                                                const doctorTrans = transactions.filter(t => (t.professional_id === prof.id || t.professional === prof.name) && t.type === 'income');
+                                                const hasPaid = doctorTrans.some(t => t.commission_status === 'paid');
+                                                const hasPending = doctorTrans.some(t => t.commission_status !== 'paid');
+
+                                                if (hasPaid && hasPending) {
+                                                    return (
+                                                        <span className="block text-[10px] font-bold text-amber-600 mt-1 uppercase tracking-wide">
+                                                            Pagamento Parcial
+                                                        </span>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                onClick={() => setSelectedProfessionalId(prof.id)}
+                                            >
+                                                <Eye className="w-4 h-4 mr-2" /> Detalhes
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            {/* 3. MODAL DE DRILL-DOWN (O HOLERITE) */}
+            <Dialog open={!!selectedProfessionalId} onOpenChange={(open) => !open && setSelectedProfessionalId(null)}>
+                <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col z-[100]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl text-slate-800">
+                            <Wallet className="w-6 h-6 text-blue-600" />
+                            Extrato Detalhado: <span className="font-bold">{selectedProfData?.name}</span>
+                        </DialogTitle>
+                        <DialogDescription>
+                            Selecione as vendas para dar baixa no pagamento.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto pr-2 mt-4 border rounded-lg shadow-sm bg-white">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                                    <TableHead className="w-[50px] text-center">
+                                        <Checkbox
+                                            checked={
+                                                selectedProfData?.details.filter(t => t.commission_status !== 'paid').length === selectedTransactionIds.length &&
+                                                selectedTransactionIds.length > 0
+                                            }
+                                            onCheckedChange={handleToggleAll}
+                                            disabled={!selectedProfData?.details.some(t => t.commission_status !== 'paid')}
+                                        />
+                                    </TableHead>
+                                    <TableHead className="w-[100px]">Data</TableHead>
+                                    <TableHead>Paciente / Procedimento</TableHead>
+                                    <TableHead className="text-right">Valor Venda</TableHead>
+                                    <TableHead className="text-center">Status</TableHead>
+                                    <TableHead className="text-center">Data Pagto</TableHead>
+                                    <TableHead className="text-right">Comissão</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {selectedProfData?.details.map((sale: any, idx: number) => {
+                                    const isPaid = sale.commission_status === 'paid';
+                                    return (
+                                        <TableRow key={idx} className={isPaid ? "bg-slate-50/50" : "hover:bg-slate-50"}>
+                                            <TableCell className="text-center">
+                                                <Checkbox
+                                                    checked={selectedTransactionIds.includes(sale.id)}
+                                                    onCheckedChange={(checked) => handleToggleOne(sale.id, checked as boolean)}
+                                                    disabled={isPaid}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-xs text-slate-500 font-medium">
+                                                {new Date(sale.transaction_date).toLocaleDateString('pt-BR')}
+                                            </TableCell>
+                                            <TableCell>
+                                                {sale.lead_id ? (
+                                                    <Link
+                                                        to={`/leads/${sale.lead_id}`}
+                                                        target="_blank"
+                                                        className="font-bold text-sm text-slate-700 hover:text-blue-600 hover:underline decoration-blue-400 underline-offset-2 transition-colors block mb-0.5"
+                                                    >
+                                                        {sale.patient || "Consumidor Final"}
+                                                    </Link>
+                                                ) : (
+                                                    <div className="font-medium text-sm text-slate-700">{sale.patient || "Consumidor Final"}</div>
+                                                )}
+                                                <div className="text-[11px] text-slate-400 uppercase tracking-tight">{sale.procedure || "Venda Avulsa"}</div>
+                                            </TableCell>
+                                            <TableCell className="text-right text-sm text-slate-600">
+                                                {formatCurrency(sale.amount)}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {isPaid ? (
+                                                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-none text-[10px] h-5 px-2">Pago</Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-amber-700 border-slate-200 text-[10px] h-5 px-2">Pendente</Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-center text-xs text-slate-500">
+                                                {sale.commission_paid_at ? new Date(sale.commission_paid_at).toLocaleDateString('pt-BR') : '-'}
+                                            </TableCell>
+                                            <TableCell className="text-right font-bold text-emerald-600 text-sm">
+                                                {formatCurrency(sale.calculated_commission || 0)}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    <DialogFooter className="border-t pt-4 mt-4 bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-lg flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="text-sm text-slate-500">
+                            Selecionados: <strong className="text-slate-700">{selectedTransactionIds.length}</strong> vendas
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <div className="text-right mr-4">
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Total a Pagar</span>
+                                <span className="text-2xl font-black text-slate-800 tracking-tight">
+                                    {formatCurrency(totalSelectedToPay)}
+                                </span>
+                            </div>
+
+                            <Button
+                                size="lg"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 pl-4 pr-6 h-12 rounded-xl shadow-lg shadow-emerald-200 transition-all active:scale-95"
+                                onClick={handlePayCommissions}
+                                disabled={selectedTransactionIds.length === 0 || isPaying}
+                            >
+                                {isPaying ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <CheckCircle className="w-5 h-5" />
+                                )}
+                                {isPaying ? "Processando..." : `Confirmar Pagamento`}
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}

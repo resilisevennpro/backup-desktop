@@ -1,0 +1,136 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, UserPlus, Shield, User, Stethoscope, Users, Briefcase } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProfessionalsTab } from "@/components/settings/ProfessionalsTab";
+
+import { ServicesTab } from "@/components/settings/ServicesTab";
+
+interface teamMember {
+    id: string;
+    full_name: string;
+    role: string;
+    is_active: boolean;
+    phone: string | null;
+}
+
+export default function SettingsPage() {
+    const { clinic, profile } = useAuth();
+    const [team, setTeam] = useState<teamMember[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchTeam();
+        }
+    }, [clinic?.id]);
+
+    const fetchTeam = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('clinic_id', clinic?.id);
+
+            if (error) throw error;
+            setTeam(data as teamMember[]);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="p-6 space-y-6 max-w-6xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Equipe & Configurações</h1>
+                    <p className="text-muted-foreground">Gerencie profissionais, usuários e serviços.</p>
+                </div>
+            </div>
+
+            <Tabs defaultValue="professionals" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+                    <TabsTrigger value="professionals" className="gap-2">
+                        <Stethoscope className="h-4 w-4" /> Profissionais
+                    </TabsTrigger>
+                    <TabsTrigger value="services" className="gap-2">
+                        <Briefcase className="h-4 w-4" /> Serviços
+                    </TabsTrigger>
+                    <TabsTrigger value="team" className="gap-2">
+                        <Users className="h-4 w-4" /> Usuários
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* ABA DE PROFISSIONAIS DA AGENDA */}
+                <TabsContent value="professionals" className="mt-6">
+                    <ProfessionalsTab />
+                </TabsContent>
+
+                {/* ABA DE SERVIÇOS */}
+                <TabsContent value="services" className="mt-6">
+                    <ServicesTab />
+                </TabsContent>
+
+                {/* ABA DE USUÁRIOS DO SISTEMA */}
+                <TabsContent value="team" className="mt-6">
+                    <div className="flex justify-end mb-4">
+                        {profile?.role === 'owner' && (
+                            <Button variant="brand" className="gap-2">
+                                <UserPlus className="h-4 w-4" /> Convidar Usuário
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="grid gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Usuários do Sistema</CardTitle>
+                                <CardDescription>Quem tem login e senha para acessar este painel.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {loading ? (
+                                    <div className="flex justify-center py-8">
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                    </div>
+                                ) : (
+                                    <div className="divide-y">
+                                        {team.map((member) => (
+                                            <div key={member.id} className="flex items-center justify-between py-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                                        <User className="h-5 w-5 text-primary" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-foreground">{member.full_name}</p>
+                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                            <Shield className="h-3 w-3" />
+                                                            <span className="capitalize">{member.role}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <Badge variant={member.is_active ? "default" : "secondary"}>
+                                                        {member.is_active ? "Ativo" : "Inativo"}
+                                                    </Badge>
+                                                    {profile?.role === 'owner' && member.id !== profile.id && (
+                                                        <Button variant="ghost" size="sm">Editar</Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}

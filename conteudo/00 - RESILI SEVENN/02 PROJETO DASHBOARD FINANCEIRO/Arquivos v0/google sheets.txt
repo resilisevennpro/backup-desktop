@@ -1,0 +1,458 @@
+// lib/googleSheets.ts
+import { google } from "googleapis"
+import type {
+  DashboardPayload,        // ✅ Tipo correto que vamos retornar
+  DashboardFilters,        // ✅ Mantém (já existe)
+  PeriodValue,            // ✅ Mantém (já existe)
+  VendaRow,               // ✅ Tipo correto para linhas de venda
+  DashboardKpis,          // ✅ Tipo correto para KPIs
+  VendasDiariasPoint,     // ✅ Tipo correto para gráfico diário
+  TopPacienteItem,        // ✅ Tipo correto para top pacientes
+  LucratividadePorProcedimentoItem, // ✅ Tipo correto para lucratividade
+} from "@/lib/dashboard-types"
+
+
+
+
+// =======================
+// HARDENING: cache in-memory (reduz chamadas ao Google Sheets)
+// Observação: em serverless (Vercel), cache é por instância.
+// =======================
+type CacheEntry<T> = { ts: number; data: T }
+
+// TTL curto para evitar dados muito desatualizados
+const SHEETS_CACHE_TTL_MS = 60_000 // 60s (ajuste se quiser)
+
+const sheetsCache = new Map<string, CacheEntry<any>>()
+
+function cacheGet<T>(key: string): T | null {
+  const entry = sheetsCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.ts > SHEETS_CACHE_TTL_MS) {
+    sheetsCache.delete(key)
+    return null
+  }
+  return entry.data as T
+}
+
+function cacheSet<T>(key: string, data: T) {
+  sheetsCache.set(key, { ts: Date.now(), data })
+}
+
+/**
+ * ENV necessários (na Vercel também):
+ * GOOGLE_SHEETS_CLIENT_EMAIL
+ * GOOGLE_SHEETS_PRIVATE_KEY (com \n escapado)
+ */
+function getAuth() {
+  const clientEmail = process.env.GOOGLE_SHEETS_CLIENT_EMAIL
+  const privateKeyRaw = process.env.GOOGLE_SHEETS_PRIVATE_KEY
+
+  if (!clientEmail || !privateKeyRaw) {
+    throw new Error("Missing GOOGLE_SHEETS_CLIENT_EMAIL / GOOGLE_SHEETS_PRIVATE_KEY")
+  }
+
+  // ✅ Correto: no .env da Vercel a key vem com \\n
+  const privateKey = privateKeyRaw.replace(/\\n/g, "\n")
+
+  return new google.auth.JWT({
+    email: clientEmail,
+    key: privateKey,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  })
+}
+
+function asNumberBRL(value: string): number {
+  if (!value) return 0
+  const cleaned = value
+    .replace(/\s/g, "")
+    .replace("R$", "")
+    .replace(/\./g, "")
+    .replace(",", ".")
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : 0
+}
+
+function asPercent01(value: string): number {
+  if (!value) return 0
+  // "30,00%" -> 0.3
+  const cleaned = value.replace(/\s/g, "").replace("%", "").replace(",", ".")
+  const n = Number(cleaned)
+  if (!Number.isFinite(n)) return 0
+  return n / 100
+}
+
+function parseDateBRToISO(d: string): string {
+  // "04/01/2026" -> "2026-01-04"
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d?.trim() || "")
+  if (!m) return ""
+  const [, dd, mm, yyyy] = m
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function startEndFromPeriod(period: PeriodValue, now = new Date()) {
+  const end = new Date(now)
+  end.setHours(23, 59, 59, 999)
+
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+
+  const year = now.getFullYear()
+  const month = now.getMonth()
+
+  if (period === "todo-historico") {
+    return { start: new Date("2000-01-01T00:00:00.000Z"), end }
+  }
+
+  if (period === "este-mes") {
+    return { start: new Date(year, month, 1), end }
+  }
+
+  if (period === "mes-passado") {
+    const s = new Date(year, month - 1, 1)
+    const e = new Date(year, month, 0)
+    e.setHours(23, 59, 59, 999)
+    return { start: s, end: e }
+  }
+
+  if (period === "ultimos-7") {
+    start.setDate(start.getDate() - 6)
+    return { start, end }
+  }
+
+  if (period === "ultimos-14") {
+    start.setDate(start.getDate() - 13)
+    return { start, end }
+  }
+
+  // ✅ personalizado (se vier startDate/endDate, tratamos abaixo)
+  return { start: new Date(year, month, 1), end }
+}
+
+function clampFilters(filters?: DashboardFilters): DashboardFilters {
+  return {
+    period: (filters?.period ?? "este-mes") as PeriodValue,
+    profissional: filters?.profissional ?? [],
+    procedimento: filters?.procedimento ?? "todos",
+    startDate: filters?.startDate,
+    endDate: filters?.endDate,
+  }
+}
+
+export async function readClinicSheetData(
+  sheetId: string,
+  args?: { filters?: DashboardFilters }
+): Promise<DashboardPayload> {
+  const filters = clampFilters(args?.filters)
+  
+
+  // HARDENING: valida sheetId e sanitiza filtros
+  const safeSheetId = String(sheetId || "").trim()
+  if (!safeSheetId) {
+    throw new Error("Invalid sheetId (vazio).")
+  }
+
+  const allowedPeriods: PeriodValue[] = [
+    "este-mes",
+    "mes-passado",
+    "ultimos-7",
+    "ultimos-14",
+    "todo-historico",
+    "personalizado",
+  ]
+
+  const safePeriod: PeriodValue = allowedPeriods.includes(filters.period)
+    ? filters.period
+    : "este-mes"
+
+  const safeProfissional = Array.isArray(filters.profissional)
+    ? filters.profissional
+        .map((p) => String(p || "").trim())
+        .filter(Boolean)
+        .slice(0, 20) // evita abuso
+    : []
+
+  const safeProcedimento = String(filters.procedimento || "todos").trim().slice(0, 80)
+
+  // substitui filtros por versão sanitizada
+  const safeFilters: DashboardFilters = {
+    ...filters,
+    period: safePeriod,
+    profissional: safeProfissional,
+    procedimento: safeProcedimento || "todos",
+  }
+  // =======================
+  // HARDENING: cache key por clínica + filtros (anti quota)
+  // =======================
+  const cacheKey = `sheet:${sheetId}|filters:${JSON.stringify(safeFilters)}`
+  const cached = cacheGet<any>(cacheKey)
+  if (cached) {
+    return cached
+  }
+
+
+  // 1) auth + client sheets
+  const auth = getAuth()
+  const sheets = google.sheets({ version: "v4", auth })
+
+  // 2) lê Vendas (toda a tabela, incluindo cabeçalho)
+  let vendasRes
+  try {
+    vendasRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "Vendas!A1:K",
+    })
+  } catch (e: any) {
+    throw new Error(
+      "Falha ao ler a aba 'Vendas' no Google Sheets. " +
+        "Verifique: (1) Sheet ID correto, (2) permissão do Service Account, (3) nome da aba exatamente 'Vendas'."
+    )
+  }
+
+  const vendasValues = vendasRes.data.values ?? []
+
+  // HARDENING: planilha vazia ou sem header
+  if (vendasValues.length < 2) {
+    const kpis: DashboardKpis = {
+      metaFaturamento: 0,
+      faturamentoBruto: 0,
+      lucroLiquido: 0,
+      margemLiquida: 0,
+      ticketMedio: 0,
+      marketingTotal: 0,
+    }
+
+    const payload: DashboardPayload = {
+      filtersApplied: {
+        period: safeFilters.period,
+        profissional: safeFilters.profissional,
+        procedimento: safeFilters.procedimento,
+        startDate: safeFilters.startDate,
+        endDate: safeFilters.endDate,
+      },
+      kpis,
+      vendasDiarias: [],
+      topPacientes: [],
+      lucratividadePorProcedimento: [],
+      extrato: [],
+    }
+
+    cacheSet(cacheKey, payload)
+    return payload
+  }
+
+  const header = (vendasValues[0] ?? []).map((h) => (h || "").toString().trim())
+
+  // HARDENING: limita linhas para evitar sheet gigante derrubar API
+  const MAX_ROWS = 5000
+  const rows = vendasValues.slice(1, 1 + MAX_ROWS)
+
+  // 3) Configurações (meta)
+// HARDENING: se aba Configuracoes falhar, não derruba tudo; apenas zera config/meta
+let cfgRes: any = { data: { values: [] as any[] } }
+try {
+  cfgRes = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: "Configuracoes!A1:B30",
+  })
+} catch (e: any) {
+  cfgRes = { data: { values: [] as any[] } }
+}
+
+const cfg: any[][] = (cfgRes.data?.values ?? []) as any[][]
+
+  const findCfgValue = (label: string) => {
+    const row = cfg.find((r) => (r?.[0] || "").toString().trim() === label)
+    return row?.[1]?.toString() ?? ""
+  }
+
+  const metaFaturamento = asNumberBRL(findCfgValue("Meta de Faturamento"))
+  const mktAds = asNumberBRL(findCfgValue("Investimento Mkt 1 - Ads e Sistemas"))
+  const mktMaoDeObra = asNumberBRL(findCfgValue("Investimento Mkt 2 - Mão de Obra"))
+  const marketingTotal = mktAds + mktMaoDeObra
+
+  // helpers de coluna
+  const colIndex = (name: string) => header.findIndex((h) => h === name)
+  const idx = {
+    Data: colIndex("Data"),
+    Paciente: colIndex("Paciente"),
+    Procedimento: colIndex("Procedimento"),
+    Profissional: colIndex("Profissional"),
+    Valor_Venda: colIndex("Valor_Venda"),
+    Forma_Pagamento: colIndex("Forma_Pagamento"),
+    Taxa_Comissao: colIndex("Taxa_Comissao"),
+    Custo_Material: colIndex("Custo_Material"),
+    Custo_Taxa_Cartao: colIndex("Custo_Taxa_Cartao"),
+  }
+
+  // HARDENING: garante colunas obrigatórias
+  const requiredCols: Array<keyof typeof idx> = [
+    "Data",
+    "Paciente",
+    "Procedimento",
+    "Valor_Venda",
+  ]
+
+  const missing = requiredCols.filter((k) => idx[k] < 0)
+  if (missing.length > 0) {
+    throw new Error(
+      `Planilha Vendas com colunas ausentes no header: ${missing.join(", ")}. ` +
+      `Header atual: [${header.join(" | ")}]`
+    )
+  }
+
+  // 4) Transforma em SalesRow (se a planilha estiver vazia, retorna “vazio”)
+  // ✅ Agora usamos VendaRow (tipo correto da nossa estrutura)
+  const vendasRows: VendaRow[] = rows
+    .map((r) => {
+      const dataISO = parseDateBRToISO((r[idx.Data] ?? "").toString())
+      const paciente = (r[idx.Paciente] ?? "").toString().trim()
+      const procedimento = (r[idx.Procedimento] ?? "").toString().trim()
+      const profissional = (r[idx.Profissional] ?? "").toString().trim()
+      const valorVenda = asNumberBRL((r[idx.Valor_Venda] ?? "").toString())
+      const formaPagamento = (r[idx.Forma_Pagamento] ?? "").toString().trim()
+      const taxaComissao = asPercent01((r[idx.Taxa_Comissao] ?? "").toString())
+      const custoMaterial = asNumberBRL((r[idx.Custo_Material] ?? "").toString())
+      const custoTaxaCartao = asNumberBRL((r[idx.Custo_Taxa_Cartao] ?? "").toString())
+
+      // ✅ Validação: mínimos obrigatórios
+      if (!dataISO || !paciente || !procedimento) return null
+
+      return {
+        dataISO,                // ✅ Nome correto conforme VendaRow
+        paciente,               // ✅ Nome correto
+        procedimento,           // ✅ Nome correto
+        profissional: profissional || undefined,
+        valorVenda,             // ✅ Nome correto
+        taxaComissao: Number.isFinite(taxaComissao) ? taxaComissao : undefined,
+        custoMaterial: Number.isFinite(custoMaterial) ? custoMaterial : undefined,
+        custoTaxaCartao: Number.isFinite(custoTaxaCartao) ? custoTaxaCartao : undefined,
+        formaPagamento: formaPagamento || undefined,
+      } satisfies VendaRow  // ✅ Tipo correto
+    })
+    .filter(Boolean) as VendaRow[]
+
+  // 5) Aplica filtros de período (inclui personalizado se vier startDate/endDate)
+  let { start, end } = startEndFromPeriod(safeFilters.period)
+
+  if (safeFilters.period === "personalizado" && safeFilters.startDate && safeFilters.endDate) {
+    start = new Date(safeFilters.startDate + "T00:00:00.000Z")
+    end = new Date(safeFilters.endDate + "T23:59:59.999Z")
+  }
+
+  // ✅ Filtra as vendas usando os nomes corretos das propriedades
+  const filtered = vendasRows.filter((v) => {
+    const d = new Date(v.dataISO + "T00:00:00.000Z")  // ✅ dataISO (não 'date')
+    if (d < start || d > end) return false
+
+    // ✅ Filtra por procedimento
+    if (safeFilters.procedimento !== "todos" && v.procedimento !== safeFilters.procedimento) return false
+    
+    // ✅ Filtra por profissional
+    if (safeFilters.profissional.length > 0) {
+      if (!v.profissional) return false
+      if (!safeFilters.profissional.includes(v.profissional)) return false
+    }
+
+    return true
+  })
+
+  // 6) KPIs
+  // ✅ Cálculos usando nomes corretos das propriedades
+  const faturamentoBruto = filtered.reduce((acc, v) => acc + v.valorVenda, 0)  // ✅ valorVenda
+
+  const totalComissao = filtered.reduce((acc, v) => acc + v.valorVenda * (v.taxaComissao ?? 0), 0)
+  const totalMateriais = filtered.reduce((acc, v) => acc + (v.custoMaterial ?? 0), 0)
+  const totalTaxasCartao = filtered.reduce((acc, v) => acc + (v.custoTaxaCartao ?? 0), 0)
+
+  const lucroLiquido = faturamentoBruto - totalComissao - totalMateriais - totalTaxasCartao - marketingTotal
+  const margemLiquida = faturamentoBruto > 0 ? (lucroLiquido / faturamentoBruto) : 0
+  const ticketMedio = filtered.length > 0 ? faturamentoBruto / filtered.length : 0
+
+  // ✅ Agora montamos o objeto DashboardKpis correto
+  const kpis: DashboardKpis = {
+    metaFaturamento,      // ✅ Vem da configuração
+    faturamentoBruto,     // ✅ Soma dos valores de venda
+    lucroLiquido,         // ✅ Faturamento - comissões - materiais
+    margemLiquida,        // ✅ Percentual (0..1, não 0..100)
+    ticketMedio,          // ✅ Média por venda
+    marketingTotal,
+  }
+
+  // 7) Charts: dailyRevenue
+  // ✅ Agrupamento por dia usando nomes corretos
+  const byDay = new Map<string, number>()
+  for (const v of filtered) {
+    byDay.set(v.dataISO, (byDay.get(v.dataISO) ?? 0) + v.valorVenda)  // ✅ dataISO e valorVenda
+  }
+
+  // ✅ Montamos VendasDiariasPoint (formato correto)
+  const vendasDiarias: VendasDiariasPoint[] = Array.from(byDay.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([iso, value]) => ({
+      label: iso.slice(8, 10) + "/" + iso.slice(5, 7),  // ✅ "DD/MM" (formato brasileiro)
+      value,  // ✅ Total do dia
+    }))
+
+  // 8) Charts: procedureProfitability
+  // ✅ Agrupamento por procedimento
+  const byProc = new Map<string, number>()  // ✅ Simplificado: só guarda o lucro total
+  for (const v of filtered) {
+    const key = v.procedimento  // ✅ Nome correto
+    const revenue = v.valorVenda
+    const cost = v.valorVenda * (v.taxaComissao ?? 0) + (v.custoMaterial ?? 0)
+    const profit = revenue - cost
+
+    byProc.set(key, (byProc.get(key) ?? 0) + profit)  // ✅ Acumula lucro
+  }
+
+  // ✅ Montamos LucratividadePorProcedimentoItem (tipo correto)
+  const lucratividadePorProcedimento: LucratividadePorProcedimentoItem[] = Array.from(byProc.entries())
+    .map(([procedimento, lucro]) => ({
+      procedimento,  // ✅ Nome do procedimento
+      lucro,         // ✅ Lucro total acumulado
+    }))
+    .sort((a, b) => b.lucro - a.lucro)  // ✅ Ordena por lucro decrescente
+
+  // 9) Charts: costData (com cores fixas para não dar undefined)
+  
+
+  // 10) Tables: topPatients
+ // ✅ Agrupamento por paciente
+ const byPatient = new Map<string, number>()
+ for (const v of filtered) {
+   const key = v.paciente  // ✅ Nome correto
+   byPatient.set(key, (byPatient.get(key) ?? 0) + v.valorVenda)
+ }
+
+ // ✅ Montamos TopPacienteItem (tipo correto)
+ const topPacientes: TopPacienteItem[] = Array.from(byPatient.entries())
+   .map(([paciente, total]) => ({
+     paciente,  // ✅ Nome do paciente
+     total,     // ✅ Total faturado
+   }))
+   .sort((a, b) => b.total - a.total)  // ✅ Ordena por total decrescente
+   .slice(0, 5)  // ✅ Top 5
+
+
+  // ✅ Retorna DashboardPayload (estrutura correta)
+  const payload: DashboardPayload = {
+    filtersApplied: {
+      period: safeFilters.period,
+      profissional: safeFilters.profissional,
+      procedimento: safeFilters.procedimento,
+      startDate: safeFilters.startDate,
+      endDate: safeFilters.endDate,
+    },
+    kpis,                             // ✅ Objeto DashboardKpis
+    vendasDiarias,                    // ✅ Array de VendasDiariasPoint
+    topPacientes,                     // ✅ Array de TopPacienteItem
+    lucratividadePorProcedimento,     // ✅ Array de LucratividadePorProcedimentoItem
+    extrato: filtered,                // ✅ Array de VendaRow (vendas filtradas)
+  }
+
+  // ✅ HARDENING (quota): salva no cache antes de retornar
+  cacheSet(cacheKey, payload)
+
+  return payload
+}

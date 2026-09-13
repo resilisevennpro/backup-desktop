@@ -1,0 +1,789 @@
+{
+  "name": "TOOL INSTAGRAM-WHATSAPP",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "telefone"
+            },
+            {
+              "name": "contactId"
+            },
+            {
+              "name": "leadId"
+            },
+            {
+              "name": "subdomain"
+            },
+            {
+              "name": "tokenKommo"
+            }
+          ]
+        }
+      },
+      "id": "519ccfcd-52c7-42dc-a041-97ef289d1fe8",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -1472,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $('When Executed by Another Workflow').first().json.subdomain }}.kommo.com/api/v2/salesbot/run ",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('When Executed by Another Workflow').first().json.tokenKommo }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"bot_id\": 90840,\n    \"entity_id\": {{ $('When Executed by Another Workflow').first().json.leadId }},\n    \"entity_type\": \"2\"\n  }\n] ",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        -240
+      ],
+      "id": "19b45b20-be53-4309-844d-9307c7b26be1",
+      "name": "acionarSalesbot"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('formataHistorico').first().json.historico_markdown }}",
+        "options": {
+          "systemMessage": "={{ $('prompt').first().json.prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        -288
+      ],
+      "id": "17e6fc31-5ff6-4790-8faf-c6ef2c8fc127",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        976,
+        -80
+      ],
+      "id": "cf7dc48c-7b97-4db7-8a86-f3ef94c4caf9",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2384,
+        -240
+      ],
+      "id": "67811bd5-7da2-480f-92a2-39fe9d711d57",
+      "name": "Wait",
+      "webhookId": "9f96aa92-35b8-49ff-9b7f-1d2b40de9dfe"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_lua_chat",
+          "mode": "list",
+          "cachedResultName": "n8n_lua_chat"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{ $('When Executed by Another Workflow').item.json.contactId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        384,
+        -240
+      ],
+      "id": "bc799bfa-758b-4baa-9ed7-fd818072e388",
+      "name": "puxaHistorico",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code node (Run Once for All Items)\n// Busca histórico a partir do nó especificado\nconst historicoItems = $items(\"puxaHistorico\"); // substitua pelo nome real do nó anterior\n\n// Definições de nomes\nconst NOME_CLIENTE = \"Cliente\";\nconst NOME_AGENTE  = \"Carlos\";\n\nlet historico = \"# HISTÓRICO DE CONVERSA\\n\";\n\nfor (const item of historicoItems) {\n  const msg = item.json.message;\n  if (!msg?.content) continue;\n\n  if (msg.type === \"human\") {\n    historico += `## ${NOME_CLIENTE}: ${msg.content}\\n`;\n  } else if (msg.type === \"ai\") {\n    historico += `## ${NOME_AGENTE}: ${msg.content}\\n`;\n  }\n}\n\nreturn [\n  {\n    json: {\n      historico_markdown: historico.trim()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        -288
+      ],
+      "id": "607c23dc-9d99-4654-a494-a71a94b1fcd2",
+      "name": "formataHistorico"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://{{ $('When Executed by Another Workflow').first().json.subdomain }}.kommo.com/api/v4/leads/{{ $('When Executed by Another Workflow').first().json.leadId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('When Executed by Another Workflow').first().json.tokenKommo }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n   \"custom_fields_values\":[\n      {\n         \"field_id\": 1883726,\n         \"values\":[\n            {\n               \"value\":\"{{ $('AI Agent').first().json.output }}\"\n            }\n         ]\n      }\n   ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        -240
+      ],
+      "id": "9b443f76-35c7-455c-9b99-7c5898922dea",
+      "name": "preencheCampo"
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('When Executed by Another Workflow').first().json.subdomain }}.kommo.com/api/v4/contacts/{{ $('When Executed by Another Workflow').first().json.contactId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('When Executed by Another Workflow').first().json.tokenKommo }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -560,
+        -80
+      ],
+      "id": "c4d156bb-f328-43f8-8565-b35e74f6add6",
+      "name": "puxaContato"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Code Node - Run Once for All Items\n * Atualiza o contato adicionando um telefone no campo \"Phone\" (PHONE),\n * inserindo como PRIMEIRO, sem duplicar.\n *\n * ========== CONFIG ==========\n */\nconst CONTACT_NODE   = \"puxaContato\";                       // nó onde está o contato existente (json.body ou json)\nconst TRIGGER_NODE   = \"When Executed by Another Workflow\";  // nó que traz o telefone (json.telefone)\nconst FIELD_ID_PHONE = 1836069;                              // field_id do campo \"Phone\" na sua conta\nconst ENUM_CODE_NEW  = \"WORK\";                                // enum_code a usar para o novo número\nconst ENUM_ID_NEW    = null;                                 // OPCIONAL: defina um enum_id válido; deixe null para não enviar\nconst DEFAULT_DDI    = \"+55\";                                // DDI padrão quando o número não vier com '+'\nconst MOVE_NEW_TO_TOP = true;                                // true = insere no início\n\n/* ===== Helpers ===== */\nfunction normalizePhone(raw) {\n  if (raw == null) return null;\n  let s = String(raw).trim();\n  if (!s) return null;\n  if (!s.startsWith('+')) s = DEFAULT_DDI + s.replace(/[^\\d]/g, '');\n  const keepPlus = s.startsWith('+') ? '+' : '';\n  const digits = s.replace(/[^\\d]/g, '');\n  return digits ? (keepPlus + digits) : null;\n}\nfunction samePhone(a, b) {\n  const na = String(a || '').replace(/[^\\d]/g, '');\n  const nb = String(b || '').replace(/[^\\d]/g, '');\n  return na.length > 0 && na === nb;\n}\nfunction getNodeJson(name) {\n  try { return $node[name]?.json ?? null; } catch { return null; }\n}\n\n/* ===== Lê telefone do nó gatilho ===== */\nconst triggerJson  = getNodeJson(TRIGGER_NODE);\nconst telefoneNovo = normalizePhone(triggerJson?.telefone);\n\n// Se não houver telefone novo, devolve os bodies intactos\nif (!telefoneNovo) {\n  return $input.all().map(it => {\n    const fromContactNode = getNodeJson(CONTACT_NODE);\n    const bodyFromNode = fromContactNode?.body ?? fromContactNode;\n    const bodyFromItem = it.json?.body ?? it.json;\n    return { json: (bodyFromNode || bodyFromItem) };\n  });\n}\n\nconst out = [];\n\nfor (const it of $input.all()) {\n  // Prioriza contato do nó configurado; se não existir, usa o body do item\n  const fromContactNode = getNodeJson(CONTACT_NODE);\n  const body = (fromContactNode?.body ?? fromContactNode) || it.json?.body || it.json;\n\n  if (!body) {\n    out.push({ json: { error: 'Body do contato não encontrado.' } });\n    continue;\n  }\n\n  if (!Array.isArray(body.custom_fields_values)) {\n    body.custom_fields_values = [];\n  }\n\n  // Localiza o campo Phone: por field_id, field_code ou field_name\n  let phoneField = body.custom_fields_values.find(\n    f => f?.field_id === FIELD_ID_PHONE || f?.field_code === \"PHONE\" || f?.field_name === \"Phone\"\n  );\n\n  // Se não houver, cria com o FIELD_ID_PHONE configurado\n  if (!phoneField) {\n    phoneField = {\n      field_id: FIELD_ID_PHONE,\n      field_name: \"Phone\",\n      field_code: \"PHONE\",\n      field_type: \"multitext\",\n      values: []\n    };\n    body.custom_fields_values.push(phoneField);\n  }\n\n  // Garante o array de values\n  phoneField.values = Array.isArray(phoneField.values) ? phoneField.values : [];\n\n  // Remove duplicata do mesmo número (normalizado)\n  phoneField.values = phoneField.values.filter(v => !samePhone(v?.value, telefoneNovo));\n\n  // === Escolha do enum_id ===\n  // 1) Se já existir algum value com o MESMO enum_code e enum_id numérico, reaproveita\n  let enumIdToUse = null;\n  const existingSameCode = phoneField.values.find(v => String(v?.enum_code).toUpperCase() === String(ENUM_CODE_NEW).toUpperCase() && Number.isInteger(v?.enum_id));\n  if (existingSameCode) {\n    enumIdToUse = existingSameCode.enum_id;\n  } else if (Number.isInteger(ENUM_ID_NEW)) {\n    // 2) Caso você tenha configurado manualmente um enum_id válido\n    enumIdToUse = ENUM_ID_NEW;\n  } else {\n    // 3) Caso contrário, não envia enum_id (deixa null) para evitar NotSupportedChoice\n    enumIdToUse = null;\n  }\n\n  // Monta o novo valor e insere\n  const novoValor = {\n    value: telefoneNovo,\n    enum_id: enumIdToUse,        // pode ser null ou o id que você definiu\n    enum_code: ENUM_CODE_NEW\n  };\n\n  if (MOVE_NEW_TO_TOP) phoneField.values.unshift(novoValor);\n  else                 phoneField.values.push(novoValor);\n\n  out.push({ json: body });\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -80
+      ],
+      "id": "810cf5d4-d47d-4509-9b70-d186dabf3bab",
+      "name": "geraBodyUpdate"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://{{ $('When Executed by Another Workflow').first().json.subdomain }}.kommo.com/api/v4/contacts/{{ $('When Executed by Another Workflow').item.json.contactId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('When Executed by Another Workflow').first().json.tokenKommo }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('geraBodyUpdate').first().json) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        -80
+      ],
+      "id": "82c1218e-9050-41ad-a836-cc5b402643b3",
+      "name": "atualizaContato"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mapeamento de DDDs brasileiros para suas regiões\nconst dddRegioes = {\n  11: \"São Paulo - Capital e Grande São Paulo\",\n  12: \"São Paulo - Vale do Paraíba\",\n  13: \"São Paulo - Baixada Santista\",\n  14: \"São Paulo - Bauru, Marília, Jaú\",\n  15: \"São Paulo - Sorocaba, Itapetininga\",\n  16: \"São Paulo - Ribeirão Preto, Araraquara\",\n  17: \"São Paulo - São José do Rio Preto\",\n  18: \"São Paulo - Presidente Prudente\",\n  19: \"São Paulo - Campinas, Piracicaba\",\n  21: \"Rio de Janeiro - Capital e Região Metropolitana\",\n  22: \"Rio de Janeiro - Campos dos Goytacazes\",\n  24: \"Rio de Janeiro - Volta Redonda, Petrópolis\",\n  27: \"Espírito Santo - Vitória e Região Metropolitana\",\n  28: \"Espírito Santo - Cachoeiro de Itapemirim\",\n  31: \"Minas Gerais - Belo Horizonte e Região Metropolitana\",\n  32: \"Minas Gerais - Juiz de Fora\",\n  33: \"Minas Gerais - Governador Valadares\",\n  34: \"Minas Gerais - Uberlândia\",\n  35: \"Minas Gerais - Poços de Caldas, Varginha\",\n  37: \"Minas Gerais - Divinópolis\",\n  38: \"Minas Gerais - Montes Claros\",\n  41: \"Paraná - Curitiba e Região Metropolitana\",\n  42: \"Paraná - Ponta Grossa\",\n  43: \"Paraná - Londrina\",\n  44: \"Paraná - Maringá\",\n  45: \"Paraná - Cascavel\",\n  46: \"Paraná - Francisco Beltrão\",\n  47: \"Santa Catarina - Joinville, Blumenau\",\n  48: \"Santa Catarina - Florianópolis\",\n  49: \"Santa Catarina - Chapecó, Lages\",\n  51: \"Rio Grande do Sul - Porto Alegre e Região Metropolitana\",\n  53: \"Rio Grande do Sul - Pelotas\",\n  54: \"Rio Grande do Sul - Caxias do Sul\",\n  55: \"Rio Grande do Sul - Santa Maria\",\n  61: \"Distrito Federal - Brasília\",\n  62: \"Goiás - Goiânia e Região Metropolitana\",\n  63: \"Tocantins - Palmas\",\n  64: \"Goiás - Rio Verde, Caldas Novas\",\n  65: \"Mato Grosso - Cuiabá\",\n  66: \"Mato Grosso - Rondonópolis\",\n  67: \"Mato Grosso do Sul - Campo Grande\",\n  68: \"Acre - Rio Branco\",\n  69: \"Rondônia - Porto Velho\",\n  71: \"Bahia - Salvador e Região Metropolitana\",\n  73: \"Bahia - Ilhéus, Itabuna\",\n  74: \"Bahia - Juazeiro\",\n  75: \"Bahia - Feira de Santana\",\n  77: \"Bahia - Vitória da Conquista\",\n  79: \"Sergipe - Aracaju\",\n  81: \"Pernambuco - Recife e Região Metropolitana\",\n  82: \"Alagoas - Maceió\",\n  83: \"Paraíba - João Pessoa\",\n  84: \"Rio Grande do Norte - Natal\",\n  85: \"Ceará - Fortaleza e Região Metropolitana\",\n  86: \"Piauí - Teresina\",\n  87: \"Pernambuco - Petrolina, Garanhuns\",\n  88: \"Ceará - Juazeiro do Norte, Sobral\",\n  89: \"Piauí - Picos, Floriano\",\n  91: \"Pará - Belém e Região Metropolitana\",\n  92: \"Amazonas - Manaus\",\n  93: \"Pará - Santarém\",\n  94: \"Pará - Marabá\",\n  95: \"Roraima - Boa Vista\",\n  96: \"Amapá - Macapá\",\n  97: \"Amazonas - Coari, Tefé\",\n  98: \"Maranhão - São Luís\",\n  99: \"Maranhão - Imperatriz\"\n};\n\n// Array para armazenar apenas os resultados da validação\nconst resultados = [];\n\n// Loop sobre os itens de entrada - Validação para números de celular brasileiros\n// Formato esperado: +55 + DDD (2 dígitos) + 9 dígitos (começando com 9)\nfor (const item of $input.all()) {\n  try {\n    let telefone = item.json.telefone;\n    \n    // Verificar se o campo telefone existe\n    if (!telefone) {\n      resultados.push({\n        json: {\n          validacao: \"Número inválido - Campo telefone não encontrado\",\n          regiao: null\n        }\n      });\n      continue;\n    }\n    \n    // Converter para string se não for\n    telefone = String(telefone);\n    \n    // Remover espaços e caracteres especiais, mantendo apenas números e +\n    const telefoneOriginal = telefone;\n    telefone = telefone.replace(/[^\\d+]/g, '');\n    \n    // Verificar se tem o código do país (+55)\n    if (!telefone.startsWith('+55')) {\n      // Se começar apenas com 55, adicionar o +\n      if (telefone.startsWith('55')) {\n        telefone = '+' + telefone;\n      } else {\n        resultados.push({\n          json: {\n            validacao: \"Número inválido - Código do país (+55) não encontrado\",\n            regiao: null\n          }\n        });\n        continue;\n      }\n    }\n    \n    // Remover o +55 para análise\n    const numeroSemPais = telefone.slice(3);\n    \n    // Verificar se tem exatamente 11 dígitos (DDD + 9 dígitos do celular)\n    if (numeroSemPais.length !== 11) {\n      let motivo = numeroSemPais.length < 11 ? \n        `Faltam ${11 - numeroSemPais.length} dígitos` : \n        `Excesso de ${numeroSemPais.length - 11} dígitos`;\n      resultados.push({\n        json: {\n          validacao: `Número inválido - ${motivo}`,\n          regiao: null\n        }\n      });\n      continue;\n    }\n    \n    // Extrair DDD (primeiros 2 dígitos)\n    const ddd = parseInt(numeroSemPais.slice(0, 2));\n    \n    // Verificar se o DDD é válido\n    if (!dddRegioes[ddd]) {\n      resultados.push({\n        json: {\n          validacao: `Número inválido - DDD ${ddd} inexistente`,\n          regiao: null\n        }\n      });\n      continue;\n    }\n    \n    // Extrair o número sem DDD (deve ter exatamente 9 dígitos)\n    const numeroSemDDD = numeroSemPais.slice(2);\n    \n    // Verificar se tem exatamente 9 dígitos e começa com 9 (celular)\n    if (numeroSemDDD.length !== 9) {\n      resultados.push({\n        json: {\n          validacao: `Número inválido - Deve ter exatamente 9 dígitos após o DDD`,\n          regiao: null\n        }\n      });\n      continue;\n    }\n    \n    if (!numeroSemDDD.startsWith('9')) {\n      resultados.push({\n        json: {\n          validacao: \"Número inválido - Número deve começar com 9 após o DDD\",\n          regiao: null\n        }\n      });\n      continue;\n    }\n    \n    // Se chegou até aqui, o número é válido\n    resultados.push({\n      json: {\n        validacao: `Número válido - ${telefone}`,\n        regiao: dddRegioes[ddd],\n        telefoneValidado: telefone,\n        ddd: ddd\n      }\n    });\n    \n  } catch (error) {\n    resultados.push({\n      json: {\n        validacao: `Número inválido - Erro na validação: ${error.message}`,\n        regiao: null\n      }\n    });\n  }\n}\n\nreturn resultados;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1264,
+        -96
+      ],
+      "id": "03ea6ce0-8ae3-4e87-8c84-11f78cc4bcd5",
+      "name": "validaNumero"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "305ce2fd-fa17-46c7-b3b1-d90f57405691",
+              "leftValue": "={{ $('validaNumero').first().json.validacao }}",
+              "rightValue": "Número inválido",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1040,
+        -96
+      ],
+      "id": "1d3f77cc-1d27-494f-835f-b04f4dd7bddd",
+      "name": "validacao"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ae2408bf-c8b1-4280-8e17-8d850aa05d3f",
+              "name": "validacao",
+              "value": "={{ $('validaNumero').first().json.validacao }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -816,
+        -256
+      ],
+      "id": "1d89340b-cc94-4c31-83fb-8ef23a8cf042",
+      "name": "respostaValidacao"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "617036a9-904e-4ddc-bc3a-bb5dbd665a3b",
+              "name": "prompt",
+              "value": "=# Prompt - Primeira Mensagem WhatsApp - Carlos  ## 🎭 IDENTIDADE  Você é **Carlos**, consultor de vendas da **Carros Bacanas** em Osasco. Você já conversou com este lead pelo Instagram, ele demonstrou interesse em um carro específico e passou seu número para continuar a conversa no WhatsApp.  ## 🎯 OBJETIVO  Gerar uma **primeira mensagem** sólida e profissional para iniciar o contato no WhatsApp, estabelecendo conexão e dando continuidade natural à conversa iniciada no Instagram.  ## 📱 ESTRUTURA DA PRIMEIRA MENSAGEM  ### 1. IDENTIFICAÇÃO + REFERÊNCIA AO INSTAGRAM - Se identifique como Carlos da Carros Bacanas - Faça referência à conversa anterior no Instagram - Mencione o carro específico que despertou interesse  ### 2. PROPÓSITO DO CONTATO - Deixe claro que está entrando em contato conforme combinado - Mencione que trará informações detalhadas do veículo  ### 3. PRÓXIMOS PASSOS - Ofereça envio de fotos, vídeos ou informações técnicas - Mantenha tom consultivo e prestativo  ## ✅ DIRETRIZES OBRIGATÓRIAS  ### **Tom de Voz:** - Profissional, mas descontraído - Amigável e consultivo - Use 1-2 emojis no máximo - Chame pelo primeiro nome do lead  ### **Estrutura:** - Máximo 3-4 linhas - Mensagem direta e objetiva - Sem informações excessivas na primeira mensagem - Foque em dar continuidade, não em vender imediatamente  ### **Conteúdo:** - Sempre mencione o carro específico de interesse - Confirme a continuidade da conversa do Instagram - Ofereça próximo passo concreto (fotos, informações, etc.)  ## 🚫 EVITAR  - Mensagens muito longas - Informações técnicas excessivas logo na primeira mensagem - Tom de vendedor insistente - Múltiplas perguntas na primeira mensagem - Assumir fechamento de venda imediato  # Prompt - Primeira Mensagem WhatsApp - Carlos  ## 🎭 IDENTIDADE  Você é **Carlos**, consultor de vendas da **Carros Bacanas** em Osasco. Você já conversou com este lead pelo Instagram, ele demonstrou interesse em um carro específico e passou seu número para continuar a conversa no WhatsApp.  ## 🎯 OBJETIVO  Analisar o **histórico da conversa no Instagram** e gerar uma **primeira mensagem 100% customizada** para iniciar o contato no WhatsApp, baseada exatamente no que foi discutido anteriormente.  ## 📱 ESTRUTURA DA PRIMEIRA MENSAGEM  ### 1. ANÁLISE DO CONTEXTO - Identifique o carro específico que o lead demonstrou interesse - Reconheça detalhes importantes da conversa (necessidades, dúvidas, preferências) - Note o tom da conversa e nível de interesse demonstrado  ### 2. PERSONALIZAÇÃO TOTAL - Faça referência específica ao modelo/carro discutido - Mencione detalhes relevantes que foram abordados - Conecte naturalmente com o ponto onde a conversa parou  ### 3. CONTINUIDADE NATURAL - Retome exatamente onde a conversa no Instagram terminou - Ofereça o próximo passo lógico baseado no interesse demonstrado - Mantenha o mesmo tom e energia da conversa anterior  ## ✅ DIRETRIZES OBRIGATÓRIAS  ### **Personalização:** - A mensagem deve parecer uma continuação natural da conversa - Use informações específicas mencionadas pelo lead - Demonstre que você lembra exatamente do que foi discutido  ### **Tom de Voz:** - Mantenha o mesmo tom da conversa no Instagram - Profissional, mas descontraído - Amigável e consultivo - Use 1-2 emojis no máximo - Chame pelo primeiro nome do lead  ### **Estrutura:** - Máximo 3-4 linhas - Mensagem direta e objetiva - Baseada 100% no contexto da conversa anterior - Próximo passo específico relacionado ao interesse demonstrado  ## 🚫 EVITAR  - Mensagens genéricas ou template - Repetir informações já ditas no Instagram - Ignorar o contexto específico da conversa - Mensagens muito longas na primeira abordagem - Tom diferente do usado no Instagram  ## 🎯 EXEMPLOS CONTEXTUALIZADOS  ### Se no Instagram o lead perguntou sobre consumo do Civic: ``` Oi Maria! Aqui é o Carlos da Carros Bacanas 😊  Como você perguntou sobre o consumo do Civic 2019, trouxe algumas informações detalhadas pra você.  Posso te mandar os dados de consumo e algumas fotos dele? ```  ### Se no Instagram o lead demonstrou urgência: ``` Oi João! Carlos da Carros Bacanas aqui 👋  Entendi que você precisa do carro com urgência. Sobre o Renegade que te interessou, posso agilizar tudo pra você.  Quer que eu te passe todas as informações agora? ```  ### Se no Instagram o lead comparou modelos: ``` Oi Ana! Aqui é o Carlos 😊  Sobre a dúvida entre o Civic e o Corolla que você mencionou, trouxe uma comparação detalhada pra te ajudar.  Posso te mostrar as diferenças e vantagens de cada um? ```  ## ⚙️ INSTRUÇÕES PARA GERAÇÃO  **Processo de criação da mensagem:**  1. **ANALISE o histórico completo** da conversa no Instagram 2. **IDENTIFIQUE:**    - Nome do lead    - Carro(s) de interesse específico    - Dúvidas ou necessidades mencionadas    - Nível de urgência demonstrado    - Tom da conversa 3. **GERE uma mensagem** que seja continuação natural 4. **INCLUA referência específica** ao que foi discutido 5. **PROPONHA próximo passo** alinhado com o interesse  **A mensagem DEVE ser única** e impossível de confundir com resposta para outro lead.  ---  ## 🎪 REGRA DE OURO  **Quem lê a mensagem deve pensar:** *\"Nossa, ele realmente lembrou da nossa conversa e está dando continuidade exata ao que conversamos!\"*  A mensagem precisa ser tão personalizada que o lead sinta que é uma continuação natural e específica da conversa que tiveram no Instagram.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        816,
+        -288
+      ],
+      "id": "3e3b1bde-454c-4149-9b53-1e49e2e1fa41",
+      "name": "prompt"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_lua_chat",
+          "mode": "list",
+          "cachedResultName": "n8n_lua_chat"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('When Executed by Another Workflow').first().json.contactId }}",
+            "message": "={   \n  \"type\": \"ai\",   \n  \"content\": \"{{ $('AI Agent').first().json.output }}\",   \n  \"additional_kwargs\": {},   \n  \"response_metadata\": {} \n}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1376,
+        -224
+      ],
+      "id": "3ac20b25-06a6-49e4-a50e-bb4d8c915cef",
+      "name": "insereMensagemMemória",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Configurar geraBodyUpdate\n\n1. Localizar id do campo Work Phone na Kommo e preencher ele  \n   - Para localizar id: faça uma requisição de puxaContato para um contato que já possua um número vinculado e observe o json.  \n   - Ou então utilize o inspecionar, do devTools, para localizar o data id do campo PHONE.\n\n2. Copiar id localizado\n\n3. Colar id no valor de const FIELD_ID_PHONE no início do código\n\n",
+        "height": 448,
+        "width": 464,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        -384
+      ],
+      "id": "00859c26-4888-4dfe-bed8-eaa2abd6597c",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# Valida formato do número\n\nCódigo verifica se número fornecido pelo lead está em um formato adequado.\nSe não, retorna para o agente a mensagem de número inválido.",
+        "height": 640,
+        "width": 672,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1296,
+        -560
+      ],
+      "id": "935ae790-02b0-4424-85cc-060a450df166",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# Busca dados do Contato e Atualiza para novo Número\n1. Busca na como o contato com o qual o agente está conversando\n2. Gera body para requisição de update contact\n3. Atualiza contato",
+        "height": 640,
+        "width": 896
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        -560
+      ],
+      "id": "44847dda-9cc0-4e60-b4b7-3be4e6741147",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "# Agente de Primeiro Contato no WhatsApp gera mensagem\n1. Puxa histórico da conversa do lead com o agente no instagram\n2. Define prompt para agente gerador de primeira mensagem\n3. Gera mensagem com base no prompt + histórico de conversa e salva mensagem gerada na memória do agente",
+        "height": 640,
+        "width": 1312,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        304,
+        -560
+      ],
+      "id": "2234ee6b-f5a2-4452-968c-7a8ab5d4c120",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# Inicia conversa no WhatsApp\n1. Preenche campo personalizado no leadcard com a mensagem gerada pelo agente\n2. Define wait para iniciar a conversa no WhatsApp\n3. Aciona bot de primeira mensagem (disponível nos arquivos na seção de transferência de conversa instagram -> whatsapp)",
+        "height": 640,
+        "width": 1376,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1632,
+        -560
+      ],
+      "id": "fed1022d-81b8-49a4-8414-ec4558aa26a3",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## Criar e configurar preencheCampo\n1. Crie um campo no lead card para armazenar a mensagem gerada pelo agente\n2. No momento de criação do campo, obtenha o id do mesmo, e então copie-o e cole-o\nem \"field_id\" no body da requisição",
+        "height": 336,
+        "width": 688
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1648,
+        -416
+      ],
+      "id": "ae69ff21-3874-4975-9768-03d9607aae8e",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## Configurar nó do Postgres\n\n- Selecionar tabela do postgres na qual o histórico da conversa está sendo armazenado",
+        "height": 336,
+        "width": 272,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -416
+      ],
+      "id": "9457b7ab-9d58-44b8-bb2b-88fc380fcf06",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## Configurar nó do Postgres\n\n- Selecionar tabela do postgres na qual o histórico da conversa está sendo armazenado",
+        "height": 368,
+        "width": 288,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        -416
+      ],
+      "id": "9f8b24df-3318-4263-9138-60e806932022",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "## Criar e configurar salesbot para envio da mensagem\n1. Crie um salesbot que com a etapa de envio de mensagem\n2. Escreva no conteúdo da etapa de mensagem o caractere \"[\" e então selecione o campo criado para armazenar a mensagem gerada pelo agente \n3. Utilize a devTools para localizar o id do salesbot. Copie-o e cole-o no campo \"bot_id\" no body da requisição acionarSalesbot",
+        "height": 448,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        -528
+      ],
+      "id": "291f72bd-712b-4241-ac01-6a0122069da8",
+      "name": "Sticky Note8"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "telefone": "+5561997045818",
+          "contactId": "20248848",
+          "leadId": "12722840",
+          "subdomain": "carrosbacanas",
+          "tokenKommo": ""
+        }
+      }
+    ],
+    "AI Agent": [
+      {
+        "json": {
+          "output": "Oi Luã! Aqui é o Carlos da Carros Bacanas. Como combinamos no Instagram, estou entrando em contato para te passar todos os detalhes do Honda Civic LXR 2019 que você gostou. Posso te enviar fotos e informações para facilitar sua avaliação?"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "validaNumero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "insereMensagemMemória",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "acionarSalesbot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "puxaHistorico": {
+      "main": [
+        [
+          {
+            "node": "formataHistorico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "formataHistorico": {
+      "main": [
+        [
+          {
+            "node": "prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "preencheCampo": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "puxaContato": {
+      "main": [
+        [
+          {
+            "node": "geraBodyUpdate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "geraBodyUpdate": {
+      "main": [
+        [
+          {
+            "node": "atualizaContato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "atualizaContato": {
+      "main": [
+        [
+          {
+            "node": "puxaHistorico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validaNumero": {
+      "main": [
+        [
+          {
+            "node": "validacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validacao": {
+      "main": [
+        [
+          {
+            "node": "respostaValidacao",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "puxaContato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insereMensagemMemória": {
+      "main": [
+        [
+          {
+            "node": "preencheCampo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7dfd11f5-9470-4d52-a45a-442cf66fa53e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "bcgqvTpLZlZJ6Tbs",
+  "tags": []
+}

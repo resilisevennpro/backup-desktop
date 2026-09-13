@@ -1,0 +1,719 @@
+"use client"
+
+import { useState, useMemo } from "react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  X,
+  Leaf,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Download,
+  Printer,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  PanelLeftClose,
+  PanelLeft,
+  Calendar,
+} from "lucide-react"
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+} from "recharts"
+import { CashFlowFluid } from "@/components/cash-flow-fluid"
+
+export default function DashboardPage() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState("este-mes")
+  const [showCustomDates, setShowCustomDates] = useState(false)
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [selectedProfessionals, setSelectedProfessionals] = useState(["Dra. Ana", "Dr. Pedro"])
+  const [selectedProcedure, setSelectedProcedure] = useState("all")
+  const [receivablesMonth, setReceivablesMonth] = useState("Fevereiro 2026")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterType, setFilterType] = useState("paciente")
+  const [dateFilter, setDateFilter] = useState("")
+
+  const removeProfessional = (prof: string) => {
+    setSelectedProfessionals(selectedProfessionals.filter((p) => p !== prof))
+  }
+
+  const handlePeriodChange = (value: string) => {
+    setSelectedMonth(value)
+    setShowCustomDates(value === "personalizado")
+  }
+
+  const handlePreviousMonth = () => {
+    setReceivablesMonth("Janeiro 2026")
+  }
+
+  const handleNextMonth = () => {
+    setReceivablesMonth("Março 2026")
+  }
+
+  const handleClearFilters = () => {
+    setSearchQuery("")
+    setDateFilter("")
+  }
+
+  const dailyRevenueData = Array.from({ length: 30 }, (_, i) => ({
+    day: i + 1,
+    revenue: 1200 + Math.random() * 1500 + Math.sin(i / 3) * 600,
+  }))
+
+  const costData = [
+    { name: "Lucro", value: 12500, color: "#59A52C" },
+    { name: "Comissões", value: 18300, color: "#FF8C42" },
+    { name: "Materiais", value: 23000, color: "#94A3B8" },
+  ]
+
+  const procedureProfitability = [
+    { procedure: "Invisalign", profit: 8500 },
+    { procedure: "Botox", profit: 6200 },
+    { procedure: "Implante", profit: 5800 },
+    { procedure: "Clareamento", profit: 3400 },
+    { procedure: "Ortodontia", profit: 2800 },
+  ]
+
+  const topPatients = [
+    { name: "Lívia Santos", value: 22000 },
+    { name: "Carlos Mendes", value: 18500 },
+    { name: "Patricia Lima", value: 15200 },
+    { name: "João Silva", value: 12800 },
+  ]
+
+  const topPatientsData = [
+    { name: "Lívia Santos", total: 22000 },
+    { name: "Carlos Mendes", total: 18500 },
+    { name: "Patricia Lima", total: 15200 },
+    { name: "João Silva", total: 12800 },
+    { name: "Maria Costa", total: 9600 },
+  ]
+
+  const transactions = [
+    { date: "15/01/2026", patient: "Lívia Santos", procedure: "Implante Dentário", value: 8500, payment: "Cartão" },
+    { date: "14/01/2026", patient: "Carlos Mendes", procedure: "Clareamento", value: 2800, payment: "PIX" },
+    { date: "12/01/2026", patient: "Patricia Lima", procedure: "Ortodontia", value: 4200, payment: "Parcelado" },
+    { date: "10/01/2026", patient: "João Silva", procedure: "Canal", value: 1800, payment: "Dinheiro" },
+    { date: "08/01/2026", patient: "Maria Costa", procedure: "Limpeza", value: 350, payment: "PIX" },
+  ]
+
+  const filteredTransactions = useMemo(() => {
+    let filtered = transactions
+
+    if (filterType === "paciente" && searchQuery.trim()) {
+      filtered = filtered.filter((t) => t.patient.toLowerCase().includes(searchQuery.toLowerCase()))
+    }
+
+    if (filterType === "data" && dateFilter) {
+      filtered = filtered.filter((t) => t.date.includes(dateFilter))
+    }
+
+    return filtered
+  }, [searchQuery, dateFilter, filterType])
+
+  const revenuePercentage = (53800 / 100000) * 100
+
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-8">
+        <div className="w-10 h-10 bg-[#59A52C] rounded-lg flex items-center justify-center">
+          <Leaf className="w-6 h-6 text-white" />
+        </div>
+        {!sidebarCollapsed && <h1 className="text-xl font-bold text-slate-900">Resili Sevenn</h1>}
+      </div>
+
+      <div className="space-y-6 flex-1">
+        <div>
+          <h2
+            className={`text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide ${sidebarCollapsed ? "sr-only" : ""}`}
+          >
+            Filtros Rápidos
+          </h2>
+
+          <div className="space-y-4">
+            <div>
+              {!sidebarCollapsed && <label className="text-sm text-slate-600 mb-2 block">Período</label>}
+              <Select value={selectedMonth} onValueChange={handlePeriodChange}>
+                <SelectTrigger className={`w-full bg-slate-50 border-slate-200 ${sidebarCollapsed ? "px-2" : ""}`}>
+                  <SelectValue placeholder="Selecione o período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="este-mes">Este Mês</SelectItem>
+                  <SelectItem value="mes-passado">Mês Passado</SelectItem>
+                  <SelectItem value="ultimos-7">Últimos 7 Dias</SelectItem>
+                  <SelectItem value="ultimos-14">Últimos 14 Dias</SelectItem>
+                  <SelectItem value="todo-historico">Todo Histórico</SelectItem>
+                  <SelectItem value="personalizado">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {showCustomDates && !sidebarCollapsed && (
+                <div className="mt-3 space-y-2">
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Data Início</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="pl-8 text-sm bg-white border-slate-200"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Data Fim</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="pl-8 text-sm bg-white border-slate-200"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              {!sidebarCollapsed && <label className="text-sm text-slate-600 mb-2 block">Profissional</label>}
+              <Select>
+                <SelectTrigger className={`w-full bg-slate-50 border-slate-200 ${sidebarCollapsed ? "px-2" : ""}`}>
+                  <SelectValue placeholder="Selecione profissional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os Profissionais</SelectItem>
+                  <SelectItem value="dr-pedro">Dr. Pedro</SelectItem>
+                  <SelectItem value="dra-ana">Dra. Ana</SelectItem>
+                </SelectContent>
+              </Select>
+              {!sidebarCollapsed && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedProfessionals.map((prof) => (
+                    <div
+                      key={prof}
+                      className="inline-flex items-center gap-1 bg-[#59A52C] text-white px-3 py-1.5 rounded-full text-sm"
+                    >
+                      {prof}
+                      <button onClick={() => removeProfessional(prof)} className="hover:bg-white/20 rounded-full p-0.5">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              {!sidebarCollapsed && <label className="text-sm text-slate-600 mb-2 block">Procedimento</label>}
+              <Select value={selectedProcedure} onValueChange={setSelectedProcedure}>
+                <SelectTrigger className={`w-full bg-slate-50 border-slate-200 ${sidebarCollapsed ? "px-2" : ""}`}>
+                  <SelectValue placeholder="Selecione procedimento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Procedimentos</SelectItem>
+                  <SelectItem value="botox">Botox</SelectItem>
+                  <SelectItem value="invisalign">Invisalign</SelectItem>
+                  <SelectItem value="implante">Implante</SelectItem>
+                  <SelectItem value="clareamento">Clareamento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <aside
+        className={`hidden lg:flex flex-col bg-white border-r border-slate-200 shadow-sm transition-all duration-300 ${
+          sidebarCollapsed ? "w-20" : "w-80"
+        } p-6`}
+      >
+        <SidebarContent />
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="mt-4 self-center hover:bg-slate-100"
+          title={sidebarCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
+        >
+          {sidebarCollapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+        </Button>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col overflow-auto">
+        <header className="bg-white border-b border-slate-200 px-4 lg:px-8 py-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="lg:hidden">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-80 p-6">
+                  <SidebarContent />
+                </SheetContent>
+              </Sheet>
+
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-[#59A52C] rounded-lg flex items-center justify-center lg:hidden">
+                  <Leaf className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg lg:text-xl font-bold text-[#59A52C]">Resili Sevenn</h1>
+                  <p className="text-sm text-slate-600 hidden sm:block">Visão Estratégica</p>
+                </div>
+              </div>
+            </div>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button className="gap-2 bg-[#59A52C] hover:bg-[#4a8c24] text-white">
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Exportar</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="end">
+                <div className="space-y-1">
+                  <Button variant="ghost" className="w-full justify-start gap-2 hover:bg-slate-100">
+                    <Download className="w-4 h-4" />
+                    Baixar CSV
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start gap-2 hover:bg-slate-100">
+                    <Printer className="w-4 h-4" />
+                    Imprimir Relatório
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <div className="flex-1 p-4 lg:p-8 overflow-auto">
+          <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
+            <div className="lg:hidden">
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">Visão Estratégica</h2>
+              <p className="text-slate-500">Bem-vindo, Admin</p>
+            </div>
+
+            <div className="hidden lg:block">
+              <p className="text-slate-500 text-lg">Bem-vindo, Admin</p>
+            </div>
+
+            <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+              <div className="space-y-4">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                      Meta de Faturamento
+                    </h2>
+                    <p className="text-2xl lg:text-3xl font-bold text-[#59A52C]">
+                      R$ 53.800 <span className="text-slate-400 text-lg lg:text-xl font-normal">/ R$ 100.000</span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl lg:text-2xl font-bold text-slate-900">{revenuePercentage.toFixed(1)}%</p>
+                    <p className="text-sm text-slate-500">concluído</p>
+                  </div>
+                </div>
+                <div className="relative h-4 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#59A52C] to-[#7BC94B] rounded-full transition-all"
+                    style={{ width: `${revenuePercentage}%` }}
+                  />
+                </div>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+              <Card className="p-4 lg:p-6 shadow-lg rounded-xl bg-white border-slate-200">
+                <p className="text-sm text-slate-600 mb-2">Faturamento Bruto</p>
+                <p className="text-2xl lg:text-3xl font-bold text-[#59A52C]">R$ 53.800</p>
+                <div className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>12% vs mês anterior</span>
+                </div>
+              </Card>
+              <Card className="p-4 lg:p-6 shadow-lg rounded-xl bg-white border-slate-200">
+                <p className="text-sm text-slate-600 mb-2">Lucro Líquido</p>
+                <p className="text-2xl lg:text-3xl font-bold text-slate-900">R$ 12.500</p>
+                <div className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>8% vs mês anterior</span>
+                </div>
+              </Card>
+              <Card className="p-4 lg:p-6 shadow-lg rounded-xl bg-white border-slate-200">
+                <p className="text-sm text-slate-600 mb-2">Margem Líquida</p>
+                <p className="text-2xl lg:text-3xl font-bold text-slate-900">23%</p>
+                <div className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
+                  <TrendingDown className="w-3 h-3" />
+                  <span>5% vs mês anterior</span>
+                </div>
+              </Card>
+              <Card className="p-4 lg:p-6 shadow-lg rounded-xl bg-white border-slate-200">
+                <p className="text-sm text-slate-600 mb-2">Ticket Médio</p>
+                <p className="text-2xl lg:text-3xl font-bold text-slate-900">R$ 1.500</p>
+                <div className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>15% vs mês anterior</span>
+                </div>
+              </Card>
+            </div>
+
+            <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+              <h2 className="text-lg lg:text-xl font-bold text-slate-900 mb-4 lg:mb-6">Evolução de Vendas (Diária)</h2>
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={dailyRevenueData}>
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#59A52C" stopOpacity={0.5} />
+                      <stop offset="95%" stopColor="#59A52C" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="day"
+                    stroke="#94A3B8"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    label={{ value: "Dia", position: "insideBottom", offset: -5, fill: "#64748B" }}
+                  />
+                  <YAxis
+                    stroke="#94A3B8"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `R$ ${(value / 1000).toFixed(1)}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value: any) => [`R$ ${value.toFixed(0)}`, "Receita"]}
+                    labelFormatter={(label) => `Dia ${label}`}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#59A52C"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#revenueGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+              <h2 className="text-lg lg:text-xl font-bold text-slate-900 mb-4 lg:mb-6">Timeline de Recebíveis</h2>
+
+              <div className="flex items-center justify-center gap-4 mb-6 lg:mb-8">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handlePreviousMonth}
+                  className="rounded-full border-slate-300 hover:bg-slate-100 bg-transparent"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                <div className="text-xl lg:text-2xl font-bold text-slate-900 min-w-[160px] lg:min-w-[200px] text-center">
+                  {receivablesMonth}
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleNextMonth}
+                  className="rounded-full border-slate-300 hover:bg-slate-100 bg-transparent"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
+                <Card className="p-4 lg:p-6 bg-slate-50 border-slate-200">
+                  <p className="text-sm text-slate-600 mb-2">Total a Receber</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-[#59A52C]">R$ 28.500</p>
+                </Card>
+                <Card className="p-4 lg:p-6 bg-slate-50 border-slate-200">
+                  <p className="text-sm text-slate-600 mb-2">Já Recebido</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-slate-900">R$ 18.200</p>
+                </Card>
+                <Card className="p-4 lg:p-6 bg-slate-50 border-slate-200">
+                  <p className="text-sm text-slate-600 mb-2">Pendente</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-amber-600">R$ 10.300</p>
+                </Card>
+              </div>
+            </Card>
+
+            <div className="space-y-6 lg:space-y-8">
+              <div>
+                <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-2">Projeções de Fluxo de Caixa</h2>
+                <p className="text-slate-600 mb-4 lg:mb-6">
+                  Visualize seus recebíveis futuros de três formas criativas
+                </p>
+
+                <CashFlowFluid />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+              <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+                <h2 className="text-lg lg:text-xl font-bold text-slate-900 mb-4 lg:mb-6">Despesas e Custos</h2>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={costData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {costData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Legend
+                      verticalAlign="bottom"
+                      height={36}
+                      formatter={(value, entry: any) => (
+                        <span className="text-sm text-slate-700">
+                          {value}:{" "}
+                          <span className="font-semibold">R$ {entry.payload.value.toLocaleString("pt-BR")}</span>
+                        </span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="mt-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Alerta de Custos</p>
+                    <p className="text-sm text-amber-800 mt-1">45% do faturamento são custos operacionais.</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                    Detalhamento de Comissões
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <span className="text-sm text-slate-700">Dr. Pedro</span>
+                      <span className="text-sm font-semibold text-slate-900">R$ 4.500</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <span className="text-sm text-slate-700">Dra. Ana</span>
+                      <span className="text-sm font-semibold text-slate-900">R$ 0,00</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <span className="text-sm text-slate-700">Taxas</span>
+                      <span className="text-sm font-semibold text-slate-900">R$ 1.200</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+                <h2 className="text-lg lg:text-xl font-bold text-slate-900 mb-4 lg:mb-6">
+                  Lucratividade por Procedimento
+                </h2>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={procedureProfitability} layout="vertical" margin={{ left: 20, right: 20 }}>
+                    <XAxis type="number" stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="procedure"
+                      stroke="#94A3B8"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      width={100}
+                      tickFormatter={(value, index) => {
+                        const rankings = ["1º", "2º", "3º", "4º", "5º"]
+                        return `${rankings[index]} ${value}`
+                      }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "white",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                      formatter={(value: any) => [`R$ ${value.toLocaleString("pt-BR")}`, "Lucro"]}
+                    />
+                    <Bar dataKey="profit" fill="#59A52C" radius={[0, 8, 8, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            </div>
+
+            <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+              <h2 className="text-lg lg:text-xl font-bold text-slate-900 mb-4 lg:mb-6">Top 5 Pacientes</h2>
+              <div className="space-y-3">
+                {topPatientsData.map((patient, index) => (
+                  <div
+                    key={patient.name}
+                    className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#59A52C] text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        {index + 1}
+                      </div>
+                      <span className="text-sm font-medium text-slate-900">{patient.name}</span>
+                    </div>
+                    <span className="text-sm font-bold text-[#59A52C]">R$ {patient.total.toLocaleString("pt-BR")}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="sales-detail" className="border border-slate-200 rounded-xl bg-white shadow-lg">
+                <AccordionTrigger className="px-6 lg:px-8 py-4 lg:py-6 hover:no-underline group">
+                  <div className="flex items-center gap-2 text-base lg:text-lg font-semibold text-slate-900">
+                    <span>📋</span>
+                    <span>Extrato Detalhado de Vendas (Clique para expandir)</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-6 lg:px-8 pb-6 lg:pb-8">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-6">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="w-[140px] bg-slate-50 border-slate-200">
+                          <SelectValue placeholder="Filtrar por" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="paciente">Paciente</SelectItem>
+                          <SelectItem value="data">Data</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {filterType === "paciente" && (
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <Input
+                            type="text"
+                            placeholder="Buscar nome..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 bg-slate-50 border-slate-200"
+                          />
+                        </div>
+                      )}
+
+                      {filterType === "data" && (
+                        <div className="relative flex-1">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <Input
+                            type="date"
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            className="pl-10 bg-slate-50 border-slate-200"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      onClick={handleClearFilters}
+                      className="gap-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    >
+                      <X className="w-4 h-4" />
+                      Limpar Filtros
+                    </Button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                            Data
+                          </th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                            Paciente
+                          </th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                            Procedimento
+                          </th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                            Valor
+                          </th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                            Forma Pagto
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTransactions.length > 0 ? (
+                          filteredTransactions.map((transaction, index) => (
+                            <tr key={index} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                              <td className="py-4 px-4 text-sm text-slate-700">{transaction.date}</td>
+                              <td className="py-4 px-4 text-sm text-slate-900 font-medium">{transaction.patient}</td>
+                              <td className="py-4 px-4 text-sm text-slate-700">{transaction.procedure}</td>
+                              <td className="py-4 px-4 text-sm text-slate-900 font-semibold text-right">
+                                R$ {transaction.value.toLocaleString("pt-BR")}
+                              </td>
+                              <td className="py-4 px-4">
+                                <span className="inline-flex px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">
+                                  {transaction.payment}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center text-slate-500">
+                              Nenhum resultado encontrado
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}

@@ -1,0 +1,434 @@
+{
+  "name": "Atualiza-Registra Tabela Follow-Up - Template",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ATUALIZA / REGISTRA TABELA FOLLOW-UP",
+        "height": 456,
+        "width": 1056
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        384,
+        0
+      ],
+      "id": "e3bdecfd-981e-4606-a691-9c17ae3d7da2",
+      "name": "Sticky Note24"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fbbf0458-72e3-49f2-9a2d-07bcfb570171",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        576,
+        160
+      ],
+      "id": "6ff1ddd1-5e63-4213-8347-5751af72f478",
+      "name": "temRegistro"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "followup_lead_table",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "entity_id",
+              "keyValue": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        416,
+        160
+      ],
+      "id": "e4bc5254-6edb-49f0-b060-27ab74ea798c",
+      "name": "Busca Follow",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "P67Q57jKF1n2vKch",
+          "name": "FOLLOWUP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "followup_lead_table",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "followup_flow_name"
+            },
+            {
+              "fieldId": "agent"
+            },
+            {
+              "fieldId": "tabela_memoria",
+              "fieldValue": "={{ $('CONFIGURAÇÃO IA').first().json.tabela_memoria }}"
+            },
+            {
+              "fieldId": "last_interaction_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "followup_count",
+              "fieldValue": "0"
+            },
+            {
+              "fieldId": "workflow_name",
+              "fieldValue": "={{ $workflow.name\t}}"
+            },
+            {
+              "fieldId": "workflow_origin_id",
+              "fieldValue": "={{ $workflow.id\t}}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "generated_by",
+              "fieldValue": "agent"
+            },
+            {
+              "fieldId": "kommo_account_id",
+              "fieldValue": "={{ $('Webhook').first().json.body['account[id]'] }}"
+            },
+            {
+              "fieldId": "user_name",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][author][name]\"] }}"
+            },
+            {
+              "fieldId": "entity_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}"
+            },
+            {
+              "fieldId": "contact_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][contact_id]\"] }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][chat_id]\"] }}"
+            },
+            {
+              "fieldId": "element_type",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][element_type]\"] }}"
+            },
+            {
+              "fieldId": "author_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][author][id]\"] }}"
+            },
+            {
+              "fieldId": "talk_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][talk_id]\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        784,
+        240
+      ],
+      "id": "8c7e1914-2fed-4211-bed7-8dc9cf8c988f",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "P67Q57jKF1n2vKch",
+          "name": "FOLLOWUP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "followup_lead_table",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "entity_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_interaction_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "followup_count",
+              "fieldValue": "0"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "generated_by",
+              "fieldValue": "agent"
+            },
+            {
+              "fieldId": "kommo_account_id",
+              "fieldValue": "={{ $('Webhook').first().json.body['account[id]'] }}"
+            },
+            {
+              "fieldId": "user_name",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][author][name]\"] }}"
+            },
+            {
+              "fieldId": "entity_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][entity_id]\"] }}"
+            },
+            {
+              "fieldId": "contact_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][contact_id]\"] }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][chat_id]\"] }}"
+            },
+            {
+              "fieldId": "element_type",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][element_type]\"] }}"
+            },
+            {
+              "fieldId": "author_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][author][id]\"] }}"
+            },
+            {
+              "fieldId": "talk_id",
+              "fieldValue": "={{ $('Webhook').first().json.body[\"message[add][0][talk_id]\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        784,
+        64
+      ],
+      "id": "5a90cd4e-37c6-4165-b72f-0244d47c83d6",
+      "name": "Atualiza",
+      "credentials": {
+        "supabaseApi": {
+          "id": "P67Q57jKF1n2vKch",
+          "name": "FOLLOWUP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "###  mudaEtapaFollowUp\n- Funil-Etapa\n-> Define para onde o lead será enviado caso ele não responda ao agente.",
+        "height": 176,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        240
+      ],
+      "id": "6ea879e6-9a5d-43b1-b199-802d2aa4308c",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "k5YrejtUxGDaKAbe",
+          "mode": "list",
+          "cachedResultName": "Move Etapa Follow-Up - Template"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "entity_id": "={{ $json.entity_id }}",
+            "last_interaction_at": "={{ $json.last_interaction_at }}",
+            " followup_flow_name": "={{ $json.followup_flow_name }}",
+            "subdomainKommo": "={{ $('Webhook').item.json.body[\"account[subdomain]\"] }}",
+            "tokenKommo": "={{ $('CONFIGURAÇÃO IA').item.json.kommo_token }}",
+            "Funil-Etapa": "Celulares-Follow-Up (Contato Inicial)"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "entity_id",
+              "displayName": "entity_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "last_interaction_at",
+              "displayName": "last_interaction_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": " followup_flow_name",
+              "displayName": " followup_flow_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "subdomainKommo",
+              "displayName": "subdomainKommo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tokenKommo",
+              "displayName": "tokenKommo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "Funil-Etapa",
+              "displayName": "Funil-Etapa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        48
+      ],
+      "id": "e56a1eb9-d747-4eb4-9a7d-fa5fc6552469",
+      "name": "mudaEtapaFollowUp"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "temRegistro": {
+      "main": [
+        [
+          {
+            "node": "Atualiza",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Follow": {
+      "main": [
+        [
+          {
+            "node": "temRegistro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "mudaEtapaFollowUp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualiza": {
+      "main": [
+        [
+          {
+            "node": "mudaEtapaFollowUp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "11bc81e7-f4fa-4438-8220-9fecff5d6c99",
+  "meta": {
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "OhCFi5b9E5j0sPKO",
+  "tags": []
+}

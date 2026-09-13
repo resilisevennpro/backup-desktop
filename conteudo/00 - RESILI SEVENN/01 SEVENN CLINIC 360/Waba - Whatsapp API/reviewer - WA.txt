@@ -1,0 +1,35 @@
+[1] Which app functionality requires this permission
+Our application is a multi-tenant CRM that allows business clients to connect
+their own WhatsApp Business Account (WABA) via Meta's Embedded Signup flow.
+The whatsapp_business_messaging permission is required to:
+- Send and receive messages on behalf of the connected client's WABA
+- Display the client's WhatsApp inbox inside our CRM dashboard
+- Trigger pre-approved message templates (HSM) for transactional and
+  marketing flows configured by the client
+
+Without this permission, clients cannot use the WhatsApp channel inside
+our CRM, which is the core feature of our product.
+
+[2] How the permission enhances the integration
+This permission powers the entire WhatsApp module of the CRM:
+- Two-way inbox: client agents reply to customer messages from a unified UI
+- Template campaigns: clients send approved HSM templates to opted-in contacts
+- Automation flows: bots qualify leads before routing to human agents
+- Contact sync: every conversation is linked to a CRM contact/opportunity
+
+[3] How the permission improves user experience
+- End business users (our clients) manage all customer conversations in
+  one place instead of switching between WhatsApp Web and the CRM
+- Their customers receive faster, more contextual responses because the
+  agent sees full CRM history alongside the conversation
+- Lead qualification is automated, freeing agents for high-value chats
+- Templates are tracked and reported on the same dashboard as other
+  marketing channels
+
+A test account with full demo data is provided below for review.
+Steps to reproduce the integration end-to-end:
+1. Log in with credentials [user/password]
+2. Click "Connect WhatsApp" → completes Embedded Signup with sandbox WABA
+3. Navigate to "Inbox" → exchange messages with the test number [+xx xxxx]
+4. Navigate to "Campaigns" → trigger the approved HSM template "..."
+5. Navigate to "Contacts" → see the conversation linked to the CRM contact

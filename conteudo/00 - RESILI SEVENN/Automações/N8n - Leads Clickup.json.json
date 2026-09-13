@@ -1,0 +1,140 @@
+{
+  "name": "ClickUp → Sevenn Clinic 360 (Criar Lead)",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "team": "90131212524",
+        "list": "901327513467",
+        "triggerOn": "taskStatusUpdated"
+      },
+      "id": "node-clickup-trigger",
+      "name": "ClickUp Trigger",
+      "type": "n8n-nodes-base.clickUpTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "clickup-sevenn-trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-status",
+              "leftValue": "={{ $json.task_status.status }}",
+              "rightValue": "agendado",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true
+      },
+      "id": "node-if-agendado",
+      "name": "Status é AGENDADO?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://COLOQUE_SEU_PROJETO.supabase.co/functions/v1/webhook-create-lead",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "COLOQUE_SUA_CHAVE_AQUI"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.task_name }}\",\n  \"phone\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'b0c51710-6835-4290-a91e-ba80776de3d3')[0]?.value : '' }}\",\n  \"source\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'aa4868d1-67ef-4894-9f7d-7c65b0cb6f57')[0]?.value : '' }}\",\n  \"procedure\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === '4a89676f-076a-4488-80d6-e004777d8208')[0]?.value : '' }}\",\n  \"utm_content\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === '1f75ac57-5512-4c0f-8b5e-38c5ff13c86a')[0]?.value : '' }}\",\n  \"notes\": \"{{ $json.task_content }}\",\n  \"tags\": [\"clickup\", \"agendado\"],\n  \"custom_fields\": {\n    \"clickup_data_reuniao\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'a24e39e6-639b-42dd-b056-5ba0811ee746')[0]?.value : '' }}\",\n    \"clickup_fechamento\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'a3fc2779-70b8-4757-9435-d149ff9faef9')[0]?.value?.orderindex : '' }}\",\n    \"clickup_seguidores\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'ed2007d8-4dfd-4de6-b8ea-980cbe1333d4')[0]?.value : '' }}\",\n    \"clickup_cidade\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'd21db03e-bc3c-41c5-addb-043513f567e9')[0]?.value : '' }}\",\n    \"clickup_data_primeiro_contato\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'f2d1cf11-cee8-4820-acf3-f2772527742b')[0]?.value : '' }}\",\n    \"clickup_qtdd_fup\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === '048daf66-d873-43db-98eb-c30a9fe55e8a')[0]?.value?.orderindex : '' }}\",\n    \"clickup_qualificado\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'fabaefc1-b90d-4ff9-82b6-a082c7549c16')[0]?.value?.orderindex : '' }}\",\n    \"clickup_motivo_desqualificacao\": \"{{ $json.custom_fields ? $json.custom_fields.filter(f => f.id === 'd606a570-ad73-4a3d-b612-ab35e7fb6b4f')[0]?.value : '' }}\",\n    \"clickup_responsavel\": \"{{ $json.history_items && $json.history_items.length > 0 ? $json.history_items[0].user.username : '' }}\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "node-http-webhook",
+      "name": "Criar Lead no Sevenn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {},
+      "id": "node-noop",
+      "name": "Ignorar (outro status)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [720, 420]
+    }
+  ],
+  "connections": {
+    "ClickUp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Status é AGENDADO?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status é AGENDADO?": {
+      "main": [
+        [
+          {
+            "node": "Criar Lead no Sevenn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignorar (outro status)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "ClickUp"
+    },
+    {
+      "name": "Sevenn CRM"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-06-10T00:00:00.000Z",
+  "versionId": "1"
+}

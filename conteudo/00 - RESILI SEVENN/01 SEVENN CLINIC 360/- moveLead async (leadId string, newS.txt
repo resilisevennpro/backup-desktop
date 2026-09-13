@@ -1,0 +1,155 @@
+moveLead: async (leadId: string, newStatus: LeadStatus, options?: { skipOptimistic?: boolean; quiet?: boolean }) => {
+        const previousLeads = get().leads;
+        const leadToMove = previousLeads.find(l => l.id === leadId);
+
+        // Se não temos o lead no estado (comum se vier da Agenda), tentamos buscar ou apenas procedemos o update
+        // No entanto, para o moveLead ser útil, precisamos saber o clinic_id para a automação financeira
+
+        const skipOptimistic = options?.skipOptimistic || false;
+        const quiet = options?.quiet || false;
+
+        if (leadToMove && !skipOptimistic) {
+            set({
+                leads: previousLeads.map(l => l.id === leadId ? { ...l, status: newStatus } : l)
+            });
+        }
+
+        try {
+            let column = get().columns.find(c => c.id === newStatus);
+            let stageId = column?.db_id;
+
+            // Se a coluna não estiver no estado (ex: vindo da Agenda), busca o ID no banco pelo nome
+            if (!stageId) {
+                const { data: stage } = await supabase
+                    .from('pipeline_stages')
+                    .select('id')
+                    .eq('name', newStatus)
+                    .maybeSingle();
+
+                if (stage) stageId = stage.id;
+            }
+
+            // --- RASTREAMENTO DE HISTÓRICO (Stage History) ---
+            // 1. Fetch current history to append safely
+            const { data: currentData } = await supabase
+                .from('leads')
+                .select('stage_history')
+                .eq('id', leadId)
+                .single();
+
+            const historyItem = {
+                stage: newStatus,
+                entered_at: new Date().toISOString(),
+                action: `Mudou para ${newStatus}`
+            };
+
+            const updatedHistory = [...(currentData?.stage_history || []), historyItem];
+
+            // Payload base
+            const updatePayload: any = {
+                status: newStatus,
+                pipeline_stage_id: stageId,
+                stage_history: updatedHistory
+            };
+
+            // Se for venda realizada, fecha o ciclo e calcula dias
+            if (newStatus === 'Venda Realizada') {
+                const now = new Date();
+                const createdAt = new Date(leadToMove?.created_at || now); // Fallback seguro
+                const diffTime = Math.abs(now.getTime() - createdAt.getTime());
+                const diffDays = diffTime / (1000 * 60 * 60 * 24); // Floating point days
+
+                updatePayload.closed_at = now.toISOString();
+                updatePayload.sales_cycle_days = parseFloat(diffDays.toFixed(2));
+            }
+
+            const { error: updateError } = await supabase
+                .from('leads')
+                .update(updatePayload)
+                .eq('id', leadId);
+
+            if (updateError) throw updateError;
+
+            if (!quiet) {
+                toast.success(`Status atualizado para ${newStatus}`);
+            }
+
+            // Automação: Venda Realizada (Financeiro + LTV + Atividade)
+            if (newStatus === 'Venda Realizada') {
+                // Busca dados atualizados para evitar erro de cache
+                const { data: dbLead, error: fetchError } = await supabase
+                    .from('leads')
+                    .select('clinic_id, name, budget, total_ltv, doctor_id')
+                    .eq('id', leadId)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                const budgetValue = Number(dbLead.budget || 0);
+                const currentLtv = Number(dbLead.total_ltv || 0);
+                const newLtv = currentLtv + budgetValue;
+
+                if (budgetValue > 0 && dbLead.clinic_id) {
+                    // 1. GERENCIAR TRANSAÇÃO FINANCEIRA
+                    const { data: existing } = await supabase
+                        .from('financial_transactions')
+                        .select('id, status')
+                        .eq('lead_id', leadId)
+                        .eq('type', 'income')
+                        .maybeSingle();
+
+                    if (!existing) {
+                        await supabase.from('financial_transactions').insert([{
+                            clinic_id: dbLead.clinic_id,
+                            lead_id: leadId,
+                            professional_id: dbLead.doctor_id, // CRITICAL: Added professional_id for automation
+                            description: `Venda Realizada: ${dbLead.name}`,
+                            amount: budgetValue,
+                            type: 'income',
+                            status: 'paid',
+                            category: 'Procedimentos',
+                            transaction_date: new Date().toISOString()
+                        }]);
+                    } else if (existing.status === 'pending') {
+                        await supabase
+                            .from('financial_transactions')
+                            .update({ status: 'paid', amount: budgetValue })
+                            .eq('id', existing.id);
+                    }
+
+                    // 2. ATUALIZAR LTV NO BANCO (SOMA ATÔMICA)
+                    await supabase
+                        .from('leads')
+                        .update({ total_ltv: newLtv })
+                        .eq('id', leadId);
+
+                    // 3. REGISTRAR ATIVIDADE NO CRM (HISTÓRICO)
+                    await supabase.from('lead_activities').insert([{
+                        lead_id: leadId,
+                        clinic_id: dbLead.clinic_id, // CRITICAL: Added clinic_id
+                        type: 'system',
+                        title: 'Venda Concluída',
+                        description: `O agendamento foi finalizado e uma venda de R$ ${budgetValue} foi contabilizada no LTV.`,
+                        created_at: new Date().toISOString()
+                    }]);
+
+                    // 4. ATUALIZAR INTERFACE (ESTADO LOCAL)
+                    set(state => ({
+                        leads: state.leads.map(l => l.id === leadId
+                            ? { ...l, total_ltv: newLtv, status: newStatus }
+                            : l)
+                    }));
+
+                    toast.success('Venda concluída! Financeiro e LTV atualizados.');
+                }
+            }
+        } catch (error: any) {
+            console.error('Erro ao mover lead:', error);
+            const errorMsg = error.code === '22P02'
+                ? `Valor de status inválido: "${newStatus}".`
+                : error.message || 'Erro desconhecido';
+            toast.error(`Erro ao atualizar status: ${errorMsg}`);
+            // Rollback
+            if (leadToMove) set({ leads: previousLeads });
+        }
+    },

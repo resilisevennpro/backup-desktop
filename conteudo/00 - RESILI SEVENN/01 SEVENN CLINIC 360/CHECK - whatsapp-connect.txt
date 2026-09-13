@@ -1,0 +1,257 @@
+// QR Code conexão whatsapp web Evolution
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  try {
+    const {
+      clinic_id,
+      method,
+      phone,
+      action,
+      connection_name,
+      integration_id,
+      instanceName: reqInstanceName
+    } = await req.json()
+
+    if (!clinic_id) throw new Error("clinic_id é obrigatório.")
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    )
+
+    // O Supabase injeta essas variáveis automaticamente na Edge Function
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Ela já existe aqui, não precisa setar no terminal!
+    )
+
+    const evolutionUrl = Deno.env.get('EVOLUTION_API_URL')
+    const evolutionKey = Deno.env.get('EVOLUTION_API_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    if (!evolutionUrl || !evolutionKey) throw new Error("Chaves da Evolution ausentes.")
+
+    // URL do Webhook: Aponta para a Edge Function whatsapp-webhook
+    const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`
+
+    // DIAGNÓSTICO: Logar a versão da Evolution para saber os endpoints suportados
+    try {
+      const infoReq = await fetch(`${evolutionUrl}/`, { headers: { 'apikey': evolutionKey } });
+      const infoText = await infoReq.text();
+      console.log(`[DIAGNOSTICO] Informações da Evolution: ${infoText}`);
+    } catch (e) {
+      console.log(`[DIAGNOSTICO] Não foi possível ler versão/root: ${e.message}`);
+    }
+
+    // --- FLUXO STATUS: Verifica se a conexão foi aberta ---
+    if (action === 'status') {
+      console.log(`[DEBUG] Verificando status para: ${reqInstanceName}`);
+
+      const stateReq = await fetch(`${evolutionUrl}/instance/connectionState/${reqInstanceName}`, {
+        headers: { 'apikey': evolutionKey }
+      });
+      const stateRes = await stateReq.json();
+      console.log(`[DEBUG] Estado da instância: ${stateRes.instance?.state}`);
+
+      if (stateRes.instance?.state === 'open') {
+        // Número Antecipado: já temos o phone_number no banco desde a criação
+        // Basta atualizar o status para 'connected'
+        const { error: updateError } = await supabaseAdmin
+          .from('whatsapp_connections')
+          .update({ status: 'connected' })
+          .eq('id', integration_id);
+
+        if (!updateError) {
+          console.log("[DEBUG] ✅ Status atualizado para connected!");
+          return new Response(JSON.stringify({ success: true, connected: true }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        } else {
+          console.error("[DEBUG] ❌ Erro no update do banco:", updateError);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, connected: false }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // --- FLUXO FIX-WEBHOOK: Configura o webhook em instâncias já conectadas ---
+    if (action === 'fix-webhook') {
+      if (!reqInstanceName) throw new Error("instanceName é obrigatório para fix-webhook.")
+
+      console.log(`[FIX] Configurando webhook para instância: ${reqInstanceName}`);
+
+      const webhookPayload = {
+        enabled: true,
+        url: webhookUrl,
+        webhook_by_events: false,
+        events: [
+          "MESSAGES_UPSERT",
+          "MESSAGES_DELETE",
+          "MESSAGES_UPDATE",
+          "SEND_MESSAGE",
+          "CONNECTION_UPDATE",
+          "PRESENCE_UPDATE"
+        ]
+      };
+
+      const fixReq = await fetch(`${evolutionUrl}/webhook/set/${reqInstanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+        body: JSON.stringify(webhookPayload)
+      });
+
+      const fixRes = await fixReq.json();
+
+      return new Response(JSON.stringify({ success: fixReq.ok, data: fixRes }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: fixReq.ok ? 200 : 400
+      });
+    }
+
+    // --- FLUXO DISCONNECT: Remove a instância na Evolution e no Banco ---
+    if (action === 'disconnect') {
+      if (!integration_id || !reqInstanceName) throw new Error("integration_id e instanceName são obrigatórios para desconectar.")
+
+      // Tenta fazer Logout e Delete na Evolution
+      try {
+        await fetch(`${evolutionUrl}/instance/logout/${reqInstanceName}`, {
+          method: 'DELETE',
+          headers: { 'apikey': evolutionKey }
+        });
+
+        // Pausa de 2 segundos para a Evolution processar o logout
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        await fetch(`${evolutionUrl}/instance/delete/${reqInstanceName}`, {
+          method: 'DELETE',
+          headers: { 'apikey': evolutionKey }
+        });
+      } catch (e) {
+        console.error("Erro ao remover na Evolution:", e);
+      }
+
+      // Remove definitivamente do banco de dados (Admin para garantir autoridade total)
+      const { error: deleteError } = await supabaseAdmin
+        .from('whatsapp_connections')
+        .delete()
+        .eq('id', integration_id);
+
+      if (deleteError) {
+        console.error("Erro ao deletar registro no banco:", deleteError);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    }
+
+    // --- FLUXO DE CRIAÇÃO (Sempre via QR Code) ---
+    console.log(`[CREATE] Iniciando criação para clinic_id: ${clinic_id}`);
+
+    // 1. Gera nome único para a instância
+    // Usamos admin aqui para garantir que a clínica seja encontrada mesmo se o JWT do usuário estiver com problemas no bypass
+    const { data: clinic, error: clinicErr } = await supabaseAdmin.from('clinics').select('name').eq('id', clinic_id).single();
+    if (clinicErr) console.error("[CREATE] Erro ao buscar clínica:", clinicErr);
+
+    const rawName = clinic?.name || 'clinica';
+    const safeName = rawName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const instanceName = `${safeName}_${clinic_id.split('-')[0]}_${Date.now().toString().slice(-4)}`;
+
+    console.log(`[CREATE] Payload gerado para instância: ${instanceName} no Webhook: ${webhookUrl}`);
+
+    // 2. Cria instância na Evolution API
+    // Payload ajustado para Evolution v2 (versão 2.3.7 detectada no log)
+    const bodyPayload = {
+      instanceName: instanceName.trim(),
+      integration: "WHATSAPP-BAILEYS",
+      qrcode: true,
+      webhook: {
+        enabled: true,
+        url: webhookUrl,
+        byEvents: false,
+        base64: true,
+        events: [
+          "MESSAGES_UPSERT",
+          "MESSAGES_DELETE",
+          "MESSAGES_UPDATE",
+          "SEND_MESSAGE",
+          "CONNECTION_UPDATE",
+          "PRESENCE_UPDATE"
+        ]
+      }
+    };
+
+    console.log(`[CREATE] Payload v2 enviado:`, JSON.stringify(bodyPayload));
+
+    const createReq = await fetch(`${evolutionUrl}/instance/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionKey
+      },
+      body: JSON.stringify(bodyPayload)
+    });
+
+    const createResText = await createReq.text();
+    console.log(`[CREATE] Resposta bruta v2: ${createResText}`);
+
+    let createRes;
+    try {
+      createRes = JSON.parse(createResText);
+    } catch (e) {
+      throw new Error(`Resposta inválida da Evolution: ${createResText}`);
+    }
+    if (!createReq.ok) {
+      throw new Error(`Erro na Evolution: ${JSON.stringify(createRes)}`)
+    }
+
+    // 3. Regra da Unicidade: Remove registros "pending" anteriores desta clínica
+    await supabaseAdmin
+      .from('whatsapp_connections')
+      .delete()
+      .eq('clinic_id', clinic_id)
+      .eq('status', 'pending');
+
+    // 4. Insere novo registro na whatsapp_connections
+    const { data: integrationData, error: insertError } = await supabaseClient
+      .from('whatsapp_connections')
+      .insert({
+        clinic_id,
+        instance_name: instanceName,
+        connection_name,
+        phone_number: phone ? phone.replace(/\D/g, '') : '',
+        status: 'pending'
+      })
+      .select('id')
+      .single();
+
+    if (insertError) throw insertError;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        integration_id: integrationData.id,
+        instanceName,
+        qrCode: createRes.qrcode?.base64 || createRes.base64 || null
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    )
+
+
+
+  } catch (error) {
+    return new Response(JSON.stringify({ success: false, error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 })
+  }
+})

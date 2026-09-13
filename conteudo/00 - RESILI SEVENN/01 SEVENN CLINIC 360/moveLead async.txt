@@ -1,0 +1,129 @@
+moveLead: async (leadId: string, newStatus: LeadStatus, options?: { skipOptimistic?: boolean; quiet?: boolean }) => {
+        const previousLeads = get().leads;
+        const leadToMove = previousLeads.find(l => l.id === leadId);
+
+        // Se não temos o lead no estado (comum se vier da Agenda), tentamos buscar ou apenas procedemos o update
+        // No entanto, para o moveLead ser útil, precisamos saber o clinic_id para a automação financeira
+
+        const skipOptimistic = options?.skipOptimistic || false;
+        const quiet = options?.quiet || false;
+
+        if (leadToMove && !skipOptimistic) {
+            set({
+                leads: previousLeads.map(l => l.id === leadId ? { ...l, status: newStatus } : l)
+            });
+        }
+
+        try {
+            let column = get().columns.find(c => c.id === newStatus);
+            let stageId = column?.db_id;
+
+            // Se a coluna não estiver no estado (ex: vindo da Agenda), busca o ID no banco pelo nome
+            if (!stageId) {
+                const { data: stage } = await supabase
+                    .from('pipeline_stages')
+                    .select('id')
+                    .eq('name', newStatus)
+                    .maybeSingle();
+
+                if (stage) stageId = stage.id;
+            }
+
+            const { error: updateError } = await supabase
+                .from('leads')
+                .update({
+                    status: newStatus,
+                    pipeline_stage_id: stageId
+                })
+                .eq('id', leadId);
+
+            if (updateError) throw updateError;
+
+            if (!quiet) {
+                toast.success(`Status atualizado para ${newStatus}`);
+            }
+
+            // Automação Financeira: Se venda realizada, cria transação e atualiza LTV
+            if (newStatus === 'Venda Realizada') {
+                // Buscamos os dados mais recentes do lead para garantir o budget e o LTV anterior
+                const { data: dbLead, error: fetchError } = await supabase
+                    .from('leads')
+                    .select('clinic_id, name, budget, total_ltv')
+                    .eq('id', leadId)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                const clinicId = dbLead.clinic_id;
+                const leadName = dbLead.name;
+                const budgetValue = dbLead.budget || 0;
+                const currentLtv = dbLead.total_ltv || 0;
+
+                if (budgetValue > 0 && clinicId) {
+                    // 1. Verifica se já existe uma transação para este lead neste dia ou vinculada a este processo 
+                    // (Simples check por lead_id + pendente para evitar duplicidade no mesmo fluxo)
+                    const { data: existing } = await supabase
+                        .from('financial_transactions')
+                        .select('id, status')
+                        .eq('lead_id', leadId)
+                        .eq('type', 'income')
+                        .maybeSingle();
+
+                    if (!existing) {
+                        // 2. Criar Transação Financeira com o Valor do Orçamento (Budget) - Status 'paid' para conclusão imediata
+                        await supabase.from('financial_transactions').insert([{
+                            clinic_id: clinicId,
+                            lead_id: leadId,
+                            description: `Venda Realizada: ${leadName}`,
+                            amount: budgetValue,
+                            type: 'income',
+                            status: 'paid', // Alterado para paid para aparecer no dashboard e contabilizar receita
+                            category: 'Procedimentos',
+                            transaction_date: new Date().toISOString().split('T')[0]
+                        }]);
+
+                        // 3. Atualizar o LTV Total do Lead (LTV Acumulado) - Soma robusta
+                        const newLtv = Number(currentLtv || 0) + Number(budgetValue);
+
+                        await supabase
+                            .from('leads')
+                            .update({ total_ltv: newLtv })
+                            .eq('id', leadId);
+
+                        // 4. Sincronia Visual: Atualiza o estado local com o novo LTV
+                        set(state => ({
+                            leads: state.leads.map(l => l.id === leadId ? { ...l, total_ltv: newLtv, status: newStatus } : l)
+                        }));
+
+                        toast.success('Venda concluída! LTV do paciente atualizado.');
+                    } else if (existing.status === 'pending') {
+                        // Caso especial: Se já existir uma transação PENDENTE, vamos concluí-la e atualizar o LTV
+                        await supabase
+                            .from('financial_transactions')
+                            .update({ status: 'paid', amount: budgetValue })
+                            .eq('id', existing.id);
+
+                        const newLtv = Number(currentLtv || 0) + Number(budgetValue);
+                        await supabase
+                            .from('leads')
+                            .update({ total_ltv: newLtv })
+                            .eq('id', leadId);
+
+                        set(state => ({
+                            leads: state.leads.map(l => l.id === leadId ? { ...l, total_ltv: newLtv, status: newStatus } : l)
+                        }));
+
+                        toast.success('Venda processada e LTV atualizado!');
+                    }
+                }
+            }
+        } catch (error: any) {
+            console.error('Erro ao mover lead:', error);
+            const errorMsg = error.code === '22P02'
+                ? `Valor de status inválido: "${newStatus}".`
+                : error.message || 'Erro desconhecido';
+            toast.error(`Erro ao atualizar status: ${errorMsg}`);
+            // Rollback
+            if (leadToMove) set({ leads: previousLeads });
+        }
+    },

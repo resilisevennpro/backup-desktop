@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO On-Page -->
+    <title>Facetas em Resina em Ferraz de Vasconcelos SP | Dra. Isabella Farias</title>
+    <meta name="description" content="Especialista em Facetas em Resina e Estética Facial em Ferraz de Vasconcelos SP. Agende sua avaliação com a Dra. Isabella Farias e transforme seu sorriso.">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://dra-isabella-farias.com.br/">
+    <meta property="og:title" content="Facetas em Resina em Ferraz de Vasconcelos SP | Dra. Isabella Farias">
+    <meta property="og:description" content="Especialista em Facetas em Resina e Estética Facial em Ferraz de Vasconcelos SP. Agende sua avaliação com a Dra. Isabella Farias e transforme seu sorriso.">
+    <meta property="og:image" content="/images/og-image.jpg">
+
+    <!-- Tipografia: Luxo Editorial (Playfair Display & Lato) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <!-- Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-gold': '#C5A086',
+                        'brand-black': '#121212',
+                        'brand-bg': '#FAFAF9',
+                        'brand-gray': '#4A4A4A',
+                        'footer-bg': '#121212',
+                    },
+                    fontFamily: {
+                        sans: ['Lato', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    animation: {
+                        'marquee': 'marquee 25s linear infinite',
+                    },
+                    keyframes: {
+                        marquee: {
+                            '0%': { transform: 'translateX(0%)' },
+                            '100%': { transform: 'translateX(-100%)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Estilos Customizados -->
+    <style>
+        body {
+            background-color: #FAFAF9;
+            color: #121212;
+            -webkit-font-smoothing: antialiased;
+            cursor: none;
+        }
+
+        /* Custom Cursor */
+        .custom-cursor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 40px;
+            height: 40px;
+            border: 1px solid #C5A086;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease-out;
+            display: none;
+        }
+        .custom-cursor-dot {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 8px;
+            height: 8px;
+            background-color: #121212;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            transition: transform 0.05s ease-out;
+            display: none;
+        }
+        @media (min-width: 768px) {
+            .custom-cursor, .custom-cursor-dot {
+                display: block;
+            }
+        }
+
+        /* Animações de Scroll */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 1s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-60px);
+            transition: all 1s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(60px);
+            transition: all 1s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        .reveal-left.active { opacity: 1; transform: translateX(0); }
+        .reveal-right.active { opacity: 1; transform: translateX(0); }
+
+        /* Divisor Vertical */
+        .vertical-divider {
+            width: 1px;
+            height: 60px;
+            background-color: #C5A086;
+            margin: 2rem auto;
+        }
+        
+        /* Floating Button */
+        @keyframes pulse-soft {
+            0% { box-shadow: 0 0 0 0 rgba(197, 160, 134, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(197, 160, 134, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(197, 160, 134, 0); }
+        }
+        .whatsapp-float {
+            animation: pulse-soft 2s infinite;
+        }
+
+        /* FAQ Details */
+        details > summary {
+            list-style: none;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details[open] summary ~ * {
+            animation: sweep .5s ease-in-out;
+        }
+        @keyframes sweep {
+            0%    {opacity: 0; transform: translateY(-10px)}
+            100%  {opacity: 1; transform: translateY(0)}
+        }
+    </style>
+</head>
+<body class="overflow-x-hidden relative">
+
+    <div class="custom-cursor"></div>
+    <div class="custom-cursor-dot"></div>
+
+    <header id="navbar" class="fixed w-full z-50 transition-all duration-300 py-6">
+        <div class="container mx-auto px-6 md:px-12 flex justify-between items-center">
+            <a href="#" class="text-xl md:text-2xl font-serif font-bold tracking-wider z-50 relative uppercase">
+                DRA. ISABELLA FARIAS<span class="text-brand-gold">.</span>
+            </a>
+
+            <nav class="hidden md:flex items-center space-x-12">
+                <a href="#sobre" class="text-xs uppercase tracking-widest hover:text-brand-gold transition-colors">A Marca</a>
+                <a href="#resultados" class="text-xs uppercase tracking-widest hover:text-brand-gold transition-colors">Resultados</a>
+                <a href="#experiencia" class="text-xs uppercase tracking-widest hover:text-brand-gold transition-colors">Experiência</a>
+                <a href="#procedimentos" class="text-xs uppercase tracking-widest hover:text-brand-gold transition-colors">Procedimentos</a>
+                <a href="#faq-footer" class="border border-brand-black px-6 py-2 text-xs uppercase tracking-widest hover:bg-brand-black hover:text-white transition-all duration-300">
+                    Agendar Avaliação
+                </a>
+            </nav>
+
+            <button id="menu-btn" class="md:hidden z-50 text-2xl focus:outline-none" aria-label="Abrir menu mobile">
+                <i class="fa-solid fa-bars font-thin"></i>
+            </button>
+        </div>
+    </header>
+
+    <div id="mobile-menu" class="fixed inset-0 bg-brand-bg z-40 flex flex-col justify-center items-center opacity-0 pointer-events-none transition-opacity duration-500">
+        <nav class="flex flex-col space-y-8 text-center">
+            <a href="#sobre" class="mobile-link text-3xl font-serif italic text-brand-black">A Marca</a>
+            <a href="#resultados" class="mobile-link text-3xl font-serif italic text-brand-black">Resultados</a>
+            <a href="#experiencia" class="mobile-link text-3xl font-serif italic text-brand-black">Experiência</a>
+            <a href="#procedimentos" class="mobile-link text-3xl font-serif italic text-brand-black">Procedimentos</a>
+            <a href="#faq-footer" class="mobile-link text-xl uppercase tracking-widest text-brand-gold mt-8">Agendar Avaliação</a>
+        </nav>
+    </div>
+
+    <section class="relative min-h-screen flex items-center pt-20 overflow-hidden bg-brand-bg">
+        <div class="container mx-auto px-6 md:px-12 grid md:grid-cols-2 gap-12 items-center h-full">
+            <div class="order-2 md:order-1 reveal-left">
+                <span class="block text-brand-gold uppercase tracking-widest text-xs font-bold mb-4">
+                    Odontologia Premium
+                </span>
+                <h1 class="font-serif text-5xl md:text-7xl leading-[1.1] mb-6 text-brand-black">
+                    Facetas em Resina <br>
+                    <span class="italic text-brand-gray/80">em Ferraz de Vasconcelos SP.</span>
+                </h1>
+                <p class="font-sans text-brand-gray text-lg leading-relaxed mb-10 max-w-md font-light">
+                    Onde a ciência encontra a sofisticação. Revelamos a sua melhor versão através de facetas em resina e estética facial de alto padrão.
+                </p>
+                <a href="#faq-footer" class="inline-block bg-brand-gold text-white px-10 py-4 uppercase tracking-widest text-xs font-bold hover:bg-brand-black transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    Descubra a Experiência
+                </a>
+            </div>
+            <div class="order-1 md:order-2 h-[60vh] md:h-[85vh] relative reveal-right delay-200">
+                <div class="absolute inset-0 bg-brand-gold/10 -z-10 translate-x-4 translate-y-4"></div>
+                <img src="/images/design-mode/a-abordagem-confiante-dos-dentistas-profissionais_1319323-405.jpg" 
+                     alt="Dra Isabella Farias especialista em Facetas em Resina em Ferraz de Vasconcelos SP" 
+                     loading="eager"
+                     class="w-full h-full object-cover shadow-2xl brightness-100 hover:brightness-75 transition-all duration-700 ease-in-out rounded-2xl">
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-brand-black py-4 overflow-hidden relative border-t border-b border-gray-800">
+        <div class="whitespace-nowrap flex animate-marquee">
+            <div class="flex items-center mx-4">
+                <span class="text-white/20 uppercase tracking-widest font-serif text-lg md:text-2xl mx-8">Dra. Isabella Farias</span>
+                <i class="fa-solid fa-circle text-[8px] text-brand-gold"></i>
+                <span class="text-white/20 uppercase tracking-widest font-serif text-lg md:text-2xl mx-8">Odontologia Estética</span>
+                <i class="fa-solid fa-circle text-[8px] text-brand-gold"></i>
+                <span class="text-white/20 uppercase tracking-widest font-serif text-lg md:text-2xl mx-8">Dra. Isabella Farias</span>
+                <i class="fa-solid fa-circle text-[8px] text-brand-gold"></i>
+                <span class="text-white/20 uppercase tracking-widest font-serif text-lg md:text-2xl mx-8">Estética Facial</span>
+                <i class="fa-solid fa-circle text-[8px] text-brand-gold"></i>
+            </div>
+            <div class="flex items-center mx-4">
+                <span class="text-white/20 uppercase tracking-widest font-serif text-lg md:text-2xl mx-8">Dra. Isabella Farias</span>
+                <i class="fa-solid fa-circle text-[8px] text-brand-gold"></i>
+                <span class="text-white/20 uppercase tracking-widest font-serif text-lg md:text-2xl mx-8">Odontologia Estética</span>
+                <i class="fa-solid fa-circle text-[8px] text-brand-gold"></i>
+                <span class="text-white/20 uppercase tracking-widest font-serif text-lg md:text-2xl mx-8">Dra. Isabella Farias</span>
+                <i class="fa-solid fa-circle text-[8px] text-brand-gold"></i>
+                <span class="text-white/20 uppercase tracking-widest font-serif text-lg md:text-2xl mx-8">Estética Facial</span>
+                <i class="fa-solid fa-circle text-[8px] text-brand-gold"></i>
+            </div>
+        </div>
+    </section>
+
+    <section id="sobre" class="pt-24 pb-8 md:pb-24 bg-white">
+        <div class="container mx-auto px-6 md:px-12 text-center">
+            
+            <div class="reveal max-w-4xl mx-auto">
+                <h2 class="font-serif text-4xl md:text-5xl mb-6 leading-tight">
+                    "Nossa filosofia foge dos padrões <br>
+                    <span class="italic text-brand-gold">industrializados."</span>
+                </h2>
+                <p class="text-brand-gray leading-relaxed mb-4 font-light text-xl md:px-12">
+                    Não acreditamos em sorrisos "prateleira". Cada tratamento é uma obra de arte única, planejada meticulosamente para respeitar seus traços naturais e elevar sua autoestima ao nível da excelência.
+                </p>
+            </div>
+
+            <div class="vertical-divider reveal delay-100"></div>
+
+            <div id="counter-section" class="flex flex-col md:flex-row justify-center items-center space-y-12 md:space-y-0 md:space-x-32 mt-8">
+                <div class="text-center">
+                    <span class="block text-6xl md:text-7xl font-serif text-brand-black">
+                        <span class="counter" data-target="5">0</span>+
+                    </span>
+                    <span class="text-xs uppercase tracking-widest text-brand-gold mt-2 block">Anos de Excelência</span>
+                </div>
+                <div class="text-center">
+                    <span class="block text-6xl md:text-7xl font-serif text-brand-black">
+                        <span class="counter" data-target="650">0</span>+
+                    </span>
+                    <span class="text-xs uppercase tracking-widest text-brand-gold mt-2 block">Pacientes Atendidos</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="resultados" class="pt-8 md:pt-24 pb-24 bg-brand-bg">
+        <div class="container mx-auto px-6 md:px-12">
+            <div class="text-center mb-12 reveal">
+                <span class="text-brand-gold uppercase tracking-widest text-xs font-bold">Portfólio</span>
+                <h2 class="font-serif text-4xl mt-4">Resultados Reais</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="aspect-square relative group overflow-hidden reveal-left rounded-2xl shadow-xl">
+                    <img src="/images/design-mode/clareamento-dos-dentes-conceito-de-saude-bucal-procedimento-de-clareamento-dos-dentes-cuidados-dentarios-conceito-de-odontologia-dentes-saudaveis-perfeitos-closeup-tiro-do-sorriso-da-mulher-dentes-saudaveis-perfeitos-sorriem-mulher_293990-3035.jpg" 
+                         loading="lazy"
+                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 brightness-95" alt="Resultado Facetas em Resina Ferraz de Vasconcelos">
+                    <div class="absolute inset-0 flex items-end p-8 bg-gradient-to-t from-black/80 to-transparent">
+                        <span class="text-white font-serif italic text-2xl opacity-100">Facetas em Resina</span>
+                    </div>
+                </div>
+
+                <div class="aspect-square relative group overflow-hidden reveal delay-100 rounded-2xl shadow-xl">
+                    <img src="/images/design-mode/mulher-de-vista-lateral-praticando-ioga-facial_52683-120122.jpg" 
+                         loading="lazy"
+                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 brightness-95" alt="Resultado Botox Ferraz de Vasconcelos">
+                    <div class="absolute inset-0 flex items-end p-8 bg-gradient-to-t from-black/80 to-transparent">
+                        <span class="text-white font-serif italic text-2xl opacity-100">Botox</span>
+                    </div>
+                </div>
+
+                <div class="aspect-square relative group overflow-hidden reveal-right delay-200 rounded-2xl shadow-xl">
+                    <img src="/images/design-mode/mulher-usando-aparelho-invisivel-de-silicone-ortodontico_107420-74181.jpg" 
+                         loading="lazy"
+                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 brightness-95" alt="Resultado Preenchimento Labial Ferraz de Vasconcelos">
+                    <div class="absolute inset-0 flex items-end p-8 bg-gradient-to-t from-black/80 to-transparent">
+                        <span class="text-white font-serif italic text-2xl opacity-100">Preenchimento Labial</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="experiencia" class="py-24 bg-brand-black text-white relative overflow-hidden">
+        <div class="absolute -right-20 -top-20 w-96 h-96 rounded-full border border-brand-gold/10 pointer-events-none"></div>
+        
+        <div class="container mx-auto px-6 md:px-12 relative z-10 grid md:grid-cols-2 gap-16 items-center">
+            <div class="reveal-left">
+                <span class="text-brand-gold uppercase tracking-widest text-xs font-bold">Cuidado em Cada Detalhe</span>
+                <h2 class="font-serif text-4xl mt-4 mb-6">Uma nova forma de <br>cuidar de você.</h2>
+                <p class="text-gray-400 font-light leading-relaxed mb-10">
+                    Entendemos que sua rotina é intensa. Por isso, criamos um ambiente que vai além da clínica tradicional. Aqui, seu tempo é respeitado e seu conforto é prioridade absoluta.
+                </p>
+                <ul class="space-y-8">
+                    <li class="flex items-start">
+                        <span class="text-brand-gold mr-5 text-xl mt-1"><i class="fa-regular fa-clock"></i></span>
+                        <div>
+                            <h4 class="font-serif text-lg text-white">Gestão de Tempo</h4>
+                            <p class="text-sm text-gray-500 mt-1 font-light">Agendamento exclusivo com intervalos estendidos.</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-brand-gold mr-5 text-xl mt-1"><i class="fa-solid fa-wind"></i></span>
+                        <div>
+                            <h4 class="font-serif text-lg text-white">Ambiente de Descompressão</h4>
+                            <p class="text-sm text-gray-500 mt-1 font-light">Aromaterapia e playlist personalizada.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="reveal-right delay-100 relative h-full">
+                <img src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=2068&auto=format&fit=crop" 
+                     alt="Ambiente Luxuoso Clínica Dra Isabella Farias" 
+                     loading="lazy"
+                     class="rounded-2xl brightness-100 hover:brightness-75 transition-all duration-700 ease-in-out object-cover h-[500px] w-full">
+            </div>
+        </div>
+    </section>
+
+    <section id="procedimentos" class="py-24 bg-white">
+        <div class="container mx-auto px-6 md:px-12">
+            <div class="text-center mb-12 reveal">
+                <span class="text-brand-gold uppercase tracking-widest text-xs font-bold">Nossa Expertise</span>
+                <h2 class="font-serif text-4xl mt-4">Procedimentos Exclusivos</h2>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-brand-bg/30 hover:shadow-2xl transition-all duration-500 group reveal-left overflow-hidden flex flex-col rounded-2xl border border-gray-100">
+                    <div class="h-64 overflow-hidden relative flex-shrink-0">
+                        <img src="https://images.unsplash.com/photo-1606811971618-4486d14f3f99?q=80&w=2000&auto=format&fit=crop" 
+                             loading="lazy"
+                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 brightness-100 hover:brightness-90" alt="Facetas em Resina">
+                    </div>
+                    <div class="p-8 flex flex-col flex-grow relative">
+                        <h3 class="font-serif text-2xl mb-4 text-brand-black">Facetas em Resina</h3>
+                        <p class="text-brand-gray font-light leading-relaxed text-sm mb-6 flex-grow">
+                            Lâminas em resina de alta performance desenhadas à mão. Corrigem imperfeições e criam uma textura natural e duradoura.
+                        </p>
+                        <a href="https://wa.me/5511958888513" target="_blank" class="inline-block text-center bg-brand-gold text-white px-6 py-3 uppercase tracking-widest text-xs hover:bg-brand-black transition-all w-full rounded-md">
+                            Agendar Facetas
+                        </a>
+                    </div>
+                </div>
+
+                <div class="bg-brand-bg/30 hover:shadow-2xl transition-all duration-500 group reveal overflow-hidden flex flex-col rounded-2xl border border-gray-100">
+                    <div class="h-64 overflow-hidden relative flex-shrink-0">
+                        <img src="/images/design-mode/mulher-com-rosto-marcado-recebendo-injecao-de-botox_107420-74125.jpg" 
+                             loading="lazy"
+                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 brightness-100 hover:brightness-90" alt="Aplicação de Botox">
+                    </div>
+                    <div class="p-8 flex flex-col flex-grow relative">
+                        <h3 class="font-serif text-2xl mb-4 text-brand-black">Botox</h3>
+                        <p class="text-brand-gray font-light leading-relaxed text-sm mb-6 flex-grow">
+                            Suavização de linhas de expressão e prevenção de rugas, devolvendo a jovialidade ao seu rosto com naturalidade.
+                        </p>
+                        <a href="https://wa.me/5511958888513" target="_blank" class="inline-block text-center bg-brand-gold text-white px-6 py-3 uppercase tracking-widest text-xs hover:bg-brand-black transition-all w-full rounded-md">
+                            Agendar Botox
+                        </a>
+                    </div>
+                </div>
+
+                <div class="bg-brand-bg/30 hover:shadow-2xl transition-all duration-500 group reveal-right overflow-hidden flex flex-col rounded-2xl border border-gray-100">
+                    <div class="h-64 overflow-hidden relative flex-shrink-0">
+                         <img src="/images/design-mode/duas-bandejas-de-clareamento-dental-e-uma-caixa-para-ela_633478-106.jpg" 
+                             loading="lazy"
+                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 brightness-100 hover:brightness-90" alt="Preenchimento Labial">
+                    </div>
+                    <div class="p-8 flex flex-col flex-grow relative">
+                        <h3 class="font-serif text-2xl mb-4 text-brand-black">Preenchimento Labial</h3>
+                        <p class="text-brand-gray font-light leading-relaxed text-sm mb-6 flex-grow">
+                            Contorno e volume na medida certa. Realçamos a beleza dos seus lábios respeitando a harmonia da sua face.
+                        </p>
+                        <a href="https://wa.me/5511958888513" target="_blank" class="inline-block text-center bg-brand-gold text-white px-6 py-3 uppercase tracking-widest text-xs hover:bg-brand-black transition-all w-full rounded-md">
+                            Agendar Preenchimento
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-16 bg-brand-bg relative overflow-hidden">
+        <div class="container mx-auto px-6 md:px-12 text-center reveal relative z-10">
+            <h2 class="font-serif text-4xl mb-8">Depoimentos</h2>
+            <i class="fa-solid fa-quote-left text-4xl text-brand-gold/30 mb-8"></i>
+            
+            <div class="slider-container max-w-4xl mx-auto overflow-hidden">
+                <div class="slider-track flex transition-transform duration-500 ease-out" id="testimonial-track">
+                    <div class="slide w-full flex-shrink-0 flex justify-center items-center px-4" style="min-width: 100%;">
+                        <div class="max-w-2xl">
+                             <h3 class="font-serif text-2xl md:text-3xl italic leading-relaxed text-brand-black mb-6">
+                                "A Dra. Isabella não apenas consertou meu sorriso, ela devolveu minha confiança. A sutileza das facetas em resina é impressionante."
+                            </h3>
+                            <div class="flex flex-col items-center">
+                                <span class="font-bold uppercase tracking-widest text-sm">Mariana Rios</span>
+                                <span class="text-xs text-brand-gray mt-1">Empresária, SP</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="slide w-full flex-shrink-0 flex justify-center items-center px-4" style="min-width: 100%;">
+                        <div class="max-w-2xl">
+                             <h3 class="font-serif text-2xl md:text-3xl italic leading-relaxed text-brand-black mb-6">
+                                "O preenchimento labial ficou extremamente natural. Eu tinha medo de ficar artificial, mas a Doutora respeitou cada traço meu."
+                            </h3>
+                            <div class="flex flex-col items-center">
+                                <span class="font-bold uppercase tracking-widest text-sm">Camila Queiroz</span>
+                                <span class="text-xs text-brand-gray mt-1">Modelo, SP</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="slide w-full flex-shrink-0 flex justify-center items-center px-4" style="min-width: 100%;">
+                        <div class="max-w-2xl">
+                            <h3 class="font-serif text-2xl md:text-3xl italic leading-relaxed text-brand-black mb-6">
+                                "O atendimento é impecável. O botox e os cuidados estéticos transformaram minha autoestima com total discrição."
+                            </h3>
+                            <div class="flex flex-col items-center">
+                                <span class="font-bold uppercase tracking-widest text-sm">Ricardo S.</span>
+                                <span class="text-xs text-brand-gray mt-1">Advogado, SP</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center space-x-3 items-center mt-6" id="dots-container"></div>
+        </div>
+    </section>
+
+    <section id="especialista" class="py-24 bg-white overflow-hidden">
+        <div class="container mx-auto px-6 md:px-12">
+            <div class="flex flex-col md:flex-row items-center gap-16">
+                <div class="w-full md:w-1/2 reveal-left">
+                    <div class="relative">
+                        <div class="absolute -top-10 -left-10 w-40 h-40 bg-brand-bg rounded-full z-0"></div>
+                        <img src="/images/design-mode/doutor-sorridente-num-consultorio-dentario_23-2151983462.jpg" 
+                             alt="Dra. Isabella Farias - Especialista em Facetas em Resina" 
+                             loading="lazy"
+                             class="relative z-10 w-full h-[600px] object-cover rounded-2xl shadow-2xl brightness-100 hover:brightness-95 transition-all duration-500">
+                    </div>
+                </div>
+                <div class="w-full md:w-1/2 reveal-right delay-100">
+                    <span class="text-brand-gold uppercase tracking-widest text-xs font-bold">A Profissional</span>
+                    <h2 class="font-serif text-4xl md:text-5xl mt-4 mb-8 text-brand-black">
+                        Dra. Isabella Farias
+                    </h2>
+                    <p class="text-brand-gray text-lg leading-relaxed mb-6 font-light">
+                        Especialista em Odontologia Estética e Estética Facial, Dra. Isabella combina rigor técnico com uma visão artística apurada. Dedica-se a criar sorrisos e harmonizações que respeitam a identidade única de cada paciente.
+                    </p>
+                    <p class="text-brand-gray text-lg leading-relaxed mb-8 font-light">
+                        Com mais de 5 anos de atuação e centenas de pacientes transformados, sua clínica em Ferraz de Vasconcelos tornou-se referência em procedimentos de alto padrão, oferecendo uma experiência que vai muito além do consultório tradicional.
+                    </p>
+                    <div class="grid grid-cols-2 gap-6 mt-8">
+                        <div>
+                            <p class="font-serif text-2xl text-brand-black">CRO/SP</p>
+                            <p class="text-xs uppercase tracking-widest text-brand-gray">152582</p>
+                        </div>
+                        <div>
+                            <p class="font-serif text-2xl text-brand-black">Especialidade</p>
+                            <p class="text-xs uppercase tracking-widest text-brand-gray">Estética Avançada</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer id="faq-footer" class="bg-footer-bg text-white pt-20 pb-10 border-t border-gray-800">
+        <div class="container mx-auto px-6 md:px-12">
+            
+            <div class="grid md:grid-cols-2 gap-16 items-start">
+                
+                <div class="reveal-left space-y-4">
+                    <h2 class="font-sans font-bold text-3xl md:text-4xl mb-8 text-white">
+                        Perguntas Frequentes
+                    </h2>
+                    <details class="group border-b border-gray-700 pb-4">
+                        <summary class="flex justify-between items-center font-medium cursor-pointer list-none text-white hover:text-brand-gold transition-colors">
+                            <span class="text-lg">Como funciona o processo de avaliação?</span>
+                            <span class="transition group-open:rotate-45 text-2xl font-light text-brand-gold">+</span>
+                        </summary>
+                        <div class="text-gray-400 mt-4 font-light text-sm leading-relaxed">
+                            Nosso processo começa com uma avaliação completa, onde analisamos a estética e a saúde bucal do paciente para planejar as facetas em resina ou procedimentos faciais.
+                        </div>
+                    </details>
+                    <details class="group border-b border-gray-700 pb-4">
+                        <summary class="flex justify-between items-center font-medium cursor-pointer list-none text-white hover:text-brand-gold transition-colors">
+                            <span class="text-lg">Quanto tempo leva o tratamento com facetas?</span>
+                            <span class="transition group-open:rotate-45 text-2xl font-light text-brand-gold">+</span>
+                        </summary>
+                        <div class="text-gray-400 mt-4 font-light text-sm leading-relaxed">
+                            O tempo varia conforme o caso, mas as facetas em resina geralmente podem ser finalizadas em poucas sessões, entregando um resultado rápido e de alto padrão.
+                        </div>
+                    </details>
+                     <details class="group border-b border-gray-700 pb-4">
+                        <summary class="flex justify-between items-center font-medium cursor-pointer list-none text-white hover:text-brand-gold transition-colors">
+                            <span class="text-lg">O tratamento é dolorido?</span>
+                            <span class="transition group-open:rotate-45 text-2xl font-light text-brand-gold">+</span>
+                        </summary>
+                        <div class="text-gray-400 mt-4 font-light text-sm leading-relaxed">
+                            Utilizamos técnicas avançadas e anestesia para garantir conforto absoluto durante todos os procedimentos estéticos e odontológicos.
+                        </div>
+                    </details>
+                </div>
+
+                <div class="reveal-right delay-100">
+                    <h2 class="font-sans font-bold text-3xl md:text-4xl mb-4 text-white">
+                        Ficou com alguma dúvida?
+                    </h2>
+                    <p class="text-gray-400 mb-10 font-light max-w-sm">
+                        Se por um acaso você não encontrar sua resposta aqui, basta entrar em contato conosco:
+                    </p>
+
+                    <a href="https://wa.me/5511958888513" target="_blank" class="group block bg-white/5 border border-white/10 p-6 rounded-lg mb-4 hover:bg-white/10 transition-all duration-300">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mr-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-brands fa-whatsapp text-2xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-blue-400 font-bold uppercase tracking-wide text-sm mb-1">Atendimento por WhatsApp</h4>
+                                <p class="text-gray-400 text-xs group-hover:text-white transition-colors">Clique aqui para tirar suas dúvidas</p>
+                            </div>
+                        </div>
+                    </a>
+
+                    <a href="https://www.instagram.com/dra.isabellafariasf/" target="_blank" class="group block bg-white/5 border border-white/10 p-6 rounded-lg hover:bg-white/10 transition-all duration-300">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400 mr-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-brands fa-instagram text-2xl"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-pink-400 font-bold uppercase tracking-wide text-sm mb-1">Acompanhe no Instagram</h4>
+                                <p class="text-gray-400 text-xs group-hover:text-white transition-colors">Veja nosso dia a dia e resultados</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <div class="mt-20 pt-8 border-t border-gray-800 text-center">
+                <div class="flex flex-col md:flex-row justify-center items-center gap-4">
+                    <img src="../images/resili-sevenn-logo.png" alt="Resili Sevenn" class="h-8 w-auto object-contain opacity-80">
+                    <div class="text-center md:text-left">
+                        <p class="text-white font-medium text-sm">SITE DEMONSTRATIVO NÃO OFICIAL</p>
+                         <p class="text-gray-600 text-xs mt-1 uppercase tracking-wide">© 2025 Resili Sevenn Marketing e Vendas. Todos os direitos reservados.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <a href="https://wa.me/5511958888513" target="_blank" 
+       class="whatsapp-float fixed bottom-8 right-8 z-50 bg-brand-gold text-white w-16 h-16 rounded-full flex items-center justify-center shadow-2xl hover:bg-brand-black transition-all duration-300 hover:-translate-y-2 group">
+        <i class="fa-brands fa-whatsapp text-3xl"></i>
+    </a>
+
+    <!-- Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "MedicalClinic",
+      "name": "Dra. Isabella Farias - Odontologia Estética",
+      "image": "https://dra-isabella-farias.com.br/images/og-image.jpg",
+      "@id": "https://dra-isabella-farias.com.br/",
+      "url": "https://dra-isabella-farias.com.br/",
+      "telephone": "+5511958888513",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "R. Santos Dumont, 830",
+        "addressLocality": "Ferraz de Vasconcelos",
+        "addressRegion": "SP",
+        "postalCode": "08530-000",
+        "addressCountry": "BR"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": -23.5391248,
+        "longitude": -46.3674163
+      },
+      "openingHoursSpecification": {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday"
+        ],
+        "opens": "09:00",
+        "closes": "18:00"
+      }
+    }
+    </script>
+
+    <!-- Scripts de Interação (Vanilla JS) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- 0. CUSTOM CURSOR ---
+            const cursor = document.querySelector('.custom-cursor');
+            const cursorDot = document.querySelector('.custom-cursor-dot');
+
+            if (window.innerWidth >= 768) {
+                document.addEventListener('mousemove', (e) => {
+                    cursor.style.left = e.clientX + 'px';
+                    cursor.style.top = e.clientY + 'px';
+                    cursorDot.style.left = e.clientX + 'px';
+                    cursorDot.style.top = e.clientY + 'px';
+                });
+
+                document.addEventListener('mousedown', () => {
+                    cursor.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                });
+
+                document.addEventListener('mouseup', () => {
+                    cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                });
+
+                const hoverElements = document.querySelectorAll('a, button, summary');
+                hoverElements.forEach(el => {
+                    el.addEventListener('mouseenter', () => {
+                        cursor.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                        cursor.style.borderColor = '#121212';
+                        cursorDot.style.backgroundColor = '#C5A086';
+                    });
+                    el.addEventListener('mouseleave', () => {
+                        cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                        cursor.style.borderColor = '#C5A086';
+                        cursorDot.style.backgroundColor = '#121212';
+                    });
+                });
+            }
+
+            // --- 1. SCROLL REVEAL OBSERVER ---
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) entry.target.classList.add('active');
+                });
+            }, { threshold: 0.1 });
+
+            document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => observer.observe(el));
+
+            // --- 2. NAVBAR SCROLL EFFECT ---
+            const navbar = document.getElementById('navbar');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 50) {
+                    navbar.classList.add('bg-white/95', 'shadow-sm', 'backdrop-blur-md', 'py-4');
+                    navbar.classList.remove('py-6', 'bg-transparent');
+                } else {
+                    navbar.classList.remove('bg-white/95', 'shadow-sm', 'backdrop-blur-md', 'py-4');
+                    navbar.classList.add('py-6', 'bg-transparent');
+                }
+            });
+
+            // --- 3. MOBILE MENU TOGGLE ---
+            const menuBtn = document.getElementById('menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const toggleMenu = () => {
+                mobileMenu.classList.toggle('opacity-0');
+                mobileMenu.classList.toggle('pointer-events-none');
+                document.body.style.overflow = mobileMenu.classList.contains('opacity-0') ? 'auto' : 'hidden';
+            };
+            menuBtn.addEventListener('click', toggleMenu);
+            document.querySelectorAll('.mobile-link').forEach(link => link.addEventListener('click', toggleMenu));
+
+            // --- 4. SLIDER LOGIC ---
+            const track = document.getElementById('testimonial-track');
+            const slides = Array.from(track.children);
+            const dotsContainer = document.getElementById('dots-container');
+            let currentIndex = 0;
+
+            dotsContainer.innerHTML = '';
+            slides.forEach((_, i) => {
+                const dot = document.createElement('button');
+                dot.classList.add('w-2', 'h-2', 'rounded-full', 'bg-gray-300', 'transition-colors');
+                if (i === 0) dot.classList.replace('bg-gray-300', 'bg-brand-gold');
+                dotsContainer.appendChild(dot);
+                dot.addEventListener('click', () => {
+                    currentIndex = i;
+                    updateSlide();
+                });
+            });
+            
+            const updateSlide = () => {
+                track.style.transform = `translateX(-${currentIndex * 100}%)`;
+                const dots = Array.from(dotsContainer.children);
+                dots.forEach(d => d.classList.replace('bg-brand-gold', 'bg-gray-300'));
+                if(dots[currentIndex]) dots[currentIndex].classList.replace('bg-gray-300', 'bg-brand-gold');
+            }
+            setInterval(() => { currentIndex = (currentIndex + 1) % slides.length; updateSlide(); }, 6000);
+
+            // --- 5. NUMBER COUNTER ---
+            const counterSection = document.getElementById('counter-section');
+            let startedCounter = false;
+            const animateValue = (obj, start, end, duration) => {
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    obj.innerHTML = Math.floor(progress * (end - start) + start);
+                    if (progress < 1) window.requestAnimationFrame(step);
+                };
+                window.requestAnimationFrame(step);
+            }
+            const counterObserver = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && !startedCounter) {
+                    startedCounter = true;
+                    document.querySelectorAll('.counter').forEach(counter => {
+                        animateValue(counter, 0, parseInt(counter.getAttribute('data-target')), 5000);
+                    });
+                }
+            }, { threshold: 0.5 });
+            if(counterSection) counterObserver.observe(counterSection);
+        });
+    </script>
+</body>
+</html>

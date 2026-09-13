@@ -1,0 +1,218 @@
+import React, { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Loader2, Palette, Instagram } from "lucide-react";
+import { toast } from "sonner";
+
+interface Professional {
+    id?: string;
+    name: string;
+    specialty: string;
+    phone: string;
+    color: string;
+    instagram?: string;
+    commission_percentage?: number;
+}
+
+interface ProfessionalModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    professionalToEdit?: Professional | null;
+    onSuccess: () => void;
+}
+
+const COLORS = [
+    "#59A52C", // Brand Green
+    "#3b82f6", // Blue
+    "#ef4444", // Red
+    "#eab308", // Yellow
+    "#8b5cf6", // Purple
+    "#ec4899", // Pink
+    "#f97316", // Orange
+    "#14b8a6", // Teal
+];
+
+export function ProfessionalModal({ isOpen, onClose, professionalToEdit, onSuccess }: ProfessionalModalProps) {
+    const { clinic } = useAuth();
+    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState<Professional>({
+        name: "",
+        specialty: "",
+        phone: "",
+        color: "#59A52C",
+        commission_percentage: 0,
+        instagram: ""
+    });
+
+    useEffect(() => {
+        if (professionalToEdit) {
+            setFormData(professionalToEdit);
+        } else {
+            setFormData({
+                name: "",
+                specialty: "",
+                phone: "",
+                color: "#59A52C",
+                commission_percentage: 0,
+                instagram: ""
+            });
+        }
+    }, [professionalToEdit, isOpen]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = async () => {
+        if (!clinic?.id || !formData.name) return;
+        setLoading(true);
+
+        try {
+            if (professionalToEdit?.id) {
+                // Update
+                const { error } = await supabase
+                    .from('professionals')
+                    .update({
+                        name: formData.name,
+                        specialty: formData.specialty,
+                        phone: formData.phone,
+                        instagram: formData.instagram,
+                        color: formData.color,
+                        commission_percentage: Number(formData.commission_percentage)
+                    })
+                    .eq('id', professionalToEdit.id);
+
+                if (error) {
+                    console.error("Error updating professional:", error);
+                    toast.error(`Erro ao atualizar: ${error.message}`);
+                    return;
+                }
+            } else {
+                // Create
+                const { error } = await supabase
+                    .from('professionals')
+                    .insert([{
+                        clinic_id: clinic.id,
+                        name: formData.name,
+                        specialty: formData.specialty,
+                        phone: formData.phone,
+                        instagram: formData.instagram,
+                        color: formData.color,
+                        commission_percentage: Number(formData.commission_percentage)
+                    }]);
+
+                if (error) {
+                    console.error("Error creating professional:", error);
+                    toast.error(`Erro ao criar: ${error.message}`);
+                    return;
+                }
+            }
+
+            toast.success("Profissional salvo com sucesso!");
+            onSuccess();
+            onClose();
+        } catch (error: any) {
+            console.error("Unexpected error saving professional:", error);
+            toast.error("Ocorreu um erro inesperado ao salvar.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>{professionalToEdit ? "Editar Profissional" : "Novo Profissional"}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Nome Completo</label>
+                            <Input
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                placeholder="Dra. Ana Silva"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Especialidade</label>
+                            <Input
+                                name="specialty"
+                                value={formData.specialty}
+                                onChange={handleChange}
+                                placeholder="Ortodontista"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">WhatsApp</label>
+                            <Input
+                                name="phone"
+                                value={formData.phone}
+                                onChange={handleChange}
+                                placeholder="(11) 99999-9999"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium flex items-center gap-2">
+                                <Instagram className="w-3.5 h-3.5 text-pink-500" /> Instagram
+                            </label>
+                            <Input
+                                name="instagram"
+                                value={formData.instagram}
+                                onChange={handleChange}
+                                placeholder="@seu_perfil"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Comissão (%)</label>
+                            <Input
+                                name="commission_percentage"
+                                type="number"
+                                value={formData.commission_percentage}
+                                onChange={handleChange}
+                                placeholder="0"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2">
+                            <Palette className="w-4 h-4" /> Cor na Agenda
+                        </label>
+                        <div className="flex gap-2 flex-wrap">
+                            {COLORS.map(color => (
+                                <button
+                                    key={color}
+                                    onClick={() => setFormData(prev => ({ ...prev, color: color }))}
+                                    className={`w-8 h-8 rounded-full border-2 transition-all ${formData.color === color ? 'border-primary scale-110 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                                    style={{ backgroundColor: color }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose} disabled={loading}>
+                        Cancelar
+                    </Button>
+                    <Button onClick={handleSave} disabled={loading || !formData.name} className="bg-primary hover:bg-primary/90">
+                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar Profissional
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

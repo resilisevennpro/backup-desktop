@@ -1,0 +1,294 @@
+{
+  "name": "waba-sem-codar",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.challenge'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        272,
+        0
+      ],
+      "id": "ed62e391-d99f-47a9-87f1-46bc97250cba",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "db0ffe19-df61-4bf5-83a5-a50a5a403019",
+              "name": "query['hub.challenge']",
+              "value": "={{ $json.query['hub.challenge'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "adae2b26-ec2a-4a57-9ad7-b7a1c5a7fc9e",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "waba/23",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        144
+      ],
+      "id": "00d7e07d-91d9-4b2e-981f-b1a4dfbb76c6",
+      "name": "ativarwebhook",
+      "webhookId": "e338c9db-567d-4b60-bb27-0dafb4273c67"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v23.0/xxxxeditar/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer xxxxxxxauth"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.body.to }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"hello_world\",\n    \"language\": {\n      \"code\": \"en_US\"\n    }\n  }\n}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        352
+      ],
+      "id": "dc0918ae-a78f-4d77-8add-dd5347a57f66",
+      "name": "Enviar mensagem",
+      "notes": "token permanente:\n\nEAAQfsTy6zfUBPwP8EgYSeyVLaWFKnZAJZC8eZCVpnWVc0Rdx4y5ZBC1SHwXzuyxHudvWF2xW5FtDcGzopUgMqVVIJ9gzdYf9OtIilp2W55t0spRTKaZCouZAYIRkm612EkXrZAo9rSw8CykAoiiZBbBDEm2MKKRj68QJZB3Oo1NwtOvssMRGh6Gl0QvSMPAuoCwZDZD"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "8dc9649f-1356-4216-bf05-745732d6a937",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -480,
+        352
+      ],
+      "id": "32da0962-7f8f-4824-9b86-b6c869c3f9b0",
+      "name": "enviarmensagem",
+      "webhookId": "8dc9649f-1356-4216-bf05-745732d6a937"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "acae5ca4-26a8-4276-a073-3860b2b9c6ec",
+              "leftValue": "={{ $json.body.token }}",
+              "rightValue": "$fafa@top",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -272,
+        352
+      ],
+      "id": "fecf088b-7daf-4b26-bd31-e7c7512bcc43",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v23.0/xxxxxxeditar/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer xxxxxxxauth"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"recipient_type\": \"individual\",\n  \"to\": \"{{ '+' + $json.body.entry[0].changes[0].value.messages[0].from.slice(0, 4) + '9' + $json.body.entry[0].changes[0].value.messages[0].from.slice(4) }}\",\n  \"context\": {\n    \"message_id\": \"{{ $json.body.entry[0].changes[0].value.messages[0].id }}\"\n  },\n  \"type\": \"text\",\n  \"text\": {\n    \"preview_url\": false,\n    \"body\": \"Este número é exclusivo para notificações. Para falar com nossa equipe, use o WhatsApp (66) 99255-2081 ou o e-mail contact@ritto.software.\"\n  }\n}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        16,
+        160
+      ],
+      "id": "f829ff0f-85ce-4240-baca-cd8cd9760bdf",
+      "name": "HTTP Request6"
+    }
+  ],
+  "pinData": {
+    "enviarmensagem": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.degusta.ai",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+            "content-length": "281",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+            "content-type": "application/json",
+            "origin": "https://260f8e09-80ac-434e-892a-2b1441827475.lovableproject.com",
+            "priority": "u=1, i",
+            "referer": "https://260f8e09-80ac-434e-892a-2b1441827475.lovableproject.com/",
+            "sec-ch-ua": "\"Google Chrome\";v=\"141\", \"Not?A_Brand\";v=\"8\", \"Chromium\";v=\"141\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "177.155.211.170",
+            "x-forwarded-host": "n8n.degusta.ai",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "2ca76a8c9c4c",
+            "x-real-ip": "111.155.211.170"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "messaging_product": "whatsapp",
+            "from_phone_number_id": "826513130548655",
+            "to": "5566992552081",
+            "type": "template",
+            "template": {
+              "name": "hello_world",
+              "language": {
+                "code": "en_US"
+              }
+            },
+            "token": "321312312",
+            "debug": {
+              "ui_origin": "lovable-ritto-test-sender",
+              "sent_at": "2025-10-23T19:48:46.205Z"
+            }
+          },
+          "webhookUrl": "xxxxxxurl",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ativarwebhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "enviarmensagem": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Enviar mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "32bd50dd-7245-461e-b528-5fac531d6e10",
+  "meta": {
+    "instanceId": "23acfbd1ad67d5083864787442fb7d130ee882acf7a1fad2a2044dad03cc4097"
+  },
+  "id": "hhGraueLmrrBKH12",
+  "tags": []
+}

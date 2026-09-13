@@ -1,0 +1,363 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search, AlertCircle, Check, DollarSign, MessageCircle, QrCode, CreditCard, Banknote, X } from "lucide-react";
+import { useFinanceStore } from "@/store/useFinanceStore";
+import { useAuth } from "@/contexts/AuthContext";
+import { format, differenceInDays, parseISO } from "date-fns";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { useNavigate, Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+
+interface Debtor {
+    patientName: string;
+    totalDebt: number;
+    phone?: string;
+    lastTransactionDate: string;
+    oldestTransactionDate: string; // New field for sorting
+    transactions: Transaction[];
+    leadId?: string; // To link to Chat
+    status?: string; // To build URL
+}
+
+import type { Transaction } from "@/components/finance/types";
+
+export function DebtorsTab() {
+    const { clinic } = useAuth();
+    const navigate = useNavigate();
+    const { transactions, fetchTransactions, updateTransaction } = useFinanceStore();
+    const [searchTerm, setSearchTerm] = useState("");
+    const [debtors, setDebtors] = useState<Debtor[]>([]);
+
+    // Modal State
+    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState('');
+
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchTransactions(clinic.id);
+        }
+    }, [clinic?.id]);
+
+    useEffect(() => {
+        const processDebtors = async () => {
+            // Group pending transactions by patient
+            const pendingTransactions = transactions.filter(t => t.status === 'pending' && t.type === 'income');
+
+            const grouped = pendingTransactions.reduce((acc, t) => {
+                const patientName = t.patient || t.metadata?.patient_name || "Desconhecido";
+                if (!acc[patientName]) {
+                    acc[patientName] = {
+                        patientName,
+                        totalDebt: 0,
+                        lastTransactionDate: t.transaction_date,
+                        oldestTransactionDate: t.transaction_date, // Init with current
+                        transactions: [],
+                        leadId: t.lead_id // Capture lead_id
+                    };
+                }
+                acc[patientName].totalDebt += t.amount;
+                acc[patientName].transactions.push(t);
+
+                // Update last transaction date (max date)
+                if (new Date(t.transaction_date) > new Date(acc[patientName].lastTransactionDate)) {
+                    acc[patientName].lastTransactionDate = t.transaction_date;
+                }
+
+                // Update oldest transaction date (min date) - logic for sorting priority
+                if (new Date(t.transaction_date) < new Date(acc[patientName].oldestTransactionDate)) {
+                    acc[patientName].oldestTransactionDate = t.transaction_date;
+                }
+
+                // If leadId was missing but this trans has it, add it
+                if (!acc[patientName].leadId && t.lead_id) {
+                    acc[patientName].leadId = t.lead_id;
+                }
+
+                return acc;
+            }, {} as Record<string, Debtor>);
+
+            // Sort by Oldest Transaction Date (Ascending) -> Oldest debt first
+            const debtorsList = Object.values(grouped).sort((a, b) =>
+                new Date(a.oldestTransactionDate).getTime() - new Date(b.oldestTransactionDate).getTime()
+            );
+
+            // Fetch Lead Statuses if we have leadIds
+            const leadIds = debtorsList.map(d => d.leadId).filter(Boolean) as string[];
+            if (leadIds.length > 0) {
+                const { data } = await supabase.from('leads').select('id, status').in('id', leadIds);
+                if (data) {
+                    debtorsList.forEach(d => {
+                        const match = data.find(l => l.id === d.leadId);
+                        if (match) d.status = match.status;
+                    });
+                }
+            }
+
+            setDebtors(debtorsList);
+        };
+
+        processDebtors();
+    }, [transactions]);
+
+
+    const filteredDebtors = debtors.filter(d =>
+        d.patientName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const totalClinicDebt = debtors.reduce((acc, d) => acc + d.totalDebt, 0);
+
+    const handleConfirmReceipt = (t: Transaction) => {
+        setSelectedTransaction(t);
+        setIsPaymentOpen(true);
+    };
+
+const handleRegisterPayment = async () => {
+        // Verifica se tem transação selecionada (ajuste o nome da variável de estado conforme seu código, ex: selectedDebt ou selectedTransaction)
+        if (!selectedTransaction) return; 
+
+        // 1. Baixa Financeira
+        await updateTransaction(selectedTransaction.id, {
+            status: 'paid',
+            payment_method: paymentMethod, 
+            installments: (paymentMethod === 'credit' || paymentMethod === 'debit') ? paymentInstallments : 1,
+            payment_date: new Date().toISOString()
+        });
+
+        // 2. AUTOMAÇÃO CRM (Move o Lead para Venda Realizada)
+        if (selectedTransaction.lead_id) {
+            try {
+                // Busca a etapa "Venda Realizada"
+                const { data: stage } = await supabase
+                    .from('pipeline_stages')
+                    .select('id')
+                    .ilike('name', '%Venda Realizada%')
+                    .eq('clinic_id', clinic?.id)
+                    .single();
+
+                if (stage) {
+                    await supabase
+                        .from('leads')
+                        .update({ 
+                            pipeline_stage_id: stage.id,
+                            status: 'Venda Realizada'
+                        })
+                        .eq('id', selectedTransaction.lead_id);
+                        
+                    toast.success("Pagamento confirmado e Lead movido para Venda Realizada!");
+                } else {
+                    toast.success("Pagamento confirmado!");
+                }
+            } catch (err) {
+                console.error("Erro automação CRM:", err);
+                toast.success("Pagamento confirmado!");
+            }
+        } else {
+            toast.success("Pagamento confirmado!");
+        }
+        
+        // Atualiza a lista
+        if (clinic?.id) fetchTransactions(clinic.id);
+        
+        // Limpa estados (ajuste conforme seus nomes de variáveis)
+        setIsPaymentOpen(false);
+        setPaymentMethod('');
+        setPaymentInstallments(1);
+    };
+
+    const formatCurrency = (val: number) => {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-end md:items-center">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-slate-900">Saldos em Aberto</h2>
+                    <p className="text-slate-500">Gerencie recebimentos pendentes e inadimplência.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="relative w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Buscar devedor..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="pl-9 pr-8 bg-white border-slate-200 h-10"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm("")}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
+                                title="Limpar busca"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
+                    <Card className="bg-slate-800 border-emerald-200 shadow-sm">
+                        <CardContent className="py-2 px-4 flex items-center gap-3">
+                            <div className="p-2 bg-slate-800 rounded-full">
+                                <DollarSign className="w-5 h-5 text-emerald-500" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold uppercase text-zinc-100">Total a Receber</p>
+                                <p className="text-lg font-bold text-emerald-400">{formatCurrency(totalClinicDebt)}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            <div className="grid gap-6">
+                {filteredDebtors.length === 0 ? (
+                    <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
+                        <Check className="w-12 h-12 text-emerald-200 mx-auto mb-3" />
+                        <h3 className="text-lg font-medium text-slate-900">Tudo em dia!</h3>
+                        <p className="text-slate-500">Não há saldos pendentes registrados no momento.</p>
+                    </div>
+                ) : (
+
+                    filteredDebtors.map((debtor) => (
+                        <Card key={debtor.patientName} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <CardHeader className="bg-slate-800 border-b border-slate-100 pb-3">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <AlertCircle className="w-5 h-5 text-amber-500" />
+                                        <CardTitle className="text-base font-bold text-slate-100">{debtor.patientName}</CardTitle>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+
+                                        <Badge variant="outline" className="bg-slate-800 text-amber-400 border-slate-800 text-sm px-3 py-1">
+                                            Total Devedor: {formatCurrency(debtor.totalDebt)}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white text-xs font-bold uppercase transition-colors duration-200 border-none">
+                                            {/* Note que removemos as classes de cor individuais daqui e usamos 'text-inherit' ou deixamos sem nada para herdar do pai */}
+                                            <TableHead className="pl-6 text-inherit">Data</TableHead>
+                                            <TableHead className="text-inherit">Descrição / Procedimento</TableHead>
+                                            <TableHead className="text-right text-inherit">Valor</TableHead>
+                                            <TableHead className="text-right pr-6 text-inherit">Ação</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {debtor.transactions.map((t) => {
+                                            // Check for > 30 days urgency
+                                            const isOverdue = differenceInDays(new Date(), parseISO(t.created_at || t.transaction_date)) > 30;
+
+                                            return (
+                                                <TableRow key={t.id} className="hover:bg-zinc-200">
+                                                    <TableCell className="pl-6 font-medium text-slate-600">
+                                                        {format(parseISO(t.transaction_date), "dd/MM/yyyy")}
+                                                    </TableCell>
+                                                    <TableCell className="text-slate-800 font-medium">{t.description}</TableCell>
+                                                    <TableCell className={cn("text-right font-bold", isOverdue ? "text-red-600" : "text-amber-600")}>
+                                                        {formatCurrency(t.amount)}
+                                                        {isOverdue && <span className="block text-[9px] font-normal text-red-500 uppercase mt-0.5">Atrasado (+30 dias)</span>}
+                                                    </TableCell>
+                                                    <TableCell className="text-right pr-6">
+                                                        <div className="flex items-center gap-2 justify-end">
+                                                            {debtor.leadId && (
+                                                                <Button
+                                                                    asChild
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="h-7 px-3 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 text-xs gap-1"
+                                                                >
+                                                                    <Link to={`/crm/${debtor.status || 'prospect'}/${debtor.leadId}`}>
+                                                                        <MessageCircle className="w-3 h-3" /> Cobrar
+                                                                    </Link>
+                                                                </Button>
+                                                            )}
+                                                            <Button
+                                                                size="sm"
+                                                                className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1"
+                                                                onClick={() => handleConfirmReceipt(t)}
+                                                            >
+                                                                <Check className="w-3 h-3" /> Receber
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
+            </div>
+
+            {/* --- MODAL DE PAGAMENTO (NOVO) --- */}
+            <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Registrar Pagamento</DialogTitle>
+                        <DialogDescription>
+                            Confirmar recebimento de <span className="font-bold text-slate-900">
+                                {selectedTransactionToPay && new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedTransactionToPay.amount)}
+                            </span>
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid grid-cols-3 gap-3 py-4">
+                        {[
+                            { id: 'pix', label: 'Pix', icon: QrCode },
+                            { id: 'credit', label: 'Crédito', icon: CreditCard },
+                            { id: 'debit', label: 'Débito', icon: CreditCard },
+                            { id: 'money', label: 'Dinheiro', icon: Banknote },
+                            { id: 'boleto', label: 'Boleto', icon: FileText },
+                            { id: 'partnership', label: 'Parceria', icon: Check },
+                            { id: 'other', label: 'Outro', icon: Plus },
+                        ].map((method) => (
+                            <div
+                                key={method.id}
+                                className={cn(
+                                    "cursor-pointer rounded-lg border-2 p-3 flex flex-col items-center gap-2 hover:bg-slate-50 transition-all",
+                                    paymentMethod === method.id ? "border-emerald-500 bg-emerald-50/50 text-emerald-700" : "border-slate-100 text-slate-500"
+                                )}
+                                onClick={() => setPaymentMethod(method.id)}
+                            >
+                                <method.icon className="w-5 h-5" />
+                                <span className="text-[10px] font-bold uppercase">{method.label}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {(paymentMethod === 'credit' || paymentMethod === 'debit') && (
+                        <div className="space-y-2 pb-4">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Parcelas</label>
+                            <Select value={String(paymentInstallments)} onValueChange={v => setPaymentInstallments(Number(v))}>
+                                <SelectTrigger className="h-10 font-bold bg-slate-50"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                                        <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleRegisterPayment} disabled={!paymentMethod} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                            Confirmar e Receber
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}

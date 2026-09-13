@@ -1,0 +1,1456 @@
+{
+    "name": "Cadastro de Seleção",
+    "flow": [
+        {
+            "id": 1,
+            "module": "gateway:CustomWebHook",
+            "version": 1,
+            "parameters": {
+                "hook": 715557,
+                "maxResults": 1
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": 12,
+                    "y": 3
+                },
+                "restore": {
+                    "parameters": {
+                        "hook": {
+                            "data": {
+                                "editable": "true"
+                            },
+                            "label": "Cadastro de Seleção"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "hook",
+                        "type": "hook:gateway-webhook",
+                        "label": "Webhook",
+                        "required": true
+                    },
+                    {
+                        "name": "maxResults",
+                        "type": "number",
+                        "label": "Maximum number of results"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 2,
+            "module": "phonenumber:TransformerParseNumber",
+            "version": 1,
+            "parameters": {},
+            "mapper": {
+                "number": "{{1.respondent.answers.`Qual seu WhatsApp? `}}",
+                "defaultCountry": "BR"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 300,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "defaultCountry": {
+                            "mode": "chose",
+                            "label": "Brazil (BR)"
+                        }
+                    }
+                },
+                "expect": [
+                    {
+                        "name": "number",
+                        "type": "text",
+                        "label": "Phone number",
+                        "required": true
+                    },
+                    {
+                        "name": "defaultCountry",
+                        "type": "select",
+                        "label": "Default country for parsing",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "AC",
+                                "AD",
+                                "AE",
+                                "AF",
+                                "AG",
+                                "AI",
+                                "AL",
+                                "AM",
+                                "AO",
+                                "AQ",
+                                "AR",
+                                "AS",
+                                "AT",
+                                "AU",
+                                "AW",
+                                "AX",
+                                "AZ",
+                                "BA",
+                                "BB",
+                                "BD",
+                                "BE",
+                                "BF",
+                                "BG",
+                                "BH",
+                                "BI",
+                                "BJ",
+                                "BL",
+                                "BM",
+                                "BN",
+                                "BO",
+                                "BQ",
+                                "BR",
+                                "BS",
+                                "BT",
+                                "BV",
+                                "BW",
+                                "BY",
+                                "BZ",
+                                "CA",
+                                "CC",
+                                "CD",
+                                "CF",
+                                "CG",
+                                "CH",
+                                "CI",
+                                "CK",
+                                "CL",
+                                "CM",
+                                "CN",
+                                "CO",
+                                "CP",
+                                "CR",
+                                "CU",
+                                "CV",
+                                "CW",
+                                "CX",
+                                "CY",
+                                "CZ",
+                                "DE",
+                                "DG",
+                                "DJ",
+                                "DK",
+                                "DM",
+                                "DO",
+                                "DZ",
+                                "EA",
+                                "EC",
+                                "EE",
+                                "EG",
+                                "EH",
+                                "ER",
+                                "ES",
+                                "ET",
+                                "EU",
+                                "FI",
+                                "FJ",
+                                "FK",
+                                "FM",
+                                "FO",
+                                "FR",
+                                "FX",
+                                "GA",
+                                "GB",
+                                "GD",
+                                "GE",
+                                "GF",
+                                "GG",
+                                "GH",
+                                "GI",
+                                "GL",
+                                "GM",
+                                "GN",
+                                "GP",
+                                "GQ",
+                                "GR",
+                                "GS",
+                                "GT",
+                                "GU",
+                                "GW",
+                                "GY",
+                                "HK",
+                                "HM",
+                                "HN",
+                                "HR",
+                                "HT",
+                                "HU",
+                                "IC",
+                                "ID",
+                                "IE",
+                                "IL",
+                                "IM",
+                                "IN",
+                                "IO",
+                                "IQ",
+                                "IR",
+                                "IS",
+                                "IT",
+                                "JE",
+                                "JM",
+                                "JO",
+                                "JP",
+                                "KE",
+                                "KG",
+                                "KH",
+                                "KI",
+                                "KM",
+                                "KN",
+                                "KP",
+                                "KR",
+                                "KW",
+                                "KY",
+                                "KZ",
+                                "LA",
+                                "LB",
+                                "LC",
+                                "LI",
+                                "LK",
+                                "LR",
+                                "LS",
+                                "LT",
+                                "LU",
+                                "LV",
+                                "LY",
+                                "MA",
+                                "MC",
+                                "MD",
+                                "ME",
+                                "MF",
+                                "MG",
+                                "MH",
+                                "MK",
+                                "ML",
+                                "MM",
+                                "MN",
+                                "MO",
+                                "MP",
+                                "MQ",
+                                "MR",
+                                "MS",
+                                "MT",
+                                "MU",
+                                "MV",
+                                "MW",
+                                "MX",
+                                "MY",
+                                "MZ",
+                                "NA",
+                                "NC",
+                                "NE",
+                                "NF",
+                                "NG",
+                                "NI",
+                                "NL",
+                                "NO",
+                                "NP",
+                                "NR",
+                                "NU",
+                                "NZ",
+                                "OM",
+                                "PA",
+                                "PE",
+                                "PF",
+                                "PG",
+                                "PH",
+                                "PK",
+                                "PL",
+                                "PM",
+                                "PN",
+                                "PR",
+                                "PS",
+                                "PT",
+                                "PW",
+                                "PY",
+                                "QA",
+                                "RE",
+                                "RO",
+                                "RS",
+                                "RU",
+                                "RW",
+                                "SA",
+                                "SB",
+                                "SC",
+                                "SD",
+                                "SE",
+                                "SG",
+                                "SH",
+                                "SI",
+                                "SJ",
+                                "SK",
+                                "SL",
+                                "SM",
+                                "SN",
+                                "SO",
+                                "SR",
+                                "SS",
+                                "ST",
+                                "SU",
+                                "SV",
+                                "SX",
+                                "SY",
+                                "SZ",
+                                "TA",
+                                "TC",
+                                "TD",
+                                "TF",
+                                "TG",
+                                "TH",
+                                "TJ",
+                                "TK",
+                                "TL",
+                                "TM",
+                                "TN",
+                                "TO",
+                                "TR",
+                                "TT",
+                                "TV",
+                                "TW",
+                                "TZ",
+                                "UA",
+                                "UG",
+                                "UM",
+                                "US",
+                                "UY",
+                                "UZ",
+                                "VA",
+                                "VC",
+                                "VE",
+                                "VG",
+                                "VI",
+                                "VN",
+                                "VU",
+                                "WF",
+                                "WS",
+                                "YE",
+                                "YT",
+                                "ZA",
+                                "ZM",
+                                "ZW"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "id": 8,
+            "module": "builtin:BasicFeeder",
+            "version": 1,
+            "parameters": {},
+            "mapper": {
+                "array": "{{1.respondent.raw_answers}}"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 600,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "array": {
+                            "mode": "edit"
+                        }
+                    }
+                },
+                "expect": [
+                    {
+                        "mode": "edit",
+                        "name": "array",
+                        "spec": [],
+                        "type": "array",
+                        "label": "Array"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 9,
+            "module": "util:TextAggregator",
+            "version": 1,
+            "parameters": {
+                "feeder": 8,
+                "rowSeparator": ""
+            },
+            "mapper": {
+                "value": "{{upper(8.question.question_title)}}\n{{8.answer}}\n\n"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 900,
+                    "y": 0
+                },
+                "restore": {
+                    "extra": {
+                        "feeder": {
+                            "label": "Iterator [8]"
+                        }
+                    },
+                    "parameters": {
+                        "rowSeparator": {
+                            "label": "Empty"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "rowSeparator",
+                        "type": "select",
+                        "label": "Row separator",
+                        "validate": {
+                            "enum": [
+                                "\n",
+                                "\t",
+                                "other"
+                            ]
+                        }
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "value",
+                        "type": "text",
+                        "label": "Text"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 4,
+            "module": "clickup:createTaskInList",
+            "version": 2,
+            "parameters": {
+                "__IMTCONN__": 1767045
+            },
+            "mapper": {
+                "name": "{{1.respondent.answers.`Qual seu nome completo? `}}",
+                "status": "triagem",
+                "content": "{{9.text}}",
+                "list_id": "901704632717",
+                "team_id": "9003280736",
+                "due_date": "{{addDays(now; 1)}}",
+                "space_id": "90171098841",
+                "folder_id": "90172401795",
+                "notify_all": false,
+                "start_date": "{{now}}",
+                "custom_fields": {
+                    "50c221ac-6f38-4e15-b88d-8816cbaaec4e": "{{1.respondent.answers.`Qual seu e-mail? `}}",
+                    "7ce3d96c-318d-411f-8d98-f522aad0324d": "{{1.respondent.answers.`Qual sua pretensão salarial? `}}",
+                    "ab94e5b7-f7af-443e-adf8-4d2c52948353": "{{2.e164}}",
+                    "b2b41317-2c0d-45f9-a6eb-20c335915137": "{{1.respondent.answers.`Data de nascimento`}}",
+                    "c7c30ddc-443b-4a7b-8b41-b4fc5b56010e": {
+                        "location": {}
+                    }
+                },
+                "due_date_time": true,
+                "start_date_time": true
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1200,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "tags": {
+                            "mode": "chose"
+                        },
+                        "status": {
+                            "mode": "chose",
+                            "label": "triagem"
+                        },
+                        "list_id": {
+                            "label": "Recrutamento & Seleção [Tarefas: 1]"
+                        },
+                        "team_id": {
+                            "label": "AGÊNCIA EATS"
+                        },
+                        "priority": {
+                            "mode": "chose",
+                            "label": "Empty"
+                        },
+                        "space_id": {
+                            "label": "Gente & Cultura"
+                        },
+                        "assignees": {
+                            "mode": "chose"
+                        },
+                        "folder_id": {
+                            "label": "Contratação[Listas: 3]"
+                        },
+                        "notify_all": {
+                            "mode": "chose"
+                        },
+                        "contentType": {
+                            "label": "Plain Text"
+                        },
+                        "custom_fields": {
+                            "nested": {
+                                "06eaeb54-a676-4aed-b173-dd88f35d12e3": {
+                                    "mode": "edit"
+                                },
+                                "363e618a-b23a-46e7-8d71-ed065552f503": {
+                                    "mode": "chose",
+                                    "label": "Empty"
+                                },
+                                "4359c496-6dfa-4963-bd2d-30064d10e724": {
+                                    "mode": "chose",
+                                    "label": "Empty"
+                                },
+                                "860d7c6e-b474-44ab-a2fa-06866c4145bf": {
+                                    "mode": "chose"
+                                },
+                                "90a6147e-e282-44ec-9d0d-0463ba0a9858": {
+                                    "mode": "edit"
+                                },
+                                "e02b22f3-f597-4466-b233-fcf11cef9a78": {
+                                    "mode": "edit"
+                                }
+                            }
+                        },
+                        "due_date_time": {
+                            "mode": "chose"
+                        },
+                        "parent_task_id": {
+                            "mode": "chose"
+                        },
+                        "start_date_time": {
+                            "mode": "chose"
+                        },
+                        "time_estimate_in": {
+                            "label": "Empty"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "clickup2"
+                            },
+                            "label": "My ClickUp connection (Victor Carviçais)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:clickup2",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "team_id",
+                        "type": "select",
+                        "label": "Workspace",
+                        "required": true
+                    },
+                    {
+                        "name": "space_id",
+                        "type": "select",
+                        "label": "Space",
+                        "required": true
+                    },
+                    {
+                        "name": "folder_id",
+                        "type": "select",
+                        "label": "Folder",
+                        "required": true
+                    },
+                    {
+                        "name": "list_id",
+                        "type": "select",
+                        "label": "List",
+                        "required": true
+                    },
+                    {
+                        "name": "parent_task_id",
+                        "type": "select",
+                        "label": "Parent Task ID"
+                    },
+                    {
+                        "name": "name",
+                        "type": "text",
+                        "label": "Task Name",
+                        "required": true
+                    },
+                    {
+                        "name": "contentType",
+                        "type": "select",
+                        "label": "Content Type",
+                        "validate": {
+                            "enum": [
+                                "markdown"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "content",
+                        "type": "text",
+                        "label": "Content"
+                    },
+                    {
+                        "name": "assignees",
+                        "type": "select",
+                        "label": "Assignees",
+                        "multiple": true
+                    },
+                    {
+                        "name": "tags",
+                        "type": "select",
+                        "label": "Tags",
+                        "multiple": true
+                    },
+                    {
+                        "name": "status",
+                        "type": "select",
+                        "label": "Status"
+                    },
+                    {
+                        "name": "priority",
+                        "type": "select",
+                        "label": "Priority",
+                        "validate": {
+                            "enum": [
+                                "urgent",
+                                "high",
+                                "normal",
+                                "low"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "due_date",
+                        "type": "date",
+                        "label": "Due Date"
+                    },
+                    {
+                        "name": "due_date_time",
+                        "type": "boolean",
+                        "label": "Due Date Time",
+                        "required": true
+                    },
+                    {
+                        "name": "time_estimate_in",
+                        "type": "select",
+                        "label": "Estimated Time in",
+                        "validate": {
+                            "enum": [
+                                "m",
+                                "h",
+                                "d"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "type": "date",
+                        "label": "Start Date"
+                    },
+                    {
+                        "name": "start_date_time",
+                        "type": "boolean",
+                        "label": "Start Date Time",
+                        "required": true
+                    },
+                    {
+                        "name": "notify_all",
+                        "type": "boolean",
+                        "label": "Notify All",
+                        "required": true
+                    },
+                    {
+                        "name": "custom_fields",
+                        "spec": [
+                            {
+                                "name": "06eaeb54-a676-4aed-b173-dd88f35d12e3",
+                                "type": "select",
+                                "label": "Tempo de experiência"
+                            },
+                            {
+                                "name": "363e618a-b23a-46e7-8d71-ed065552f503",
+                                "type": "select",
+                                "label": "Tipo de Contratação"
+                            },
+                            {
+                                "name": "4359c496-6dfa-4963-bd2d-30064d10e724",
+                                "type": "select",
+                                "label": "Tipo de Contrato"
+                            },
+                            {
+                                "name": "50c221ac-6f38-4e15-b88d-8816cbaaec4e",
+                                "type": "email",
+                                "label": "E-mail"
+                            },
+                            {
+                                "name": "7ce3d96c-318d-411f-8d98-f522aad0324d",
+                                "type": "number",
+                                "label": "Remuneração"
+                            },
+                            {
+                                "name": "860d7c6e-b474-44ab-a2fa-06866c4145bf",
+                                "type": "select",
+                                "label": "Canais de Publicação",
+                                "metadata": {
+                                    "type": "array"
+                                },
+                                "multiple": true
+                            },
+                            {
+                                "name": "90a6147e-e282-44ec-9d0d-0463ba0a9858",
+                                "type": "select",
+                                "label": "Disponibilidade de Horário"
+                            },
+                            {
+                                "name": "ab94e5b7-f7af-443e-adf8-4d2c52948353",
+                                "type": "text",
+                                "label": "WhatsApp"
+                            },
+                            {
+                                "name": "b2b41317-2c0d-45f9-a6eb-20c335915137",
+                                "type": "date",
+                                "label": "Data de nascimento"
+                            },
+                            {
+                                "name": "c7c30ddc-443b-4a7b-8b41-b4fc5b56010e",
+                                "spec": [
+                                    {
+                                        "name": "location",
+                                        "spec": [
+                                            {
+                                                "name": "lat",
+                                                "type": "number",
+                                                "label": "Latitude"
+                                            },
+                                            {
+                                                "name": "lng",
+                                                "type": "number",
+                                                "label": "Longitude"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Location"
+                                    },
+                                    {
+                                        "name": "formatted_address",
+                                        "type": "text",
+                                        "label": "Formatted Address"
+                                    }
+                                ],
+                                "type": "collection",
+                                "label": "Endereço"
+                            },
+                            {
+                                "name": "e02b22f3-f597-4466-b233-fcf11cef9a78",
+                                "type": "select",
+                                "label": "Está trabalhando?"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Custom Fields"
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "id",
+                        "type": "text",
+                        "label": "Task ID"
+                    },
+                    {
+                        "name": "name",
+                        "type": "text",
+                        "label": "Task Name"
+                    },
+                    {
+                        "name": "custom_id",
+                        "type": "text",
+                        "label": "Custom ID"
+                    },
+                    {
+                        "name": "description",
+                        "type": "text",
+                        "label": "Description"
+                    },
+                    {
+                        "name": "text_content",
+                        "type": "text",
+                        "label": "Text Content"
+                    },
+                    {
+                        "name": "status",
+                        "spec": [
+                            {
+                                "name": "status",
+                                "type": "text",
+                                "label": "Status"
+                            },
+                            {
+                                "name": "color",
+                                "type": "color",
+                                "label": "Color"
+                            },
+                            {
+                                "name": "type",
+                                "type": "text",
+                                "label": "Type"
+                            },
+                            {
+                                "name": "orderindex",
+                                "type": "number",
+                                "label": "Order Index"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Status"
+                    },
+                    {
+                        "name": "orderindex",
+                        "type": "text",
+                        "label": "Order Index"
+                    },
+                    {
+                        "name": "date_created",
+                        "type": "date",
+                        "label": "Date Created"
+                    },
+                    {
+                        "name": "date_updated",
+                        "type": "date",
+                        "label": "Date Updated"
+                    },
+                    {
+                        "name": "date_closed",
+                        "type": "date",
+                        "label": "Date Closed"
+                    },
+                    {
+                        "name": "archived",
+                        "type": "boolean",
+                        "label": "Archived"
+                    },
+                    {
+                        "name": "creator",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "number",
+                                "label": "User ID"
+                            },
+                            {
+                                "name": "username",
+                                "type": "text",
+                                "label": "Username"
+                            },
+                            {
+                                "name": "color",
+                                "type": "color",
+                                "label": "Color"
+                            },
+                            {
+                                "name": "profilePicture",
+                                "type": "text",
+                                "label": "Profile Picture"
+                            },
+                            {
+                                "name": "email",
+                                "type": "text",
+                                "label": "Email"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Creator"
+                    },
+                    {
+                        "name": "assignees",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "id",
+                                    "type": "number",
+                                    "label": "User ID"
+                                },
+                                {
+                                    "name": "username",
+                                    "type": "text",
+                                    "label": "Username"
+                                },
+                                {
+                                    "name": "color",
+                                    "type": "color",
+                                    "label": "Color"
+                                },
+                                {
+                                    "name": "initials",
+                                    "type": "text",
+                                    "label": "Initials"
+                                },
+                                {
+                                    "name": "profilePicture",
+                                    "type": "url",
+                                    "label": "Profile Picture"
+                                },
+                                {
+                                    "name": "email",
+                                    "type": "email",
+                                    "label": "Email"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Assignees"
+                    },
+                    {
+                        "name": "checklists",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "ID"
+                            },
+                            {
+                                "name": "task_id",
+                                "type": "text",
+                                "label": "Task ID"
+                            },
+                            {
+                                "name": "name",
+                                "type": "text",
+                                "label": "Name"
+                            },
+                            {
+                                "name": "date_created",
+                                "type": "date",
+                                "label": "Date Created"
+                            },
+                            {
+                                "name": "orderindex",
+                                "type": "number",
+                                "label": "Orderindex"
+                            },
+                            {
+                                "name": "creator",
+                                "type": "number",
+                                "label": "Creator"
+                            },
+                            {
+                                "name": "resolved",
+                                "type": "number",
+                                "label": "Resolved"
+                            },
+                            {
+                                "name": "unresolved",
+                                "type": "number",
+                                "label": "Unresolved"
+                            },
+                            {
+                                "name": "items",
+                                "spec": {
+                                    "spec": [
+                                        {
+                                            "name": "id",
+                                            "type": "text",
+                                            "label": "ID"
+                                        },
+                                        {
+                                            "name": "name",
+                                            "type": "text",
+                                            "label": "Name"
+                                        },
+                                        {
+                                            "name": "orderindex",
+                                            "type": "number",
+                                            "label": "Orderindex"
+                                        },
+                                        {
+                                            "name": "assignee",
+                                            "type": "text",
+                                            "label": "Assignee"
+                                        },
+                                        {
+                                            "name": "group_assignee",
+                                            "type": "text",
+                                            "label": "Group Assignee"
+                                        },
+                                        {
+                                            "name": "resolved",
+                                            "type": "boolean",
+                                            "label": "Resolved"
+                                        },
+                                        {
+                                            "name": "parent",
+                                            "type": "text",
+                                            "label": "Parent"
+                                        },
+                                        {
+                                            "name": "date_created",
+                                            "type": "date",
+                                            "label": "Date Created"
+                                        },
+                                        {
+                                            "name": "children",
+                                            "type": "array",
+                                            "label": "Children"
+                                        }
+                                    ],
+                                    "type": "collection"
+                                },
+                                "type": "array",
+                                "label": "Items"
+                            }
+                        ],
+                        "type": "array",
+                        "label": "Checklists"
+                    },
+                    {
+                        "name": "watchers",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "id",
+                                    "type": "number",
+                                    "label": "User ID"
+                                },
+                                {
+                                    "name": "username",
+                                    "type": "text",
+                                    "label": "Username"
+                                },
+                                {
+                                    "name": "color",
+                                    "type": "color",
+                                    "label": "Color"
+                                },
+                                {
+                                    "name": "initials",
+                                    "type": "text",
+                                    "label": "Initials"
+                                },
+                                {
+                                    "name": "profilePicture",
+                                    "type": "url",
+                                    "label": "Profile Picture"
+                                },
+                                {
+                                    "name": "email",
+                                    "type": "email",
+                                    "label": "Email"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Watchers"
+                    },
+                    {
+                        "name": "tags",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "name",
+                                    "type": "text",
+                                    "label": "Name"
+                                },
+                                {
+                                    "name": "creator",
+                                    "type": "text",
+                                    "label": "Creator"
+                                },
+                                {
+                                    "name": "tag_fg",
+                                    "type": "color",
+                                    "label": "Tag Fg"
+                                },
+                                {
+                                    "name": "tag_bg",
+                                    "type": "color",
+                                    "label": "Tag Bg"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Tags"
+                    },
+                    {
+                        "name": "parent",
+                        "type": "text",
+                        "label": "Parent"
+                    },
+                    {
+                        "name": "linked_tasks",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "task_id",
+                                    "type": "text",
+                                    "label": "Task ID"
+                                },
+                                {
+                                    "name": "link_id",
+                                    "type": "text",
+                                    "label": "Link ID"
+                                },
+                                {
+                                    "name": "date_created",
+                                    "type": "date",
+                                    "label": "Date Created"
+                                },
+                                {
+                                    "name": "userid",
+                                    "type": "text",
+                                    "label": "User ID"
+                                },
+                                {
+                                    "name": "workspace_id",
+                                    "type": "text",
+                                    "label": "Workspace ID"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Linked Tasks"
+                    },
+                    {
+                        "name": "permission_level",
+                        "type": "text",
+                        "label": "Permission Level"
+                    },
+                    {
+                        "name": "priority",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "ID"
+                            },
+                            {
+                                "name": "priority",
+                                "type": "text",
+                                "label": "Priority"
+                            },
+                            {
+                                "name": "color",
+                                "type": "color",
+                                "label": "Color"
+                            },
+                            {
+                                "name": "orderindex",
+                                "type": "text",
+                                "label": "Order Index"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Priority"
+                    },
+                    {
+                        "name": "due_date",
+                        "type": "date",
+                        "label": "Due Date"
+                    },
+                    {
+                        "name": "start_date",
+                        "type": "date",
+                        "label": "Start Date"
+                    },
+                    {
+                        "name": "points",
+                        "type": "text",
+                        "label": "Points"
+                    },
+                    {
+                        "name": "time_estimate",
+                        "type": "integer",
+                        "label": "Time Estimate (in minutes)"
+                    },
+                    {
+                        "name": "time_spent",
+                        "type": "uinteger",
+                        "label": "Time Spent"
+                    },
+                    {
+                        "name": "list",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "List ID"
+                            },
+                            {
+                                "name": "name",
+                                "type": "text",
+                                "label": "List Name"
+                            },
+                            {
+                                "name": "access",
+                                "type": "boolean",
+                                "label": "Access"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "List"
+                    },
+                    {
+                        "name": "project",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "Project ID"
+                            },
+                            {
+                                "name": "name",
+                                "type": "text",
+                                "label": "Project Name"
+                            },
+                            {
+                                "name": "hidden",
+                                "type": "boolean",
+                                "label": "Hidden"
+                            },
+                            {
+                                "name": "access",
+                                "type": "boolean",
+                                "label": "Access"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Project"
+                    },
+                    {
+                        "name": "folder",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "Folder ID"
+                            },
+                            {
+                                "name": "name",
+                                "type": "text",
+                                "label": "Folder Name"
+                            },
+                            {
+                                "name": "hidden",
+                                "type": "boolean",
+                                "label": "Hidden"
+                            },
+                            {
+                                "name": "access",
+                                "type": "boolean",
+                                "label": "Access"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Folder"
+                    },
+                    {
+                        "name": "space",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "Space ID"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Space"
+                    },
+                    {
+                        "name": "dependencies",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "task_id",
+                                    "type": "text",
+                                    "label": "Task ID"
+                                },
+                                {
+                                    "name": "depends_on",
+                                    "type": "text",
+                                    "label": "Depends On Task ID"
+                                },
+                                {
+                                    "name": "type",
+                                    "type": "number",
+                                    "label": "Type"
+                                },
+                                {
+                                    "name": "date_created",
+                                    "type": "date",
+                                    "label": "Date Created"
+                                },
+                                {
+                                    "name": "userid",
+                                    "type": "text",
+                                    "label": "User ID"
+                                },
+                                {
+                                    "name": "workspace_id",
+                                    "type": "text",
+                                    "label": "Workspace ID"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Dependencies"
+                    },
+                    {
+                        "name": "team_id",
+                        "type": "text",
+                        "label": "Workspace ID"
+                    },
+                    {
+                        "name": "url",
+                        "type": "url",
+                        "label": "URL"
+                    },
+                    {
+                        "name": "custom_fields_original",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "id",
+                                    "type": "text",
+                                    "label": "ID"
+                                },
+                                {
+                                    "name": "name",
+                                    "type": "text",
+                                    "label": "Name"
+                                },
+                                {
+                                    "name": "type",
+                                    "type": "text",
+                                    "label": "Type"
+                                },
+                                {
+                                    "name": "type_config",
+                                    "spec": [],
+                                    "type": "collection",
+                                    "label": "Type Config"
+                                },
+                                {
+                                    "name": "date_created",
+                                    "type": "date",
+                                    "label": "Date Created"
+                                },
+                                {
+                                    "name": "hide_from_guests",
+                                    "type": "boolean",
+                                    "label": "Hide From Guests"
+                                },
+                                {
+                                    "name": "value",
+                                    "type": "any",
+                                    "label": "Value"
+                                },
+                                {
+                                    "name": "required",
+                                    "type": "boolean",
+                                    "label": "Required"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Custom Fields (original)"
+                    },
+                    {
+                        "name": "custom_fields",
+                        "spec": [
+                            {
+                                "name": "Tempo de experiência",
+                                "type": "number",
+                                "label": "Tempo de experiência"
+                            },
+                            {
+                                "name": "Tipo de Contratação",
+                                "type": "number",
+                                "label": "Tipo de Contratação"
+                            },
+                            {
+                                "name": "Tipo de Contrato",
+                                "type": "number",
+                                "label": "Tipo de Contrato"
+                            },
+                            {
+                                "name": "E-mail",
+                                "type": "text",
+                                "label": "E-mail"
+                            },
+                            {
+                                "name": "Remuneração",
+                                "type": "number",
+                                "label": "Remuneração"
+                            },
+                            {
+                                "name": "Canais de Publicação",
+                                "type": "array",
+                                "label": "Canais de Publicação"
+                            },
+                            {
+                                "name": "Disponibilidade de Horário",
+                                "type": "number",
+                                "label": "Disponibilidade de Horário"
+                            },
+                            {
+                                "name": "WhatsApp",
+                                "type": "text",
+                                "label": "WhatsApp"
+                            },
+                            {
+                                "name": "Data de nascimento",
+                                "type": "date",
+                                "label": "Data de nascimento"
+                            },
+                            {
+                                "name": "Endereço",
+                                "type": "any",
+                                "label": "Endereço"
+                            },
+                            {
+                                "name": "Está trabalhando?",
+                                "type": "number",
+                                "label": "Está trabalhando?"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Custom Fields"
+                    }
+                ]
+            }
+        }
+    ],
+    "metadata": {
+        "instant": true,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "us2.make.com",
+        "notes": []
+    }
+}

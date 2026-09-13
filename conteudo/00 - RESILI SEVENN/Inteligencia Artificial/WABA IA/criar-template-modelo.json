@@ -1,0 +1,94 @@
+{
+  "name": "criar-template-modelo",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v22.0/xxxxxxid/message_templates",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer xxxxxauth"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"name\": \"confirmacao_cadastro_xxxxxxx\",\n  \"category\": \"UTILITY\",\n  \"language\": \"pt_BR\",\n  \"components\": [\n    {\n      \"type\": \"BODY\",\n      \"text\": \"Olá {{1}}, confirmamos a criação da sua conta na xxxxxx.\\nSeu acesso está ativo. Para concluir a configuração, utilize as opções abaixo.\",\n      \"example\": {\n        \"body_text\": [\n          [\n            \"João Silva\"\n          ]\n        ]\n      }\n    },\n    {\n      \"type\": \"BUTTONS\",\n      \"buttons\": [\n        {\n          \"type\": \"URL\",\n          \"text\": \"Acessar painel\",\n          \"url\": \"https://path.xxxxx.com.br\"\n        },\n        {\n          \"type\": \"URL\",\n          \"text\": \"Guia de configuração\",\n          \"url\": \"https://top.com.br\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        -192
+      ],
+      "id": "a77b218b-8c8f-4659-a369-4f589d7140d2",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        848,
+        -112
+      ],
+      "id": "bfff33f1-618e-4fcb-a328-c49f806de2df",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "8ec0da18-6ff3-4feb-851b-78eb3b32d3c0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        736,
+        -320
+      ],
+      "id": "75d2593d-4041-4dd4-b000-0ed9d6bd3de5",
+      "name": "Webhook",
+      "webhookId": "8ec0da18-6ff3-4feb-851b-78eb3b32d3c0"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "60a84bd4-4de1-4378-a844-d636a90fbc54",
+  "meta": {
+    "instanceId": "23acfbd1ad67d5083864787442fb7d130ee882acf7a1fad2a2044dad03cc4097"
+  },
+  "id": "GdvfgGl8Anp4AQhM",
+  "tags": []
+}

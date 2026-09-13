@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth cursor-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Showcase de Projetos | Páginas Premium</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        // PALETA EMERALD PLATINUM
+                        accent: {
+                            DEFAULT: '#10b981', // emerald-500
+                            dark: '#047857',    // emerald-700
+                            glow: '#34d399',    // emerald-400
+                        },
+                        platinum: '#ffffff',
+                        
+                        // Cores dos cards
+                        nude: '#d6c0a6',
+                        tech: '#2dd4bf',
+                        gold: '#fbbf24', 
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+                        'blink': 'blink 1s step-end infinite',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        blink: {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .glass-card {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* =========================================
+           NOVO EFEITO: BORDA GIRATÓRIA (FLOW)
+           ========================================= */
+        
+        /* 1. Definição da propriedade para animação suave */
+        @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+
+        /* 2. Keyframes da rotação */
+        @keyframes border-rotate {
+            from { --angle: 0deg; }
+            to { --angle: 360deg; }
+        }
+
+        /* 3. Classe Base do Botão */
+        .btn-border-flow {
+            position: relative;
+            background: #27272a; /* Cor interna (zinc-800) */
+            isolation: isolate;
+            overflow: hidden;
+            border: none; /* Removemos a borda padrão */
+            z-index: 1; /* Garante que o texto fique acima */
+            /* Flexbox para centralizar conteúdo */
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 4. O Gradiente que Gira (Fica atrás) */
+        .btn-border-flow::before {
+            content: "";
+            position: absolute;
+            z-index: -2;
+            inset: -2px; /* Espessura da borda brilhante */
+            
+            /* Usamos var(--flow-color) para personalizar a cor por card */
+            background: conic-gradient(from var(--angle), transparent 40%, var(--flow-color), transparent 60%);
+            
+            animation: border-rotate 4s linear infinite;
+            border-radius: inherit;
+        }
+
+        /* 5. A Máscara Interna (O fundo do botão) */
+        .btn-border-flow::after {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset: 1.5px; /* Recuo para criar a espessura da borda */
+            background: #27272a; /* Fundo interno */
+            border-radius: inherit;
+        }
+
+        /* Acelera a animação no Hover */
+        .btn-border-flow:hover::before {
+            animation-duration: 2s;
+            background: conic-gradient(from var(--angle), transparent 20%, var(--flow-color), var(--flow-color), transparent 80%);
+        }
+        
+        /* =========================================
+           FIM DO NOVO EFEITO
+           ========================================= */
+        
+        /* CURSOR PERSONALIZADO */
+        .custom-cursor-dot,
+        .custom-cursor-outline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .custom-cursor-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981; 
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        .custom-cursor-outline {
+            width: 32px;
+            height: 32px;
+            border: 1.5px solid rgba(255, 255, 255, 0.7); 
+            transition: width 0.2s, height 0.2s, background-color 0.2s, border-color 0.2s;
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            html { cursor: auto !important; }
+            .custom-cursor-dot, .custom-cursor-outline { display: none; }
+        }
+
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+            color: #34d399;
+        }
+
+        .text-gradient-platinum {
+            background: linear-gradient(90deg, #047857 0%, #10b981 45%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 100%; 
+        }
+    </style>
+</head>
+<body class="bg-black text-zinc-100 antialiased selection:bg-emerald-900 selection:text-white">
+
+    <div id="cursor-dot" class="custom-cursor-dot"></div>
+    <div id="cursor-outline" class="custom-cursor-outline"></div>
+
+    <div class="fixed inset-0 z-[-1] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-black to-zinc-950 pointer-events-none opacity-80"></div>
+    
+    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-emerald-900/20 blur-[120px] rounded-full z-[-2] pointer-events-none"></div>
+
+    <header class="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-lg border-b border-zinc-800/50 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3 group cursor-default">
+                <div class="h-10 w-10 bg-emerald-900/30 rounded-xl flex items-center justify-center border border-emerald-500/20 group-hover:border-emerald-400/50 transition-colors">
+                    <i class="fa-solid fa-laptop-code text-emerald-400 text-xl"></i>
+                </div>
+                <span class="font-bold text-xl tracking-tight text-white">
+                    PÁGINAS <span class="text-gradient-platinum font-extrabold tracking-wide">PREMIUM</span>
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <main class="pt-36 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        
+        <div class="text-center mb-20 space-y-6 animate-fade-in-up">
+            <span class="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-emerald-950/40 border border-emerald-500/40 text-sm font-semibold text-emerald-300 mb-4 uppercase tracking-wider shadow-lg shadow-emerald-900/20">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Vitrine de Modelos
+            </span>
+            
+            <h1 class="text-2xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight min-h-[120px] md:min-h-[140px]">
+                Selecione a Identidade <br class="hidden md:block" /> 
+                <span id="typewriter-text" class="text-gradient-platinum typing-cursor pb-2 inline-block"></span>
+            </h1>
+            
+            <p class="text-zinc-400 text-lg md:text-xl max-w-3xl mx-auto font-light leading-relaxed">
+                Navegue pelos nossos modelos exclusivos e escolha aquele que mais se conecta com a essência da sua marca e seus pacientes.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
+
+            <article class="group relative bg-zinc-900/30 rounded-3xl overflow-hidden flex flex-col glass-card interactive-card transition-all duration-500 
+                border border-stone-400/30 shadow-2xl shadow-stone-500/25 
+                md:shadow-none 
+                md:hover:-translate-y-2 md:hover:shadow-2xl md:hover:shadow-stone-500/30">
+                
+                <div class="relative w-full aspect-video overflow-hidden bg-zinc-950/50 p-6">
+                    <img src="images/clinicas/clinica01.png"
+                         alt="Modelo Autoridade Profissional" 
+                         class="w-full h-full object-cover object-top rounded-xl shadow-2xl transition-transform duration-700 group-hover:scale-[1.02] opacity-90 group-hover:opacity-100">
+                </div>
+
+                <div class="p-8 flex flex-col flex-grow relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-stone-500/10 text-stone-300 border border-stone-500/20">
+                            Autoridade & Sofisticação
+                        </span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-3 group-hover:text-stone-300 transition-colors">Modelo Autoridade Profissional</h3>
+                    <p class="text-zinc-400 font-light leading-relaxed text-sm mb-4">
+                        Design editorial minimalista focado na marca pessoal. Ideal para profissionais que desejam se posicionar como uma "Boutique de Luxo".
+                    </p>
+                    <p class="text-xs text-stone-600 italic mb-6 border-l-2 border-stone-700 pl-3">
+                        "Sua marca pessoal transformada em uma grife de desejo."
+                    </p>
+                    
+                    <a href="https://sites.resilisevenn.com.br/clinicas/01" target="_blank" 
+                       style="--flow-color: #d6c0a6;" 
+                       class="btn-border-flow mt-auto w-full py-4 px-6 rounded-2xl text-sm font-bold uppercase tracking-wide transition-all duration-300 gap-3 group/btn cursor-none text-zinc-300 hover:text-white">
+                        Ver Modelo Authority <i class="fa-solid fa-arrow-right group-hover/btn:translate-x-1 transition-transform"></i>
+                    </a>
+                </div>
+            </article>
+
+            <article class="group relative bg-zinc-900/30 rounded-3xl overflow-hidden flex flex-col glass-card interactive-card transition-all duration-500
+                border border-teal-500/30 shadow-2xl shadow-teal-500/20
+                md:shadow-none
+                md:hover:-translate-y-2 md:hover:shadow-2xl md:hover:shadow-teal-500/30">
+                
+                <div class="relative w-full aspect-video overflow-hidden bg-zinc-950/50 p-6">
+                    <img src="images/clinicas/clinica02.png" 
+                         alt="Modelo Clínica Institucional" 
+                         class="w-full h-full object-cover object-top rounded-xl shadow-2xl transition-transform duration-700 group-hover:scale-[1.02] opacity-90 group-hover:opacity-100">
+                </div>
+
+                <div class="p-8 flex flex-col flex-grow relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                            Clínica & Estrutura
+                        </span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-3 group-hover:text-teal-400 transition-colors">Modelo Clínica Institucional</h3>
+                    <p class="text-zinc-400 font-light leading-relaxed text-sm mb-4">
+                        Layout focado em transmitir a robustez da sua estrutura e equipe. Perfeito para Clínicas Multidisciplinares.
+                    </p>
+                    <p class="text-xs text-teal-500/70 italic mb-6 border-l-2 border-teal-900/50 pl-2">
+                        "Segurança, estrutura e tecnologia para escalar seu atendimento."
+                    </p>
+                    
+                    <a href="https://sites.resilisevenn.com.br/clinicas/02" target="_blank" 
+                       style="--flow-color: #2dd4bf;"
+                       class="btn-border-flow mt-auto w-full py-4 px-6 rounded-2xl text-sm font-bold uppercase tracking-wide transition-all duration-300 gap-3 group/btn cursor-none text-zinc-300 hover:text-white">
+                        Ver Modelo Institucional <i class="fa-solid fa-arrow-right group-hover/btn:translate-x-1 transition-transform"></i>
+                    </a>
+                </div>
+            </article>
+
+            <article class="group relative bg-zinc-900/30 rounded-3xl overflow-hidden flex flex-col glass-card interactive-card transition-all duration-500
+                border border-yellow-500/30 shadow-2xl shadow-yellow-500/20
+                md:shadow-none
+                md:hover:-translate-y-2 md:hover:shadow-2xl md:hover:shadow-yellow-500/30">
+                
+                <div class="absolute top-4 right-4 z-30 flex h-4 w-4">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+                </div>
+                <div class="absolute top-4 right-10 z-30 bg-emerald-700 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-lg tracking-wider border border-emerald-500/30">
+                    NOVO LANÇAMENTO
+                </div>
+
+                <div class="relative w-full aspect-video overflow-hidden bg-zinc-950/50 p-6">
+                    <img src="images/clinicas/clinica03.png" 
+                         alt="Modelo Alta-Performance" 
+                         class="w-full h-full object-cover object-top rounded-xl shadow-2xl transition-transform duration-700 group-hover:scale-[1.02] opacity-90 group-hover:opacity-100 grayscale hover:grayscale-0">
+                </div>
+
+                <div class="p-8 flex flex-col flex-grow relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                            Venda & Transformação
+                        </span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-3 group-hover:text-yellow-400 transition-colors">Modelo Alta-Performance</h3>
+                    <p class="text-zinc-400 font-light leading-relaxed text-sm mb-4">
+                        Layout imersivo desenhado para vender Protocolos e Procedimentos. Utiliza narrativa visual para gerar desejo.
+                    </p>
+                    <p class="text-xs text-zinc-600 italic mb-6 border-l-2 border-yellow-500 pl-1">
+                        "Foco total na transformação do paciente e na conversão."
+                    </p>
+                    
+                    <a href="https://sites.resilisevenn.com.br/clinicas/03" target="_blank" 
+                       style="--flow-color: #fbbf24;"
+                       class="btn-border-flow mt-auto w-full py-4 px-6 rounded-2xl text-sm font-bold uppercase tracking-wide transition-all duration-300 gap-3 group/btn cursor-none text-zinc-300 hover:text-white">
+                        Ver Modelo Procedimento <i class="fa-solid fa-arrow-right group-hover/btn:translate-x-1 transition-transform"></i>
+                    </a>
+                </div>
+            </article>
+
+        </div>
+    </main>
+
+    <footer class="border-t border-zinc-800/50 bg-black/50 backdrop-blur-md mt-auto">
+        <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8 flex flex-col items-center justify-center space-y-8">
+            <div class="text-center max-w-md">
+                <h4 class="text-white font-bold text-xl mb-3">Precisa de ajuda para escolher?</h4>
+                <p class="text-zinc-400 text-base font-light">Nosso consultor de design pode analisar seu perfil e te guiar.</p>
+            </div>
+
+            <a href="https://wa.me/5548988663609" target="_blank" class="interactive-card group relative inline-flex items-center justify-center px-6 py-2.5 text-sm font-bold uppercase tracking-widest rounded-full text-white bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-950 border border-emerald-500/30 hover:border-emerald-400/80 transition-all duration-500 shadow-lg shadow-emerald-900/20 hover:shadow-emerald-900/40 overflow-hidden cursor-none">
+                <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-in-out"></span>
+                <i class="fa-brands fa-whatsapp mr-2 text-lg text-emerald-400"></i>
+                Falar com Especialista
+            </a>
+
+            <div class="pt-8 border-t border-zinc-800/50 w-full text-center">
+                <div class="flex items-center justify-center gap-2 text-zinc-500 text-sm mb-2">
+                    <i class="fa-solid fa-laptop-code text-emerald-600"></i>
+                    <span class="font-semibold text-zinc-400 tracking-wide">PÁGINAS PREMIUM</span>
+                </div>
+                <p class="text-zinc-600 text-xs">
+                    &copy; 2026. Resili Sevenn Marketing e Vendas. Todos os direitos reservados
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- SCRIPT 1: CURSOR PERSONALIZADO ---
+        const cursorDot = document.getElementById("cursor-dot");
+        const cursorOutline = document.getElementById("cursor-outline");
+
+        window.addEventListener("mousemove", function (e) {
+            const posX = e.clientX;
+            const posY = e.clientY;
+
+            cursorDot.style.left = `${posX}px`;
+            cursorDot.style.top = `${posY}px`;
+
+            cursorOutline.animate({
+                left: `${posX}px`,
+                top: `${posY}px`
+            }, { duration: 75, fill: "forwards", easing: "ease-out" });
+        });
+
+        const interactiveElements = document.querySelectorAll('a, button, .interactive-card');
+        
+        interactiveElements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                cursorOutline.style.transform = "translate(-50%, -50%) scale(1.5)";
+                cursorOutline.style.borderColor = "rgba(16, 185, 129, 0.6)"; 
+                cursorOutline.style.backgroundColor = "rgba(16, 185, 129, 0.05)";
+            });
+            el.addEventListener('mouseleave', () => {
+                cursorOutline.style.transform = "translate(-50%, -50%) scale(1)";
+                cursorOutline.style.borderColor = "rgba(255, 255, 255, 0.7)"; 
+                cursorOutline.style.backgroundColor = "transparent";
+            });
+        });
+
+
+        // --- SCRIPT 2: TYPEWRITER EFFECT ---
+        const textElement = document.getElementById('typewriter-text');
+        const phrases = ["do seu Consultório", "da sua Clínica"];
+        let phraseIndex = 0;
+        let charIndex = 0;
+        let isDeleting = false;
+        let typeSpeed = 100;
+
+        function type() {
+            const currentPhrase = phrases[phraseIndex];
+            
+            if (isDeleting) {
+                textElement.textContent = currentPhrase.substring(0, charIndex - 1);
+                charIndex--;
+                typeSpeed = 50; 
+            } else {
+                textElement.textContent = currentPhrase.substring(0, charIndex + 1);
+                charIndex++;
+                typeSpeed = 100; 
+            }
+
+            if (!isDeleting && charIndex === currentPhrase.length) {
+                isDeleting = true;
+                typeSpeed = 2000; 
+            } else if (isDeleting && charIndex === 0) {
+                isDeleting = false;
+                phraseIndex = (phraseIndex + 1) % phrases.length;
+                typeSpeed = 500; 
+            }
+
+            setTimeout(type, typeSpeed);
+        }
+
+        document.addEventListener('DOMContentLoaded', type);
+    </script>
+</body>
+</html>

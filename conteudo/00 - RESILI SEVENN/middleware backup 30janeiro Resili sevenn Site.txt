@@ -1,0 +1,60 @@
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+
+export function middleware(req: NextRequest) {
+  const host = req.headers.get("host") || ""
+
+  if (host.startsWith("propostas.resilisevenn.com.br")) {
+    const url = new URL(req.url)
+    const pathname = url.pathname
+
+    // Ignorar assets (_next, imagens, etc.)
+    const isAsset = /\.(js|mjs|css|png|jpg|jpeg|gif|svg|webp|ico|txt|json|map|woff2?|ttf|otf)$/i.test(pathname)
+    if (isAsset) return NextResponse.next()
+
+    // Raiz do subdomínio
+    if (pathname === "/" || pathname === "") {
+      return NextResponse.rewrite(new URL("/propostas/index.html", req.url))
+    }
+
+    // Ex.: /proposta1  ->  /propostas/proposta1.html
+    const slug = pathname.replace(/^\/+/, "")
+    return NextResponse.rewrite(new URL(`/propostas/${slug}.html`, req.url))
+  }
+
+  if (host.startsWith("clinicas.resilisevenn.com.br")) {
+    const url = new URL(req.url)
+    const pathname = url.pathname
+
+    // Ignorar assets (_next, imagens, etc.)
+    const isAsset = /\.(js|mjs|css|png|jpg|jpeg|gif|svg|webp|ico|txt|json|map|woff2?|ttf|otf)$/i.test(pathname)
+    if (isAsset) return NextResponse.next()
+
+    // Raiz do subdomínio
+    if (pathname === "/" || pathname === "") {
+      return NextResponse.rewrite(new URL("/clinicas/index.html", req.url))
+    }
+
+    // Ex.: /facetas-resina  ->  /clinicas/facetas-resina.html
+    const slug = pathname.replace(/^\/+/, "")
+    return NextResponse.rewrite(new URL(`/clinicas/${slug}.html`, req.url))
+  }
+
+  const url = new URL(req.url)
+  const pathname = url.pathname
+
+  // Ignorar assets
+  const isAsset = /\.(js|mjs|css|png|jpg|jpeg|gif|svg|webp|ico|txt|json|map|woff2?|ttf|otf)$/i.test(pathname)
+  if (isAsset) return NextResponse.next()
+
+  // Se a URL é /scale-facetas-resina, reescrever para /scale-facetas-resina.html
+  if (pathname === "/facetas-resina") {
+    return NextResponse.rewrite(new URL("/facetas-resina.html", req.url))
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+}

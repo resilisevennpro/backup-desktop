@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Formulário</title>
+
+  <!-- ================== META PIXEL CODE ================== -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+
+    fbq('init', '815058857778515'); // <-- coloque seu ID aqui (já está o seu)
+    fbq('track', 'PageView');       // <-- PageView dispara ao entrar nesta página HTML
+  </script>
+
+  <noscript>
+    <img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=815058857778515&ev=PageView&noscript=1"/>
+  </noscript>
+  <!-- =============== END META PIXEL CODE ================== -->
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #000;     /* <-- fundo preto na página inteira */
+      overflow: hidden;     /* <-- evita scroll externo à tela do form */
+    }
+
+    /* Iframe ocupando 100% da tela */
+    #JotFormIFrame-252685719629675 {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;         /* <-- largura total da viewport */
+      height: 100vh;        /* <-- altura total da viewport */
+      border: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ================== IFRAME DO SEU FORMULÁRIO ================== -->
+  <iframe
+    id="JotFormIFrame-252685719629675"
+    title="02 - Funil pra Clínicas"
+    onload="window.parent.scrollTo(0,0)"
+    allowtransparency="true"
+    allow="geolocation; microphone; camera; fullscreen; payment"
+    src="https://form.jotform.com/252685719629675"
+    frameborder="0"
+    scrolling="no"
+  >
+  </iframe>
+
+  <!-- Script padrão do Jotform para ajustar o iframe -->
+  <script src="https://cdn.jotfor.ms/s/umd/latest/for-form-embed-handler.js"></script>
+  <script>
+    window.jotformEmbedHandler("iframe[id='JotFormIFrame-252685719629675']", "https://form.jotform.com/")
+  </script>
+  <!-- ================================================================ -->
+
+</body>
+</html>

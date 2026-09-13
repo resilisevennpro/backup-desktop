@@ -1,0 +1,230 @@
+{
+  "name": "AI Strategy — Estratégia de Resposta",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-strategy-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "aab10001-0001-0001-0001-aab100000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 400],
+      "webhookId": "ai-strategy-lead"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nif (!body.job_id || !body.clinic_id || !body.lead_id) {\n  throw new Error('Payload inválido: job_id, clinic_id e lead_id são obrigatórios');\n}\n\nconst lead = body.lead || {};\nconst dossier = body.dossier || {};\nconst chatHistory = (body.chat_history || [])\n  .map(m => `[${m.role === 'clinic' ? 'Clínica' : 'Lead'}]: ${m.content}`)\n  .join('\\n');\n\nconst prompt = `Você é um especialista em vendas e comunicação para clínicas de estética. Com base no perfil do lead e histórico de conversa abaixo, gere UMA estratégia de resposta personalizada e persuasiva para o atendente enviar via WhatsApp.\n\nPERFIL DO LEAD:\n- Nome: ${lead.name || 'Não informado'}\n- Interesse: ${lead.procedure || 'Não informado'}\n- Origem: ${lead.source || 'Não informado'}\n- Etapa no funil: ${lead.current_stage || 'Não informado'}\n- Sevenn Score: ${lead.sevenn_score != null ? lead.sevenn_score + '/100' : 'N/A'}\n- Tags: ${(lead.tags || []).join(', ') || 'Nenhuma'}\n\nANÁLISE DE SENTIMENTO (Sevenn AI):\n- Sentimento: ${dossier.sentiment || 'Indefinido'}\n- Intenção de Compra: ${dossier.intent != null ? dossier.intent + '%' : 'N/A'}\n- Consciência: ${dossier.consciousness || 'Indefinido'}\n- Resumo: ${dossier.summary || 'Sem dados'}${dossier.objection ? '\\n- Objeção identificada: ' + dossier.objection : ''}\n\nÚLTIMAS MENSAGENS DA CONVERSA (cronológica):\n${chatHistory || 'Sem histórico disponível'}\n\n---\nGere APENAS um JSON válido com este formato exato (sem markdown, sem texto extra):\n{\n  \"message\": \"mensagem pronta para enviar ao lead (tom humano, sem formalidades excessivas)\",\n  \"tone\": \"consultivo\",\n  \"urgency_tip\": \"dica de urgência para o atendente criar escassez, ou null\",\n  \"objection_response\": \"como contornar a objeção identificada, ou null\"\n}\n\nValores aceitos para tone: consultivo | direto | empatico\nResponda APENAS com o JSON válido.`;\n\nreturn [{\n  json: {\n    job_id: body.job_id,\n    clinic_id: body.clinic_id,\n    lead_id: body.lead_id,\n    prompt\n  }\n}];"
+      },
+      "id": "aab10002-0002-0002-0002-aab100000002",
+      "name": "Preparar Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/ai_strategy_results",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"job_id\": $json.job_id, \"clinic_id\": $json.clinic_id, \"lead_id\": $json.lead_id, \"status\": \"pending\" } }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "aab10003-0003-0003-0003-aab100000003",
+      "name": "Supabase INSERT pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 400]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4 5"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $('Preparar Prompt').item.json.prompt }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aab10004-0004-0004-0004-aab100000004",
+      "name": "Chamar Claude",
+      "type": "n8n-nodes-base.anthropic",
+      "typeVersion": 1,
+      "position": [860, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const claudeRes = $input.first().json;\nconst { job_id } = $('Preparar Prompt').item.json;\n\ntry {\n  // Suporta tanto o formato nativo do n8n quanto o formato direto da API Anthropic\n  const rawText = claudeRes?.content?.[0]?.text\n    || claudeRes?.text\n    || claudeRes?.completion\n    || null;\n\n  if (!rawText) throw new Error('Resposta vazia do Claude: ' + JSON.stringify(claudeRes));\n\n  const text = rawText\n    .replace(/```json\\n?/gi, '')\n    .replace(/```\\n?/gi, '')\n    .trim();\n\n  let result;\n  try {\n    result = JSON.parse(text);\n  } catch (_) {\n    const m = text.match(/\\{[\\s\\S]*\\}/);\n    if (!m) throw new Error('Nenhum JSON encontrado na resposta');\n    result = JSON.parse(m[0]);\n  }\n\n  if (!result.message?.trim()) throw new Error('Campo message vazio na resposta');\n\n  const validTones = ['consultivo', 'direto', 'empatico'];\n  if (!validTones.includes(result.tone)) result.tone = 'consultivo';\n  result.urgency_tip = result.urgency_tip || null;\n  result.objection_response = result.objection_response || null;\n\n  return [{ json: { error: false, job_id, result } }];\n} catch (e) {\n  return [{ json: { error: true, job_id, message: e.message } }];\n}"
+      },
+      "id": "aab10005-0005-0005-0005-aab100000005",
+      "name": "Parsear Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-error-001",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "aab10006-0006-0006-0006-aab100000006",
+      "name": "Tem Erro",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL + '/rest/v1/ai_strategy_results?job_id=eq.' + $json.job_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"status\": \"error\" } }}",
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "aab10007-0007-0007-0007-aab100000007",
+      "name": "Supabase PATCH error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": true, \"message\": $('Parsear Resposta').item.json.message || 'Erro ao processar estratégia' } }}",
+        "options": { "responseCode": 500 }
+      },
+      "id": "aab10008-0008-0008-0008-aab100000008",
+      "name": "Responder Erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1740, 260]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL + '/rest/v1/ai_strategy_results?job_id=eq.' + $json.job_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"status\": \"done\", \"result\": $json.result, \"completed_at\": new Date().toISOString() } }}",
+        "options": {}
+      },
+      "id": "aab10009-0009-0009-0009-aab100000009",
+      "name": "Supabase PATCH done",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 540]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Parsear Resposta').item.json.result }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "aab10010-0010-0010-0010-aab100000010",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1740, 540]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Preparar Prompt", "type": "main", "index": 0 }]]
+    },
+    "Preparar Prompt": {
+      "main": [[{ "node": "Supabase INSERT pending", "type": "main", "index": 0 }]]
+    },
+    "Supabase INSERT pending": {
+      "main": [[{ "node": "Chamar Claude", "type": "main", "index": 0 }]]
+    },
+    "Chamar Claude": {
+      "main": [[{ "node": "Parsear Resposta", "type": "main", "index": 0 }]]
+    },
+    "Parsear Resposta": {
+      "main": [[{ "node": "Tem Erro", "type": "main", "index": 0 }]]
+    },
+    "Tem Erro": {
+      "main": [
+        [{ "node": "Supabase PATCH error", "type": "main", "index": 0 }],
+        [{ "node": "Supabase PATCH done", "type": "main", "index": 0 }]
+      ]
+    },
+    "Supabase PATCH error": {
+      "main": [[{ "node": "Responder Erro", "type": "main", "index": 0 }]]
+    },
+    "Supabase PATCH done": {
+      "main": [[{ "node": "Responder Sucesso", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "pinData": {}
+}

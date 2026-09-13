@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidade - Resili Sevenn</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            primary: '#59A52C',
+                            accent: '#6fca3a',
+                            dark: '#437d21',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    </style>
+</head>
+<body class="font-sans antialiased text-gray-700 bg-slate-50 selection:bg-brand-accent selection:text-white pb-20">
+
+    <header class="bg-white border-b border-gray-200 py-6 mb-10 shadow-sm sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
+            <img src="../images/resili-sevenn-logo.png" alt="Resili Sevenn Logo" class="h-16 w-auto object-contain">
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 md:p-12">
+            
+            <div class="text-center mb-12 border-b border-gray-100 pb-8">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">📄 POLÍTICA DE PRIVACIDADE</h1>
+                <p class="text-xl font-medium text-brand-primary">Resili Sevenn / Sevenn Clinic 360</p>
+            </div>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
+                    Introdução
+                </h2>
+                <p class="mb-4 text-justify">
+                    A <span class="font-bold">Resili Sevenn Marketing e Vendas</span> respeita a sua privacidade e está comprometida com a proteção dos dados pessoais de seus usuários, clientes e visitantes.
+                </p>
+                <p class="mb-2">Esta Política de Privacidade explica:</p>
+                <ul class="list-disc pl-6 space-y-1 mb-4 text-gray-600">
+                    <li>quais dados coletamos</li>
+                    <li>como utilizamos</li>
+                    <li>com quem compartilhamos</li>
+                    <li>quais são seus direitos</li>
+                </ul>
+                <p class="font-medium">
+                    em conformidade com a <span class="font-bold">Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018)</span> e demais normas aplicáveis.
+                </p>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
+                    Quem somos
+                </h2>
+                <div class="bg-gray-50 p-5 rounded-lg border border-gray-100 mb-4">
+                    <p class="mb-1"><span class="font-bold text-gray-900">Empresa:</span> Resili Sevenn</p>
+                    <p class="mb-1"><span class="font-bold text-gray-900">Site:</span> <a href="https://resilisevenn.com.br" class="text-brand-dark hover:underline">https://resilisevenn.com.br</a></p>
+                    <p><span class="font-bold text-gray-900">E-mail de contato:</span> <a href="mailto:contato@resilisevenn.com.br" class="text-brand-dark hover:underline">contato@resilisevenn.com.br</a></p>
+                </div>
+                <p class="mb-2">A Resili Sevenn oferece:</p>
+                <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                    <li>sistemas de CRM</li>
+                    <li>automação de atendimento</li>
+                    <li>integrações com WhatsApp Business Platform</li>
+                    <li>ferramentas de marketing e relacionamento com clientes</li>
+                    <li>gestão de tráfego pago</li>
+                    <li>estruturação de conteúdos e posicionamento digital</li>
+                </ul>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
+                    Dados pessoais que coletamos
+                </h2>
+                <p class="mb-4">Podemos coletar as seguintes categorias de dados:</p>
+
+                <div class="mb-6 ml-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">3.1 Dados fornecidos diretamente pelo usuário</h3>
+                    <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                        <li>Nome</li>
+                        <li>Telefone</li>
+                        <li>E-mail</li>
+                        <li>Empresa/Clínica</li>
+                        <li>Mensagens enviadas via WhatsApp ou formulários</li>
+                    </ul>
+                </div>
+
+                <div class="mb-6 ml-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">3.2 Dados coletados automaticamente</h3>
+                    <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                        <li>Endereço IP</li>
+                        <li>Dados de navegação</li>
+                        <li>Dispositivo e navegador</li>
+                        <li>Cookies e identificadores online</li>
+                    </ul>
+                </div>
+
+                <div class="mb-6 ml-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">3.3 Dados provenientes de integrações</h3>
+                    <p class="mb-2">Quando você utiliza integrações com:</p>
+                    <ul class="list-disc pl-6 space-y-1 mb-2 text-gray-600">
+                        <li>WhatsApp Business Platform</li>
+                        <li>Meta Platforms</li>
+                        <li>ferramentas de automação e CRM</li>
+                    </ul>
+                    <p class="mb-2">podemos processar:</p>
+                    <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                        <li>mensagens trocadas com clientes</li>
+                        <li>identificadores de conversa</li>
+                        <li>status de envio e leitura</li>
+                    </ul>
+                </div>
+
+                <div class="bg-brand-primary/5 border-l-4 border-brand-primary p-4 rounded-r-lg">
+                    <p><span class="font-bold text-brand-dark">Importante:</span> Não acessamos conteúdos além do necessário para funcionamento da plataforma.</p>
+                </div>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">4</span>
+                    Finalidade do tratamento de dados
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="font-bold text-gray-800 mb-2">Utilizamos dados pessoais para:</p>
+                        <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                            <li>fornecer nossos serviços de CRM e automação</li>
+                            <li>permitir comunicação via WhatsApp Business</li>
+                            <li>gerenciar atendimentos e leads</li>
+                            <li>melhorar desempenho da plataforma</li>
+                            <li>cumprir obrigações legais e regulatórias</li>
+                            <li>prevenir fraudes e uso indevido</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-800 mb-2">Base legal:</p>
+                        <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                            <li>execução de contrato</li>
+                            <li>legítimo interesse</li>
+                            <li>consentimento quando aplicável</li>
+                            <li>cumprimento de obrigação legal</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">5</span>
+                    Uso do WhatsApp Business Platform
+                </h2>
+                <div class="bg-gray-50 rounded-xl p-6 border border-gray-100">
+                    <p class="mb-2">Ao utilizar funcionalidades conectadas ao <span class="font-bold">WhatsApp Business Platform</span>:</p>
+                    <ul class="list-disc pl-6 space-y-1 mb-4 text-gray-600">
+                        <li>as mensagens são processadas conforme as <span class="font-bold">Políticas da Meta</span></li>
+                        <li>o usuário é responsável por possuir <span class="font-bold">consentimento do contato final</span></li>
+                        <li>a Resili Sevenn atua como <span class="font-bold">operadora de dados</span>, processando informações apenas para viabilizar o serviço contratado</li>
+                    </ul>
+                    <p class="font-medium text-gray-800">Não utilizamos mensagens para fins próprios de marketing sem autorização.</p>
+                </div>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">6</span>
+                    Compartilhamento de dados
+                </h2>
+                <p class="mb-2">Podemos compartilhar dados com:</p>
+                <ul class="list-disc pl-6 space-y-1 mb-4 text-gray-600">
+                    <li>provedores de hospedagem em nuvem</li>
+                    <li>serviços de mensageria e API (ex.: Meta/WhatsApp)</li>
+                    <li>ferramentas de análise e segurança</li>
+                    <li>autoridades legais, quando exigido por lei</li>
+                </ul>
+                <p class="text-gray-800 font-medium">Todos os parceiros seguem padrões adequados de proteção de dados.</p>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">7</span>
+                    Armazenamento e segurança
+                </h2>
+                <p class="mb-2">Adotamos medidas técnicas e organizacionais para proteger os dados:</p>
+                <ul class="list-disc pl-6 space-y-1 mb-4 text-gray-600">
+                    <li>criptografia</li>
+                    <li>controle de acesso</li>
+                    <li>monitoramento de segurança</li>
+                    <li>armazenamento em servidores protegidos</li>
+                </ul>
+                <p class="text-gray-800">Os dados são mantidos apenas pelo tempo necessário para as finalidades descritas.</p>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">8</span>
+                    Direitos do titular de dados (LGPD)
+                </h2>
+                <p class="mb-2">Você pode solicitar a qualquer momento:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                        <li>confirmação do tratamento</li>
+                        <li>acesso aos dados</li>
+                        <li>correção de dados incompletos</li>
+                        <li>anonimização ou exclusão</li>
+                    </ul>
+                    <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                        <li>portabilidade</li>
+                        <li>revogação do consentimento</li>
+                    </ul>
+                </div>
+                <div class="bg-brand-primary/5 p-4 rounded-lg flex items-center gap-3">
+                    <i class="fas fa-envelope text-brand-primary text-xl"></i>
+                    <p>Solicitações devem ser enviadas para: <a href="mailto:contato@resilisevenn.com.br" class="font-bold text-brand-dark hover:underline">contato@resilisevenn.com.br</a></p>
+                </div>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">9</span>
+                    Cookies e tecnologias de rastreamento
+                </h2>
+                <p class="mb-2">Utilizamos cookies para:</p>
+                <ul class="list-disc pl-6 space-y-1 mb-4 text-gray-600">
+                    <li>funcionamento do site</li>
+                    <li>análise de desempenho</li>
+                    <li>personalização de experiência</li>
+                </ul>
+                <p class="text-gray-800">Você pode desativar cookies nas configurações do navegador.</p>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">10</span>
+                    Transferência internacional de dados
+                </h2>
+                <p class="mb-2">Alguns dados podem ser processados fora do Brasil por provedores de tecnologia, sempre respeitando:</p>
+                <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                    <li>cláusulas contratuais adequadas</li>
+                    <li>padrões de segurança equivalentes à LGPD</li>
+                </ul>
+            </section>
+
+            <section class="mb-10">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">11</span>
+                    Alterações desta política
+                </h2>
+                <p class="mb-1 text-gray-600">Esta Política pode ser atualizada a qualquer momento.</p>
+                <p class="text-gray-600">Recomendamos revisão periódica.</p>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="bg-brand-primary/10 text-brand-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">12</span>
+                    Contato
+                </h2>
+                <div class="bg-gray-900 text-white p-8 rounded-xl text-center">
+                    <p class="mb-4 text-lg">Dúvidas sobre privacidade ou proteção de dados:</p>
+                    <div class="flex flex-col md:flex-row justify-center items-center gap-6">
+                        <a href="mailto:contato@resilisevenn.com.br" class="flex items-center gap-2 hover:text-brand-accent transition-colors">
+                            <i class="fas fa-envelope"></i> contato@resilisevenn.com.br
+                        </a>
+                        <a href="https://resilisevenn.com.br" class="flex items-center gap-2 hover:text-brand-accent transition-colors">
+                            <i class="fas fa-globe"></i> https://resilisevenn.com.br
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <footer class="bg-gray-900 text-gray-400 py-12 mt-20 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-center items-center gap-6">
+            <div class="text-sm">
+                &copy; 2026 Resili Sevenn Marketing & Vendas. Todos os direitos reservados.
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

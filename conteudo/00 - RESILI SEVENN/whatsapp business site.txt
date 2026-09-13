@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whatsapp API Oficial - Coexistência</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            primary: '#59A52C',
+                            accent: '#6fca3a',
+                            dark: '#437d21',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased text-gray-700 bg-white selection:bg-brand-accent selection:text-white pb-20">
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+
+        <div class="flex justify-center mb-10">
+            <img src="../images/resili-sevenn-logo.png" alt="Resili Sevenn Logo" class="h-20 w-auto object-contain">
+        </div>
+
+        <section class="mb-16 text-center sm:text-left">
+            <h1 class="text-2xl md:text-4xl font-bold text-gray-900 mb-2">
+                Atualização importante sobre envios de Mensagens pelo WhatsApp Business
+            </h1>
+            <h2 class="text-xl font-medium text-brand-primary mb-8">
+                Whatsapp API Oficial - Coexistência
+            </h2>
+
+            <div class="bg-slate-50 p-6 rounded-xl border border-gray-100 space-y-4">
+                <p>
+                    Hoje, o WhatsApp que utilizamos no sistema funciona através de uma <span class="font-semibold">conexão não oficial</span>, feita por <span class="font-semibold">QR Code</span>, parecida com o WhatsApp Web.
+                </p>
+                <div class="flex gap-3 items-start">
+                    <i class="fas fa-arrow-right text-brand-accent mt-1"></i>
+                    <p> Essa forma é <span class="font-semibold">100% gratuita</span> e foi muito usada em 2024 e início de 2025.</p>
+                </div>
+                <div class="flex gap-3 items-start">
+                    <i class="fas fa-exclamation-circle text-orange-500 mt-1"></i>
+                    <p> Porém, <span class="font-semibold">não é uma conexão oficial da Meta (empresa do WhatsApp)</span>.</p>
+                </div>
+                <p class="mt-4">
+                    Nos últimos meses, a <span class="font-semibold">Meta começou a limitar esse tipo de conexão</span> e está incentivando (e em alguns casos obrigando) as empresas a migrarem para o <span class="font-semibold">WhatsApp API Oficial</span>.
+                </p>
+                <p> Por isso, de vez em quando acontece no CRM Kommo:</p>
+                <ul class="list-none space-y-2 pl-2">
+                    <li class="flex items-center gap-2"><i class="fas fa-times text-red-400 text-sm"></i> quedas de conexão</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-times text-red-400 text-sm"></i> mensagens que atrasam</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-times text-red-400 text-sm"></i> necessidade de reconectar QR Code</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-times text-red-400 text-sm"></i> instabilidades na interação dos leads nas respostas</li>
+                </ul>
+                <p class="font-medium text-gray-900 mt-4 border-t border-gray-200 pt-4">
+                   👉 Inclusive, a própria <span class="font-bold">Kommo já comunicou publicamente</span> que em breve, <span class="font-bold">obrigatóriamente todas as contas precisarão usar a conexão oficial do WhatsApp</span>.<br>
+                   <br> Portanto, PRECISAREMOS ALTERAR A MANEIRA NO QUAL UTILIZAMOS O WHATSAPP INTEGRADO AO CRM!
+                </p>
+            </div>
+        </section>
+
+        <section class="mb-16">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <i class="fas fa-check-circle text-brand-primary"></i> O que muda ao migrarmos da conexão do Whatsapp antiga (NÃO OFICIAL) para o WhatsApp API OFICIAL
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 border border-gray-100 rounded-lg bg-white shadow-sm hover:border-brand-accent transition-colors">
+                    <i class="fas fa-shield-alt text-brand-primary mb-2"></i>
+                    <p class="font-medium"> Conexão <span class="font-bold">mais estável e segura</span></p>
+                </div>
+                <div class="p-4 border border-gray-100 rounded-lg bg-white shadow-sm hover:border-brand-accent transition-colors">
+                    <i class="fab fa-meta text-brand-primary mb-2"></i>
+                    <p class="font-medium"> Integração oficial com a Meta</p>
+                </div>
+                <div class="p-4 border border-gray-100 rounded-lg bg-white shadow-sm hover:border-brand-accent transition-colors">
+                    <i class="fas fa-tachometer-alt text-brand-primary mb-2"></i>
+                    <p class="font-medium"> Menos problemas com atrasos de mensagens</p>
+                </div>
+                <div class="p-4 border border-gray-100 rounded-lg bg-white shadow-sm hover:border-brand-accent transition-colors">
+                    <i class="fas fa-mobile-alt text-brand-primary mb-2"></i>
+                    <p class="font-medium"> O WhatsApp <span class="font-bold">continua funcionando normalmente no celular</span></p>
+                </div>
+            </div>
+            <div class="mt-6 bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 text-blue-900">
+                <p> 📌 Ou seja: <span class="font-bold">não corremos risco de ter o Whatsapp bloqueado</span> (pois passamos a utilizar uma tecnologia aprovada pela Meta), e continuaremos a utilizar o whatsapp tanto no CRM quando no Celular</p>
+            </div>
+        </section>
+
+        <section class="mb-16">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <i class="far fa-clock text-brand-primary"></i> Como funciona o envio de mensagens no WhatsApp API
+            </h3>
+            <p class="mb-6 text-lg"> O WhatsApp oficial funciona com <span class="font-bold">JANELAS DE CONVERSA</span>.</p>
+
+            <div class="space-y-6">
+                <div class="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                    <h4 class="text-lg font-bold text-brand-dark mb-3"> 1️⃣ Janela gratuita de 72 horas (somente anúncios da Meta)</h4>
+                    <p class="mb-3">
+                        Quando um cliente entra em contato <span class="font-semibold">clicando em um anúncio do Instagram ou Facebook</span>, abre-se uma janela de <span class="font-semibold">até 72 horas</span>, onde podemos conversar <span class="font-semibold">sem custo nenhum</span>, mesmo que o cliente demore para responder.
+                    </p>
+                    <p class="text-sm text-gray-500 bg-gray-50 p-3 rounded">
+                        Se o cliente responder novamente perto do final desse período, abre-se automaticamente uma <span class="font-semibold">nova janela gratuita de 24 horas</span>.
+                    </p>
+                </div>
+
+                <div class="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                    <h4 class="text-lg font-bold text-brand-dark mb-3"> 2️⃣ Janela gratuita de 24 horas (casos normais e clientes vindo pelo site via insta e google)</h4>
+                    <p class="mb-2"> Quando o cliente entra em contato:</p>
+                    <ul class="list-disc pl-5 space-y-1 mb-4 text-gray-600">
+                        <li> pelo site</li>
+                        <li> pelo Google</li>
+                        <li> pelo WhatsApp manualmente</li>
+                        <li> por link ou QR Code</li>
+                    </ul>
+                    <p class="mb-3"> Abre-se uma janela de <span class="font-semibold">24 horas gratuitas</span> para conversa.</p>
+                    <div class="flex items-center gap-2 text-brand-dark font-medium">
+                        <i class="fas fa-sync-alt"></i>
+                        <p> Toda vez que o cliente responde, essa janela se renova por mais 24 horas.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-16">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                ❓ E se o cliente parar de responder?
+            </h3>
+            <p class="mb-8"> Quando a janela gratuita se encerra, existem <span class="font-bold">formas permitidas</span> de falar novamente com o cliente.</p>
+
+            <div class="mb-8">
+                <h4 class="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <i class="fas fa-check text-brand-accent"></i> Opção 1 — Mensagem automática sem custo (quando permitido)
+                </h4>
+                <div class="pl-0 md:pl-8 border-l-0 md:border-l-2 border-gray-100">
+                    <p class="mb-2"> Podemos cadastrar <span class="font-semibold">modelos/templates de mensagens</span> para aprovação da Meta.</p>
+                    <p class="mb-2">
+                        Algumas mensagens <span class="font-semibold">operacionais</span> (ex: aviso, lembrete,informações pós-atendimento) podem ser aceitas como <span class="font-semibold">mensagens de UTILIDADE (GRATUITAS)</span> e <span class="font-semibold">não gerar custo</span>, dependendo do conteúdo.
+                    </p>
+                    <p class="text-sm text-orange-600 bg-orange-50 p-3 rounded mt-2">
+                        Importante: Se a Meta entender que a mensagem tem objetivo de <span class="font-bold">retomar conversa, engajar ou vender</span>, ela será classificada como <span class="font-bold">mensagem de marketing</span>.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mb-12">
+                <h4 class="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <i class="fas fa-dollar-sign text-brand-accent"></i> Opção 2 — Mensagem automática com pequeno custo
+                </h4>
+                <div class="pl-0 md:pl-8 border-l-0 md:border-l-2 border-gray-100">
+                    <p class="mb-4">
+                        Mensagens classificadas como <span class="font-semibold">marketing</span> ou <span class="font-semibold">utilidade fora da janela de conversa (aquelas 24 ou 72h)</span> possuem um pequeno custo definido pela Meta.
+                    </p>
+                    
+                    <h5 class="font-bold text-gray-900 mb-2"> 📊 Custos atuais para o Brasil (DDI +55)</h5>
+                    <p class="text-sm text-gray-500 mb-4"> Câmbio utilizado: US$ 1,00 = R$ 5,39</p>
+
+                    <div class="overflow-x-auto rounded-lg border border-gray-200 mb-6">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoria</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Preço em Dólar (USD)</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Preço em Real (BRL)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">Marketing (Promoções, Ofertas)</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">$ 0,0625</td>
+                                    <td class="px-6 py-4 text-sm font-bold text-brand-dark">R$ 0,34</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">Utilidade (Pós-venda, Avisos)</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">$ 0,0080</td>
+                                    <td class="px-6 py-4 text-sm font-bold text-brand-dark">R$ 0,04</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">Utilidade (Janela Aberta)</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">R$ 0,00</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">Gratuito (se enviado dentro da janela de 24h de atendimento.)</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">Service (iniciada pelo usuário)</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">$ 0,00</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">R$ 0,00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                        <p class="font-bold mb-2"> 👉 Ao enviar essa mensagem:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-sm">
+                            <li> Se o cliente responder, abre-se uma <span class="font-bold">nova janela gratuita de 24 horas</span></li>
+                            <li> Durante essas 24h, podemos conversar normalmente sem novos custos</li>
+                        </ul>
+                        <p class="mt-3 text-sm">
+                            👉 <span class="font-bold">Templates/Modelos de mensagens enviadas após a janela gratuita</span> são cobrados por mensagem entregue de acordo com a categoria.
+                        </p>
+                        <p class="mt-1 text-sm text-gray-600"> 📌 Esse valor é <span class="font-bold">baixo</span>, previsível e só ocorre quando realmente precisamos reativar um contato.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+                
+                <div class="flex flex-col rounded-2xl overflow-hidden shadow-lg border-2 border-brand-primary/20 bg-white transform hover:scale-[1.01] transition-transform duration-300">
+                    <div class="bg-brand-primary/10 p-5 border-b border-brand-primary/20">
+                        <h5 class="font-extrabold text-brand-dark text-lg uppercase tracking-wide mb-1"> 📊 Exemplo de cálculo – Modelo de MARKETING</h5>
+                        <p class="text-xs text-gray-600 font-medium">(geralmente usado para reativação de contatos parados ou promoções)</p>
+                    </div>
+                    <div class="p-6 flex-grow flex flex-col justify-center space-y-4">
+                        <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+                            <span class="text-sm text-gray-600">Envio de 1 mensagem para 25 contatos</span>
+                            <span class="text-md font-bold text-gray-900"> = R$ 8,50</span>
+                        </div>
+                        <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+                            <span class="text-sm text-gray-600">Envio de 1 mensagem para 50 contatos</span>
+                            <span class="text-md font-bold text-gray-900"> = R$ 17,00</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Envio de 1 mensagem para 100 contatos</span>
+                            <span class="text-md font-bold text-gray-900"> = R$ 34,00</span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-4 text-xs text-center text-gray-500 border-t border-gray-100">
+                        📌 Esse valor é cobrado apenas quando o modelo de Marketing é enviado após o encerramento da janela gratuita.
+                    </div>
+                </div>
+
+                <div class="flex flex-col rounded-2xl overflow-hidden shadow-lg border-2 border-gray-200 bg-white transform hover:scale-[1.01] transition-transform duration-300">
+                    <div class="bg-gray-100 p-5 border-b border-gray-200">
+                        <h5 class="font-extrabold text-gray-800 text-lg uppercase tracking-wide mb-1"> 📊 Exemplo de cálculo –Modelo de UTILIDADE</h5>
+                        <p class="text-xs text-gray-600 font-medium">(usado para avisos, informações, lembrete de horário, confirmação de recebimento)</p>
+                    </div>
+                    <div class="p-6 flex-grow flex flex-col justify-center space-y-4">
+                        <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+                            <span class="text-sm text-gray-600">Envio de 1 mensagem para 25 contatos</span>
+                            <span class="text-md font-bold text-gray-900"> = R$ 1,00</span>
+                        </div>
+                        <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+                            <span class="text-sm text-gray-600">Envio de 1 mensagem para 50 contatos</span>
+                            <span class="text-md font-bold text-gray-900"> = R$ 2,00</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Envio de 1 mensagem para 100 contatos</span>
+                            <span class="text-md font-bold text-gray-900"> = R$ 4,00</span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-4 text-xs text-center text-gray-500 border-t border-gray-100">
+                        📌 Mensagens de utilidade só geram custo quando enviadas fora da janela gratuita de atendimento.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-16 bg-brand-primary/5 rounded-2xl p-8 border border-brand-primary/10">
+            <h3 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+                <i class="fas fa-briefcase text-brand-primary"></i> Custos da Kommo CRM (plataforma)
+            </h3>
+            <p class="mb-3">
+                A Kommo é uma das plataformas parceiras do Meta mais utilizadas e <span class="font-bold">não cobra em cima dos templates ou da conexão com o WhatsApp API Oficial da Meta</span>.
+            </p>
+            <br>
+            <p class="mb-3"> Ou seja: A Kommo <span class="font-bold">não cobra pelos envios de mensagens de WhatsApp nem pelos templates</span>, o valor do custo dos envios é 100% repassado para o Meta.</p>
+            <p class="mb-3"> Ela cobra apenas <span class="font-bold">pela licença de uso da plataforma</span>, que é separada dos custos de mensagens estabelecidos pela Meta.
+            </p>
+            <div class="flex items-center gap-2 font-bold text-brand-dark mt-4">
+                <i class="fas fa-check"></i>
+                <p> Isso nos garante um acesso mais barato aos envios de mensagem via whatsapp API Oficial.</p>
+            </div>
+        </section>
+
+        <section class="mb-8 bg-red-50 rounded-2xl p-8 border border-red-100">
+            <h3 class="text-2xl font-bold text-red-700 mb-4 flex items-center gap-3">
+                <i class="fas fa-exclamation-triangle"></i> Importante sobre mensagens manuais no celular
+            </h3>
+            
+            <p class="mb-6 text-gray-800 font-medium leading-relaxed">
+                Mensagens enviadas manualmente pelo WhatsApp do celular continuam funcionando normalmente. 
+                Porém, é importante entender quando usar o celular e quando usar o sistema (CRM).
+            </p>
+            
+            <h4 class="text-lg font-bold text-red-700 mb-4 border-b border-red-200 pb-2">
+                ❌ O que NÃO deve ser feito pelo celular
+            </h4>
+            <p class="text-sm text-red-600 mb-4 font-medium">Para seguir as regras do WhatsApp e evitar riscos ao número:</p>
+            
+            <ul class="space-y-3 mb-2">
+                <li class="flex items-start gap-3 text-gray-800">
+                    <i class="fas fa-times-circle text-red-500 text-lg mt-1"></i> 
+                    <span>Não utilizar o celular para mensagens de marketing, promoções ou disparos em massa</span>
+                </li>
+                <li class="flex items-start gap-3 text-gray-800">
+                    <i class="fas fa-times-circle text-red-500 text-lg mt-1"></i> 
+                    <span>Não enviar mensagens padronizadas repetidas para vários pacientes</span>
+                </li>
+                <li class="flex items-start gap-3 text-gray-800">
+                    <i class="fas fa-times-circle text-red-500 text-lg mt-1"></i> 
+                    <span>Conversas feitas no celular não ficam registradas no sistema (CRM)</span>
+                </li>
+                <li class="flex items-start gap-3 text-gray-800">
+                    <i class="fas fa-times-circle text-red-500 text-lg mt-1"></i> 
+                    <span>Essas mensagens não podem ser automatizadas nem acompanhadas pela equipe</span>
+                </li>
+            </ul>
+        </section>
+    
+        <section class="mb-16 bg-brand-primary/10 rounded-2xl p-8 border border-brand-primary/20">
+            <h4 class="text-xl font-bold text-brand-dark mb-4 flex items-center gap-2">
+                <i class="fas fa-check-circle text-brand-primary"> ✅ Quando o celular pode ser usado com segurança
+            </h4>
+            <p class="mb-4 text-gray-700">O WhatsApp do celular pode ser utilizado normalmente para:</p>
+    
+            <ul class="space-y-3 mb-6">
+                <li class="flex items-center gap-3 text-gray-800 font-medium">
+                    <div class="w-6 h-6 rounded-full bg-brand-primary flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-check text-white text-xs"></i>
+                    </div>
+                    Conversas pessoais ou internas com a equipe
+                </li>
+                <li class="flex items-center gap-3 text-gray-800 font-medium">
+                    <div class="w-6 h-6 rounded-full bg-brand-primary flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-check text-white text-xs"></i>
+                    </div>
+                    Comunicação com fornecedores ou parceiros
+                </li>
+                <li class="flex items-start gap-3 text-gray-800 font-medium">
+                    <div class="w-6 h-6 rounded-full bg-brand-primary flex items-center justify-center flex-shrink-0 mt-1">
+                        <i class="fas fa-check text-white text-xs"></i>
+                    </div>
+                    <div>
+                        <span>Acompanhamento individual do paciente, como:</span>
+                        <ul class="mt-2 ml-1 space-y-1 text-sm text-gray-600 border-l-2 border-brand-primary/30 pl-3">
+                            <li>• saber como está a recuperação</li>
+                            <li>• tirar dúvidas após consulta</li>
+                            <li>• conversar de forma humana e direta</li>
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+    
+            <div class="bg-white p-4 rounded-lg border-l-4 border-brand-primary shadow-sm">
+                <p class="text-gray-800 font-semibold">
+                    Ou seja, sempre que a conversa tiver caráter pessoal, clínico ou de relacionamento, e não comercial.
+                </p>
+            </div>
+        </section>
+    
+        <section class="bg-gray-900 text-gray-300 rounded-2xl p-8 md:p-10 shadow-2xl">
+            <h3 class="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                <i class="fas fa-shield-alt text-brand-accent">g🛡️ Como utilizaremos cada canal na prática
+            </h3>
+            <p class="mb-8 text-gray-400">Para manter segurança, organização e evitar bloqueios:</p>
+    
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-brand-primary/50 transition-colors">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="p-3 bg-brand-primary/20 rounded-lg text-brand-accent">
+                            <i class="fas fa-desktop text-xl"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-white">O CRM será o canal principal para:</h4>
+                    </div>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center gap-2"><i class="fas fa-angle-right text-brand-primary"></i> novos contatos</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-angle-right text-brand-primary"></i> marketing</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-angle-right text-brand-primary"></i> automações</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-angle-right text-brand-primary"></i> histórico completo de atendimento</li>
+                    </ul>
+                </div>
+    
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-brand-primary/50 transition-colors">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="p-3 bg-gray-700 rounded-lg text-white">
+                            <i class="fas fa-mobile-alt text-xl"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-white">O WhatsApp do celular será canal secundário:</h4>
+                    </div>
+                     <p class="text-xs text-gray-500 uppercase font-bold mb-3 tracking-wider">Usado apenas para:</p>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center gap-2"><i class="fas fa-angle-right text-gray-500"></i> conversas pessoais</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-angle-right text-gray-500"></i> comunicação interna</li>
+                        <li class="flex items-center gap-2"><i class="fas fa-angle-right text-gray-500"></i> acompanhamento humano individual do paciente</li>
+                    </ul>
+                </div>
+            </div>
+    
+            <div class="text-center pt-6 border-t border-gray-800">
+                <p class="text-lg font-medium text-white">
+                    Assim, garantimos um atendimento <span class="text-brand-accent">organizado, seguro e dentro das regras do WhatsApp</span>.
+                </p>
+            </div>
+        </section>
+
+        <section class="bg-gray-900 text-gray-300 rounded-2xl p-8 md:p-12">
+            <h3 class="text-2xl font-bold text-white mb-8 text-center"> Resumo simples</h3>
+            
+            <div class="flex flex-col gap-4 max-w-3xl mx-auto">
+                
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 flex items-center gap-5 hover:bg-gray-750 transition-colors">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+                        <i class="fas fa-exchange-alt text-brand-primary text-xl"></i>
+                    </div>
+                    <p class="text-lg"> Estamos migrando para o <span class="font-bold text-white">WhatsApp oficial da Meta</span></p>
+                </div>
+
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 flex items-center gap-5 hover:bg-gray-750 transition-colors">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+                        <i class="fas fa-signal text-brand-primary text-xl"></i>
+                    </div>
+                    <p class="text-lg"> A conexão será <span class="font-bold text-white">mais estável e segura</span></p>
+                </div>
+
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 flex items-center gap-5 hover:bg-gray-750 transition-colors">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+                        <i class="fas fa-mobile text-brand-primary text-xl"></i>
+                    </div>
+                    <p class="text-lg"> O WhatsApp no celular <span class="font-bold text-white">continua funcionando</span></p>
+                </div>
+
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 flex items-center gap-5 hover:bg-gray-750 transition-colors">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+                        <i class="far fa-clock text-brand-primary text-xl"></i>
+                    </div>
+                    <p class="text-lg"> Existem <span class="font-bold text-white">janelas gratuitas</span> para conversar</p>
+                </div>
+
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 flex items-center gap-5 hover:bg-gray-750 transition-colors">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+                        <i class="fas fa-coins text-brand-primary text-xl"></i>
+                    </div>
+                    <p class="text-lg"> Em alguns casos, pode haver <span class="font-bold text-white">um pequeno custo por reativação</span></p>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+<footer class="bg-gray-900 text-gray-400 py-12 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-center items-center gap-6">
+            <div class="text-sm">
+                &copy; 2026 Resili Sevenn Marketing & Vendas. Todos os direitos reservados.
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

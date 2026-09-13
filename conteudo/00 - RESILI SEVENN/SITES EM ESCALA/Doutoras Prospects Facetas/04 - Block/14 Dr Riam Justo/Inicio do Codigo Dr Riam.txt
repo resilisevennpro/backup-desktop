@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facetas em Resina e Implantes em Florianópolis SC | Dr. Riam Justo</title>
+    <meta name="description" content="Transforme seu sorriso com Facetas em Resina e Implantes Dentais em Florianópolis, SC. Dr. Riam Justo une ciência e sofisticação para resultados de alto padrão. Agende sua avaliação.">
+    
+    <!-- Open Graph / SEO Local -->
+    <meta property="og:title" content="Facetas em Resina e Implantes em Florianópolis SC | Dr. Riam Justo">
+    <meta property="og:description" content="Transforme seu sorriso com Facetas em Resina e Implantes Dentais em Florianópolis, SC. Dr. Riam Justo une ciência e sofisticação para resultados de alto padrão.">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="pt_BR">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-gold': '#D4AF37',
+                        'brand-black': '#0A0A0A',
+                        'brand-bg': '#FAFAF9',
+                        'brand-gray': '#4A4A4A',
+                        'footer-bg': '#0A0A0A',
+                    },
+                    fontFamily: {
+                        sans: ['Lato', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    animation: {
+                        'marquee': 'marquee 25s linear infinite',
+                    },
+                    keyframes: {
+                        marquee: {
+                            '0%': { transform: 'translateX(0%)' },
+                            '100%': { transform: 'translateX(-100%)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #FAFAF9;
+            color: #0A0A0A;
+            -webkit-font-smoothing: antialiased;
+            cursor: none;
+        }
+
+        /* Custom Cursor */
+        .custom-cursor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 40px;
+            height: 40px;
+            border: 1px solid #D4AF37;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease-out;
+            display: none;
+        }
+        .custom-cursor-dot {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 8px;
+            height: 8px;
+            background-color: #0A0A0A;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            transition: transform 0.05s ease-out;
+            display: none;
+        }
+        @media (min-width: 768px) {
+            .custom-cursor, .custom-cursor-dot {
+                display: block;
+            }
+        }
+
+        /* Animações de Scroll (Direções Variadas) */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 1s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-60px);
+            transition: all 1s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(60px);
+            transition: all 1s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        .reveal-left.active { opacity: 1; transform: translateX(0); }
+        .reveal-right.active { opacity: 1; transform: translateX(0); }
+
+        /* Divisor Vertical */
+        .vertical-divider {
+            width: 1px;
+            height: 60px;
+            background-color: #D4AF37;
+            margin: 2rem auto;
+        }
+        
+        /* Floating Button */
+        @keyframes pulse-soft {
+            0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(212, 175, 55, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+        }
+        .whatsapp-float {
+            animation: pulse-soft 2s infinite;
+        }
+
+        /* FAQ Details */
+        details > summary {
+            list-style: none;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details[open] summary ~ * {
+            animation: sweep .5s ease-in-out;
+        }
+        @keyframes sweep {
+            0%    {opacity: 0; transform: translateY(-10px)}
+            100%  {opacity: 1; transform: translateY(0)}
+        }
+    </style>
+</head>
+<body class="overflow-x-hidden relative">
+
+    <div class="custom-cursor"></div>
+    <div class="custom-cursor-dot"></div>
+
+    <header id="navbar" class="fixed w-full z-50 transition-all duration-300 py-6">
+        <div class="container mx-auto px-6 md:px-12 flex justify-between items-center">
+            <a href="#" class="text-2xl md:text-3xl font-serif font-bold tracking-wider z-50 relative uppercase">
+                DR. RIAM JUSTO<span class="text-brand-gold">.</span>
+            </a>
+
+            <nav class="hidden md:flex items-center space-x-12">
+                <a href="#sobre" class="text-xs uppercase tracking-widest hover:text-brand-gold transition-colors">A Marca</a>
+                <a href="#resultados" class="text-xs uppercase tracking-widest hover:text-brand-gold transition-colors">Resultados</a>
+                <a href="#experiencia" class="text-xs uppercase tracking-widest hover:text-brand-gold transition-colors">Experiência</a>
+                <a href="#procedimentos" class="text-xs uppercase tracking-widest hover:text-brand-gold transition-colors">Procedimentos</a>
+                <a href="#faq-footer" class="border border-brand-black px-6 py-2 text-xs uppercase tracking-widest hover:bg-brand-black hover:text-white transition-all duration-300">
+                    Agendar Avaliação
+                </a>
+            </nav>
+
+            <button id="menu-btn" class="md:hidden z-50 text-2xl focus:outline-none">
+                <i class="fa-solid fa-bars font-thin"></i>
+            </button>
+        </div>
+    </header>

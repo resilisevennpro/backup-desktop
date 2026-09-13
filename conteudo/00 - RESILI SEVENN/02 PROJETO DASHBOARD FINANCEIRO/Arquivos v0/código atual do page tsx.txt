@@ -1,0 +1,948 @@
+"use client"
+
+import { useMemo, useState } from "react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
+import {
+  X,
+  Leaf,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Download,
+  Printer,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  PanelLeftClose,
+  PanelLeft,
+  Calendar,
+  ChevronsUpDown,
+  KeyRound,
+  LogOut,
+} from "lucide-react"
+
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+} from "recharts"
+
+import { CashFlowFluid } from "@/components/cash-flow-fluid"
+import { CashFlowInsights } from "@/components/cash-flow-insights"
+import { CashFlowTimeline } from "@/components/cash-flow-timeline"
+
+type PeriodValue = "este-mes" | "mes-passado" | "ultimos-7" | "ultimos-14" | "todo-historico" | "personalizado"
+type FilterTypeValue = "paciente" | "procedimento"
+
+function formatCurrencyBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+function formatPercent(value: number) {
+  const sign = value > 0 ? "+" : ""
+  return `${sign}${Math.round(value)}%`
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n))
+}
+
+const monthsPT = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+] as const
+
+function CustomAreaTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const value = payload?.[0]?.value ?? 0
+  return (
+    <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200">
+      <p className="text-xs text-slate-500 font-medium mb-2">Dia {label}</p>
+      <div className="flex items-center justify-between gap-6">
+        <span className="text-xs text-slate-600">Receita:</span>
+        <span className="text-sm font-bold text-slate-900">{formatCurrencyBRL(value)}</span>
+      </div>
+    </div>
+  )
+}
+
+function CustomPieTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null
+  const p = payload[0]?.payload
+  if (!p) return null
+  return (
+    <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200">
+      <p className="text-xs text-slate-500 font-medium mb-2">{p?.name}</p>
+      <div className="flex items-center justify-between gap-6">
+        <span className="text-xs text-slate-600">Valor:</span>
+        <span className="text-sm font-bold text-slate-900">{formatCurrencyBRL(p?.value ?? 0)}</span>
+      </div>
+      <div className="flex items-center justify-between gap-6 mt-1">
+        <span className="text-xs text-slate-600">Percentual:</span>
+        <span className="text-sm font-bold text-slate-900">{p?.percentage ?? 0}%</span>
+      </div>
+    </div>
+  )
+}
+
+function CustomBarTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const value = payload?.[0]?.value ?? 0
+  return (
+    <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200">
+      <p className="text-xs text-slate-500 font-medium mb-2">{label}</p>
+      <div className="flex items-center justify-between gap-6">
+        <span className="text-xs text-slate-600">Lucro:</span>
+        <span className="text-sm font-bold text-slate-900">{formatCurrencyBRL(value)}</span>
+      </div>
+    </div>
+  )
+}
+
+function CustomYAxisTick(props: any) {
+  const { x, y, payload } = props
+  const value = payload?.value ?? ""
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={-8} y={0} dy={4} textAnchor="end" className="fill-slate-500 text-xs">
+        {value}
+      </text>
+    </g>
+  )
+}
+
+export default function DashboardPage() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState<PeriodValue>("este-mes")
+  const [showCustomDates, setShowCustomDates] = useState(false)
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>(["Dra. Ana", "Dr. Pedro"])
+  const [selectedProcedure, setSelectedProcedure] = useState("all")
+  const [receivablesMonth, setReceivablesMonth] = useState("Fevereiro 2026")
+
+  // Tabela / extrato
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterType, setFilterType] = useState<FilterTypeValue>("paciente")
+  const [dateFilter, setDateFilter] = useState("")
+
+  // Menu do usuário (sem Dialog aqui — só visualização no v0)
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+
+  const removeProfessional = (prof: string) => {
+    setSelectedProfessionals((prev) => prev.filter((p) => p !== prof))
+  }
+
+  const handlePeriodChange = (value: PeriodValue) => {
+    setSelectedMonth(value)
+    setShowCustomDates(value === "personalizado")
+  }
+
+  const handlePreviousMonth = () => setReceivablesMonth("Janeiro 2026")
+  const handleNextMonth = () => setReceivablesMonth("Março 2026")
+
+  const handleClearFilters = () => {
+    setSearchQuery("")
+    setDateFilter("")
+  }
+
+  const handleChangePassword = () => {
+    // No v0: apenas UI. No Cursor: você liga isso no Supabase depois.
+    console.log("Change password (placeholder)", { currentPassword, newPassword })
+    setShowPasswordDialog(false)
+    setCurrentPassword("")
+    setNewPassword("")
+  }
+
+  const handleLogout = () => {
+    // No v0: apenas UI.
+    console.log("Logout (placeholder)")
+  }
+
+  // ======================
+  // Mock Data (UI only)
+  // ======================
+
+  const dailyRevenueData = useMemo(
+    () =>
+      Array.from({ length: 30 }, (_, i) => ({
+        day: i + 1,
+        revenue: Math.round(1200 + Math.random() * 1500 + Math.sin(i / 3) * 600),
+      })),
+    []
+  )
+
+  const goalRevenue = 100000
+  const currentRevenue = 53800
+  const revenuePercentage = clamp((currentRevenue / goalRevenue) * 100, 0, 100)
+
+  const statCards = [
+    {
+      title: "Faturamento Bruto",
+      value: 53800,
+      delta: 12,
+      icon: TrendingUp,
+      accent: "text-[#59A52C]",
+      chipBg: "bg-[#59A52C]/15",
+      chipText: "text-[#2f6e12]",
+      deltaPositive: true,
+    },
+    {
+      title: "Lucro Líquido",
+      value: 12500,
+      delta: 8,
+      icon: TrendingUp,
+      accent: "text-slate-900",
+      chipBg: "bg-[#59A52C]/15",
+      chipText: "text-[#2f6e12]",
+      deltaPositive: true,
+    },
+    {
+      title: "Margem Líquida",
+      valueText: "23%",
+      delta: -5,
+      icon: TrendingDown,
+      accent: "text-slate-900",
+      chipBg: "bg-red-100",
+      chipText: "text-red-700",
+      deltaPositive: false,
+    },
+    {
+      title: "Ticket Médio",
+      value: 1500,
+      delta: 15,
+      icon: TrendingUp,
+      accent: "text-slate-900",
+      chipBg: "bg-[#59A52C]/15",
+      chipText: "text-[#2f6e12]",
+      deltaPositive: true,
+    },
+  ] as const
+
+  const costData = [
+    { name: "Lucro", value: 12500, color: "#59A52C", percentage: 23 },
+    { name: "Comissões", value: 18300, color: "#FF8C42", percentage: 34 },
+    { name: "Materiais", value: 23000, color: "#94A3B8", percentage: 43 },
+  ]
+
+  const procedureProfitability = [
+    { procedure: "Invisalign", profit: 8500 },
+    { procedure: "Botox", profit: 6200 },
+    { procedure: "Implante", profit: 5400 },
+    { procedure: "Clareamento", profit: 3200 },
+    { procedure: "Ortodontia", profit: 1800 },
+  ]
+
+  const topPatients = [
+    { name: "Lívia Santos", value: 22000 },
+    { name: "Carlos Mendes", value: 18500 },
+    { name: "Patrícia Lima", value: 15200 },
+    { name: "João Silva", value: 13800 },
+    { name: "Maria Costa", value: 9600 },
+  ]
+
+  const salesRows = [
+    { date: "15/01/2026", patient: "Lívia Santos", procedure: "Implante Dentário", value: 8500, payment: "Cartão" },
+    { date: "14/01/2026", patient: "Carlos Mendes", procedure: "Clareamento", value: 2800, payment: "PIX" },
+    { date: "12/01/2026", patient: "Patrícia Lima", procedure: "Ortodontia", value: 4200, payment: "Parcelado" },
+    { date: "10/01/2026", patient: "João Silva", procedure: "Botox", value: 1500, payment: "Cartão" },
+    { date: "08/01/2026", patient: "Maria Costa", procedure: "Invisalign", value: 9600, payment: "Boleto" },
+    { date: "05/01/2026", patient: "Ana Paula", procedure: "Clareamento", value: 2600, payment: "PIX" },
+    { date: "03/01/2026", patient: "Roberto Dias", procedure: "Implante Dentário", value: 7800, payment: "Cartão" },
+    { date: "02/01/2026", patient: "Fernanda Souza", procedure: "Ortodontia", value: 3900, payment: "Parcelado" },
+  ]
+
+  const filteredSalesRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    return salesRows.filter((row) => {
+      if (dateFilter && row.date !== dateFilter) return false
+      if (!q) return true
+      if (filterType === "paciente") return row.patient.toLowerCase().includes(q)
+      return row.procedure.toLowerCase().includes(q)
+    })
+  }, [salesRows, searchQuery, filterType, dateFilter])
+
+  // ======================
+  // Sidebar Component
+  // ======================
+
+  const SidebarContent = () => {
+    return (
+      <div className="flex flex-col h-full">
+        {/* Brand */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-[#59A52C] rounded-xl flex items-center justify-center flex-shrink-0">
+            <Leaf className="w-6 h-6 text-white" />
+          </div>
+
+          {!sidebarCollapsed && (
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">Resili Sevenn</h1>
+              <p className="text-sm text-slate-500">Dashboard Financeiro</p>
+            </div>
+          )}
+        </div>
+
+        {/* Collapse Button */}
+        <div className="mb-8">
+          <Button
+            variant="ghost"
+            className={`w-full justify-start gap-2 hover:bg-slate-100 ${
+              sidebarCollapsed ? "justify-center" : ""
+            }`}
+            onClick={() => setSidebarCollapsed((p) => !p)}
+          >
+            {sidebarCollapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            {!sidebarCollapsed && <span>Recolher Menu</span>}
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <div className="space-y-6">
+          <div>
+            {!sidebarCollapsed && (
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Filtros Rápidos</h3>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                {!sidebarCollapsed && <label className="text-sm font-medium text-slate-700 mb-2 block">Período</label>}
+                <Select value={selectedMonth} onValueChange={(v: any) => handlePeriodChange(v)}>
+                  <SelectTrigger className="w-full bg-white border-slate-200">
+                    <SelectValue placeholder="Selecione período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="este-mes">Este Mês</SelectItem>
+                    <SelectItem value="mes-passado">Mês Passado</SelectItem>
+                    <SelectItem value="ultimos-7">Últimos 7 Dias</SelectItem>
+                    <SelectItem value="ultimos-14">Últimos 14 Dias</SelectItem>
+                    <SelectItem value="todo-historico">Todo Histórico</SelectItem>
+                    <SelectItem value="personalizado">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {showCustomDates && !sidebarCollapsed && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1 block">Início</label>
+                      <Input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="bg-white border-slate-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1 block">Fim</label>
+                      <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="bg-white border-slate-200"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                {!sidebarCollapsed && (
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Profissional</label>
+                )}
+                <Select
+                  value="Selecione profissional"
+                  onValueChange={(value) => {
+                    if (!selectedProfessionals.includes(value)) {
+                      setSelectedProfessionals((prev) => [...prev, value])
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-white border-slate-200">
+                    <SelectValue placeholder="Selecione profissional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os Profissionais</SelectItem>
+                    <SelectItem value="Dra. Ana">Dra. Ana</SelectItem>
+                    <SelectItem value="Dr. Pedro">Dr. Pedro</SelectItem>
+                    <SelectItem value="Dra. Sofia">Dra. Sofia</SelectItem>
+                    <SelectItem value="Dr. Marcos">Dr. Marcos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {!sidebarCollapsed && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {selectedProfessionals.map((prof) => (
+                      <div
+                        key={prof}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#59A52C] text-white rounded-full text-xs font-medium"
+                      >
+                        <span>{prof}</span>
+                        <button
+                          onClick={() => removeProfessional(prof)}
+                          className="hover:bg-white/20 rounded-full p-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                {!sidebarCollapsed && (
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Procedimento</label>
+                )}
+                <Select value={selectedProcedure} onValueChange={(v) => setSelectedProcedure(v)}>
+                  <SelectTrigger className="w-full bg-white border-slate-200">
+                    <SelectValue placeholder="Procedimento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos Procedimentos</SelectItem>
+                    <SelectItem value="invisalign">Invisalign</SelectItem>
+                    <SelectItem value="botox">Botox</SelectItem>
+                    <SelectItem value="implante">Implante</SelectItem>
+                    <SelectItem value="ortodontia">Ortodontia</SelectItem>
+                    <SelectItem value="clareamento">Clareamento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* User Menu anchored at bottom */}
+        <div className="mt-auto pt-6 border-t border-slate-200">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 transition-colors ${
+                  sidebarCollapsed ? "justify-center" : ""
+                }`}
+              >
+                <div className="w-10 h-10 bg-[#6fca3a] rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-sm">DA</span>
+                </div>
+
+                {!sidebarCollapsed && (
+                  <>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-semibold text-slate-900">Dra. Ana</p>
+                      <p className="text-xs text-slate-500">Minha Conta</p>
+                    </div>
+                    <ChevronsUpDown className="w-4 h-4 text-slate-400" />
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="start" side="top" className="w-56">
+              <DropdownMenuItem
+                onClick={() => setShowPasswordDialog(true)}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span>Alterar Senha</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sair</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Placeholder UI (sem Dialog) — só para visualizar no v0 */}
+          {showPasswordDialog && !sidebarCollapsed && (
+            <div className="mt-4 p-3 rounded-xl border border-slate-200 bg-white">
+              <p className="text-sm font-semibold text-slate-900 mb-2">Alterar Senha (Prévia)</p>
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="Senha Atual"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="bg-white border-slate-200"
+                />
+                <Input
+                  type="password"
+                  placeholder="Nova Senha"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="bg-white border-slate-200"
+                />
+                <div className="flex items-center gap-2">
+                  <Button className="bg-[#59A52C] hover:bg-[#4a8c24] text-white" onClick={handleChangePassword}>
+                    Salvar Nova Senha
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ======================
+  // Layout (Fixed Sidebar)
+  // ======================
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Sidebar Desktop */}
+      <aside
+        className={`hidden lg:flex flex-col bg-white border-r border-slate-200 shadow-sm transition-all duration-300 h-full overflow-y-auto ${
+          sidebarCollapsed ? "w-20" : "w-80"
+        } p-6`}
+      >
+        <SidebarContent />
+      </aside>
+
+      {/* Main */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden">
+        <header className="bg-white border-b border-slate-200 px-4 lg:px-8 py-4 shadow-sm flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Mobile Sidebar */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="lg:hidden">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-80 p-6">
+                  <SidebarContent />
+                </SheetContent>
+              </Sheet>
+
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-[#59A52C] rounded-lg flex items-center justify-center lg:hidden">
+                  <Leaf className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg lg:text-xl font-bold text-[#59A52C]">Resili Sevenn</h1>
+                  <p className="text-sm text-slate-600 hidden sm:block">Visão Estratégica</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button className="gap-2 bg-[#59A52C] hover:bg-[#4a8c24] text-white">
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="end">
+                  <div className="space-y-1">
+                    <Button variant="ghost" className="w-full justify-start gap-2 hover:bg-slate-100">
+                      <Download className="w-4 h-4" />
+                      Baixar CSV
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start gap-2 hover:bg-slate-100">
+                      <Printer className="w-4 h-4" />
+                      Imprimir Relatório
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content (only this scrolls) */}
+        <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+          <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
+            <div className="lg:hidden">
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">Visão Estratégica</h2>
+              <p className="text-slate-500">Bem-vindo, Admin</p>
+            </div>
+
+            <div className="hidden lg:block">
+              <p className="text-slate-500 text-lg">Bem-vindo, Admin</p>
+            </div>
+
+            {/* Meta de Faturamento */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+              <div className="space-y-4">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-1">Meta de Faturamento</h2>
+                    <p className="text-2xl lg:text-3xl font-bold text-[#59A52C]">
+                      {formatCurrencyBRL(currentRevenue)}{" "}
+                      <span className="text-slate-400 text-lg lg:text-xl font-normal">
+                        / {formatCurrencyBRL(goalRevenue)}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-xl lg:text-2xl font-bold text-slate-900">{revenuePercentage.toFixed(1)}%</p>
+                    <p className="text-sm text-slate-500">concluído</p>
+                  </div>
+                </div>
+
+                <div className="relative h-4 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#59A52C] to-[#7BC94B] rounded-full transition-all"
+                    style={{ width: `${revenuePercentage}%` }}
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Cards principais */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
+              <Card className="p-3 lg:p-6 shadow-lg rounded-xl bg-white border-slate-200">
+                <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Faturamento Bruto</p>
+                <p className="text-lg lg:text-3xl font-bold text-[#59A52C] mb-1 lg:mb-2">R$ 53.800</p>
+                <div className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full text-[10px] lg:text-xs font-medium">
+                  <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" />
+                  <span>12%</span>
+                </div>
+              </Card>
+              <Card className="p-3 lg:p-6 shadow-lg rounded-xl bg-white border-slate-200">
+                <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Lucro Líquido</p>
+                <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">R$ 12.500</p>
+                <div className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full text-[10px] lg:text-xs font-medium">
+                  <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" />
+                  <span>8%</span>
+                </div>
+              </Card>
+              <Card className="p-3 lg:p-6 shadow-lg rounded-xl bg-white border-slate-200">
+                <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Margem Líquida</p>
+                <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">23%</p>
+                <div className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full text-[10px] lg:text-xs font-medium">
+                  <TrendingDown className="w-2.5 lg:w-3 h-2.5 lg:h-3" />
+                  <span>5%</span>
+                </div>
+              </Card>
+              <Card className="p-3 lg:p-6 shadow-lg rounded-xl bg-white border-slate-200">
+                <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Ticket Médio</p>
+                <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">R$ 1.500</p>
+                <div className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full text-[10px] lg:text-xs font-medium">
+                  <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" />
+                  <span>15%</span>
+                </div>
+              </Card>
+            </div>
+
+
+            {/* Evolução de Vendas */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">Evolução de Vendas (Diária)</h2>
+                  <p className="text-slate-500 text-sm">Acompanhe a receita diária do período selecionado.</p>
+                </div>
+              </div>
+
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dailyRevenueData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#59A52C" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#59A52C" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 12, fill: "#64748b" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => `R$ ${(v / 1000).toFixed(1)}k`}
+                    />
+                    <Tooltip content={<CustomAreaTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#59A52C"
+                      strokeWidth={2}
+                      fill="url(#revenueFill)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Projeções de Fluxo de Caixa (componentes separados) */}
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Projeções de Fluxo de Caixa</h2>
+                <p className="text-slate-500 text-sm">Visualize seus recebíveis futuros de três formas criativas</p>
+              </div>
+
+              <CashFlowFluid />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <CashFlowInsights />
+                <CashFlowTimeline />
+              </div>
+            </div>
+
+            {/* Despesas e Custos + Lucro por Procedimento (BARRAS) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">Despesas e Custos</h2>
+                    <p className="text-slate-500 text-sm">Composição do faturamento do período</p>
+                  </div>
+                </div>
+
+                <div className="h-64 w-full">
+                 <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={costData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {costData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Legend
+                      verticalAlign="bottom"
+                      height={60}
+                      align="left"
+                      formatter={(value, entry: any) => (
+                        <span className="text-sm text-slate-700">
+                          {value}: {entry.payload.percentage}% ={" "}
+                          <span className="font-semibold">R$ {entry.payload.value.toLocaleString("pt-BR")}</span>
+                        </span>
+                      )}
+                    />
+                  </PieChart>
+                 </ResponsiveContainer>
+                </div>
+
+                <div className="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Alerta de Custos</p>
+                    <p className="text-xs text-amber-700">45% do faturamento são custos operacionais.</p>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                    Detalhamento de Comissões
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                      <span className="text-sm text-slate-700">Dr. Pedro</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrencyBRL(4500)}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                      <span className="text-sm text-slate-700">Dra. Ana</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrencyBRL(0)}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                      <span className="text-sm text-slate-700">Taxas</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrencyBRL(1200)}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">Lucratividade por Procedimento</h2>
+                    <p className="text-slate-500 text-sm">Top procedimentos por lucro líquido</p>
+                  </div>
+                </div>
+
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={procedureProfitability}
+                      margin={{ top: 10, right: 20, left: 80, bottom: 10 }}
+                    >
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 12, fill: "#64748b" }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => `R$ ${(v / 1000).toFixed(1)}k`}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="procedure"
+                        tick={<CustomYAxisTick />}
+                        axisLine={false}
+                        tickLine={false}
+                        width={80}
+                      />
+                      <Tooltip content={<CustomBarTooltip />} />
+                      <Bar dataKey="profit" fill="#59A52C" radius={[10, 10, 10, 10]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+
+            {/* Top 5 pacientes (voltou) */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">Top 5 Pacientes</h2>
+                  <p className="text-slate-500 text-sm">Maiores valores faturados no período</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {topPatients.map((p, idx) => (
+                  <div key={p.name} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#59A52C] flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">{idx + 1}</span>
+                      </div>
+                      <p className="text-sm font-medium text-slate-900">{p.name}</p>
+                    </div>
+                    <p className="text-sm font-bold text-[#2f6e12]">{formatCurrencyBRL(p.value)}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Extrato detalhado (voltou) */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
+                    Extrato Detalhado de Vendas (Clique para expandir)
+                  </h2>
+                  <p className="text-slate-500 text-sm">Filtre por paciente/procedimento e pesquise rapidamente</p>
+                </div>
+              </div>
+
+              <Accordion type="single" collapsible defaultValue="item-1">
+                <AccordionItem value="item-1" className="border-none">
+                  <AccordionTrigger className="px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 no-underline">
+                    <span className="text-sm font-semibold text-slate-900">Abrir Extrato</span>
+                  </AccordionTrigger>
+
+                  <AccordionContent className="pt-5">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
+                      <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
+                        <SelectTrigger className="w-full lg:w-56 bg-white border-slate-200">
+                          <SelectValue placeholder="Tipo de filtro" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="paciente">Paciente</SelectItem>
+                          <SelectItem value="procedimento">Procedimento</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="relative flex-1">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Input
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Buscar nome..."
+                          className="pl-9 bg-white border-slate-200"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 w-full lg:w-auto">
+                        <Input
+                          value={dateFilter}
+                          onChange={(e) => setDateFilter(e.target.value)}
+                          placeholder="Data (ex: 15/01/2026)"
+                          className="bg-white border-slate-200"
+                        />
+                        <Button variant="outline" className="whitespace-nowrap" onClick={handleClearFilters}>
+                          Limpar Filtros
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="overflow-hidden border border-slate-200 rounded-xl">
+                      <div className="grid grid-cols-5 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <span>Data</span>
+                        <span>Paciente</span>
+                        <span>Procedimento</span>
+                        <span className="text-right">Valor</span>
+                        <span className="text-right">Forma Pagto</span>
+                      </div>
+
+                      <div className="divide-y divide-slate-200">
+                        {filteredSalesRows.length === 0 && (
+                          <div className="px-4 py-6 text-sm text-slate-500 text-center">Nenhum registro encontrado.</div>
+                        )}
+
+                        {filteredSalesRows.map((row, idx) => (
+                          <div
+                            key={`${row.date}-${row.patient}-${idx}`}
+                            className="grid grid-cols-5 px-4 py-3 text-sm text-slate-700"
+                          >
+                            <span>{row.date}</span>
+                            <span className="font-medium text-slate-900">{row.patient}</span>
+                            <span>{row.procedure}</span>
+                            <span className="text-right font-semibold text-slate-900">{formatCurrencyBRL(row.value)}</span>
+                            <span className="text-right">
+                              <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                                {row.payment}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </Card>
+
+            {/* Footer spacing */}
+            <div className="h-6" />
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}

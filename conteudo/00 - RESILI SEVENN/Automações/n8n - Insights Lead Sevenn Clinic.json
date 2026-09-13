@@ -1,0 +1,122 @@
+{
+  "name": "AI Insights — Análise de Lead",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-insights-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "bbc20001-0001-0001-0001-bbc200000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 400],
+      "webhookId": "ai-insights-lead"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nif (!body.clinic_id || !body.lead_id) {\n  throw new Error('Payload inválido: clinic_id e lead_id são obrigatórios');\n}\n\nconst lead = body.lead || {};\nconst chatHistory = (body.chat_history || [])\n  .map(m => `[${m.role === 'clinic' ? 'Clínica' : 'Lead'}]: ${m.content}`)\n  .join('\\n');\n\nconst prompt = `Você é um analista de vendas para clínicas de estética. Analise o lead e o histórico de conversa abaixo e produza um diagnóstico objetivo.\n\nPERFIL DO LEAD:\n- Nome: ${lead.name || 'Não informado'}\n- Interesse: ${lead.procedure || 'Não informado'}\n- Origem: ${lead.source || 'Não informado'}\n- Etapa no funil: ${lead.current_stage || 'Não informado'}\n- Tags: ${(lead.tags || []).join(', ') || 'Nenhuma'}\n\nHISTÓRICO DA CONVERSA (cronológico):\n${chatHistory || 'Sem histórico disponível'}\n\n---\nResponda APENAS com um JSON válido (sem markdown, sem texto extra) neste formato exato:\n{\n  \"sentiment\": \"uma palavra: Interessado | Neutro | Hesitante | Negativo\",\n  \"intent\": número de 0 a 100 representando a intenção de compra,\n  \"consciousness\": \"nível de consciência do lead, ex: Pronto para Fechar | Consciente da Solução | Consciente do Problema | Explorando\",\n  \"summary\": \"análise geral em 2-3 frases sobre o perfil e momento do lead\",\n  \"objection\": \"principal objeção identificada e como interpretá-la, ou null se não houver\"\n}`;\n\nreturn [{\n  json: {\n    clinic_id: body.clinic_id,\n    lead_id: body.lead_id,\n    prompt\n  }\n}];"
+      },
+      "id": "bbc20002-0002-0002-0002-bbc200000002",
+      "name": "Preparar Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $('Preparar Prompt').item.json.prompt }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bbc20003-0003-0003-0003-bbc200000003",
+      "name": "Analisar (OpenAI)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [640, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiRes = $input.first().json;\nconst { clinic_id, lead_id } = $('Preparar Prompt').item.json;\n\n// Suporta formato OpenAI nativo do n8n e formato bruto da API\nconst rawText = aiRes?.message?.content\n  || aiRes?.choices?.[0]?.message?.content\n  || aiRes?.content?.[0]?.text\n  || aiRes?.text\n  || '';\n\nif (!rawText) throw new Error('Resposta vazia da IA: ' + JSON.stringify(aiRes));\n\nconst text = rawText.replace(/```json\\n?/gi, '').replace(/```\\n?/gi, '').trim();\n\nlet result;\ntry {\n  result = JSON.parse(text);\n} catch (_) {\n  const m = text.match(/\\{[\\s\\S]*\\}/);\n  if (!m) throw new Error('Nenhum JSON encontrado na resposta');\n  result = JSON.parse(m[0]);\n}\n\n// Normalizar\nconst intent = Math.max(0, Math.min(100, parseInt(result.intent) || 0));\nconst out = {\n  sentiment: result.sentiment || 'Neutro',\n  intent,\n  consciousness: result.consciousness || 'Explorando',\n  summary: result.summary || '',\n  objection: result.objection && result.objection !== 'null' ? result.objection : null\n};\n\nreturn [{ json: { clinic_id, lead_id, result: out } }];"
+      },
+      "id": "bbc20004-0004-0004-0004-bbc200000004",
+      "name": "Parsear Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL + '/rest/v1/leads?id=eq.' + $json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"analysis_sentiment\": $json.result.sentiment, \"analysis_intent\": $json.result.intent, \"analysis_consciousness\": $json.result.consciousness, \"analysis_full_report\": $json.result.summary, \"analysis_objection\": $json.result.objection, \"analysis_updated_at\": new Date().toISOString() } }}",
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
+      },
+      "id": "bbc20005-0005-0005-0005-bbc200000005",
+      "name": "Supabase PATCH leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Parsear Resposta').item.json.result }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "bbc20006-0006-0006-0006-bbc200000006",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1300, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Preparar Prompt", "type": "main", "index": 0 }]]
+    },
+    "Preparar Prompt": {
+      "main": [[{ "node": "Analisar (OpenAI)", "type": "main", "index": 0 }]]
+    },
+    "Analisar (OpenAI)": {
+      "main": [[{ "node": "Parsear Resposta", "type": "main", "index": 0 }]]
+    },
+    "Parsear Resposta": {
+      "main": [[{ "node": "Supabase PATCH leads", "type": "main", "index": 0 }]]
+    },
+    "Supabase PATCH leads": {
+      "main": [[{ "node": "Responder Sucesso", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "pinData": {}
+}

@@ -1,0 +1,887 @@
+{/* Main Container - Adicionei ID para o CSS de print focar nele */}
+      <main id="main-content" className="flex-1 flex flex-col h-full overflow-hidden">
+        <header className="bg-white border-b border-slate-200 px-4 lg:px-8 py-4 shadow-sm flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Mobile Sidebar */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="lg:hidden">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-80 p-6 bg-[#013100] border-none text-white">
+                  <SidebarContent 
+                    onOpenNewSale={() => setIsNewTransactionModalOpen(true)}
+                    currentView={currentView}          // Passando o estado atual
+                    onChangeView={setCurrentView}      // Passando a função de troca
+                  />
+                </SheetContent>
+              </Sheet>
+
+              <div className="flex items-center gap-2">
+                {/* Logo Mobile: Removido bg-[#59A52C] e ajustado nome do arquivo */}
+                <div className="w-8 h-8 flex items-center justify-center lg:hidden">
+                   <Image 
+                     src="/logo-resili-fundo-transparente.png" 
+                     alt="Logo" 
+                     width={32} 
+                     height={32} 
+                     className="object-contain" 
+                   />
+                </div>
+                <div>
+                  <h1 className="text-lg lg:text-xl font-bold text-[#59A52C]">{userName}</h1>
+                  <p className="text-sm text-slate-600 hidden sm:block">Visão Estratégica</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button className="gap-2 bg-[#59A52C] hover:bg-[#4a8c24] text-white">
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="end">
+                  <div className="space-y-1">
+                    <Button variant="ghost" className="w-full justify-start gap-2 hover:bg-slate-100" onClick={handleDownloadCSV}>
+                      <Download className="w-4 h-4" />
+                      Baixar CSV
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start gap-2 hover:bg-slate-100" onClick={() => window.print()}>
+                      <Printer className="w-4 h-4" />
+                      Imprimir Relatório
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content (only this scrolls) */}
+        <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+          <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
+          
+            {loading && (
+              <Card className="p-4 border-slate-200 bg-white">
+                <p className="text-sm text-slate-600">Carregando dados do dashboard...</p>
+              </Card>
+            )}
+
+            {!loading && loadError && (
+              <Card className="p-4 border-red-200 bg-red-50">
+                <p className="text-sm text-red-700">{loadError}</p>
+              </Card>
+            )}
+            
+            <div className="lg:hidden">
+              <h2 className="text-sm font-medium text-slate-900 mb-1">Visão Estratégica</h2>
+              <p className="text-xl font-medium text-black">Painel Financeiro - Clínica {userName}</p>
+            </div>
+
+            <div className="hidden lg:block">
+              <p className="text-black font-bold text-lg">Painel Financeiro - Clínica {userName}</p>
+            </div>
+
+
+           {/* --- AQUI COMEÇA A LÓGICA DE TROCA --- */}
+
+            {currentView === 'dashboard' ? (
+              
+              /* === TELA 1: VISÃO GERAL (GRÁFICOS) === */
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              </div>
+
+            ) : ( 
+              /* === TELA 2: GESTÃO DE LANÇAMENTOS (TABELA) === */
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-300">
+                
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-800">Gestão Financeira</h2>
+                {/* Podemos repetir o botão de Nova Venda aqui se quiser */}
+              </div>
+
+              {/* AQUI ENTRA A SUA TABELA NOVA EM TELA CHEIA */}
+              {/* Tabela de Lançamentos (Visualização e Edição) */}
+              <div className="mt-8">
+                <TransactionsTable />
+              </div>
+            )}
+        </div>
+
+            {/* Meta de Faturamento */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+              <div className="space-y-4">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-1">Meta de Faturamento</h2>
+                    <p className="text-2xl lg:text-3xl font-bold text-[#59A52C]">
+                      {formatCurrencyBRL(currentRevenue)}{" "}
+                      <span className="text-slate-400 text-lg lg:text-xl font-normal">
+                          / {formatCurrencyBRL(goalRevenue)}
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* Percentual de Conclusão */}
+                  <div className="text-right">
+                    <p className="text-xl lg:text-2xl font-bold text-slate-900">{revenuePercentage.toFixed(1)}%</p>
+                    <p className="text-sm text-slate-500">concluído</p>
+                  </div>
+              </div>
+                
+                {/* Barra de Progresso */}
+                <div className="relative h-4 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#59A52C] to-[#7BC94B] rounded-full transition-all"
+                    style={{ width: `${revenuePercentage}%` }}
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Cards principais (DINÂMICOS) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
+              
+              {/* Card 1: Faturamento Bruto */}
+              <Card className="p-3 lg:p-6 shadow-lg rounded-xl border border-slate-200 border-l-4 border-l-[#6fca3a] bg-gradient-to-r from-[#6fca3a]/10 to-white">
+                <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Faturamento Bruto</p>
+                <p className="text-lg lg:text-3xl font-bold text-[#59A52C] mb-1 lg:mb-2">{formatCurrencyBRL(kpis.faturamentoBruto)}</p>
+                <div className="flex w-full items-center  gap-1 bg-green-100 text-green-700 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-medium">
+                  {revenueTrend >= 0 ? <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" /> : <TrendingDown className="w-2.5 lg:w-3 h-2.5 lg:h-3" />}
+                  <span>{revenueTrend > 0 ? "+" : ""}{revenueTrend}%</span>
+                </div>
+              </Card>
+
+              {/* Card 2: Lucro Líquido */}
+              <Card className="p-3 lg:p-6 shadow-lg rounded-xl border border-slate-200 border-l-4 border-l-[#6fca3a] bg-gradient-to-r from-[#6fca3a]/10 to-white">
+                <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Lucro Líquido</p>
+                <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">{formatCurrencyBRL(kpis.lucroLiquido)}</p>
+                <div className="flex w-full items-center  gap-1 bg-green-100 text-green-700 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-medium">
+                  {revenueTrend >= 0 ? <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" /> : <TrendingDown className="w-2.5 lg:w-3 h-2.5 lg:h-3" />}
+                  <span>{revenueTrend > 0 ? "+" : ""}{revenueTrend}%</span>
+                </div>
+              </Card>
+
+              {/* Card 3: Margem Líquida */}
+              <Card className="p-3 lg:p-6 shadow-lg rounded-xl border border-slate-200 border-l-4 border-l-[#6fca3a] bg-gradient-to-r from-[#6fca3a]/10 to-white">
+                <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Margem Líquida</p>
+                <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">{(kpis.margemLiquida * 100).toFixed(1)}%</p>
+                <div className="flex w-full items-center  gap-1 bg-slate-100 text-slate-600 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-medium">
+                  <span>Estável</span>
+                </div>
+              </Card>
+
+              {/* Card 4: Ticket Médio */}
+              <Card className="p-3 lg:p-6 shadow-lg rounded-xl border border-slate-200 border-l-4 border-l-[#6fca3a] bg-gradient-to-r from-[#6fca3a]/10 to-white">
+                <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Ticket Médio</p>
+                <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">{formatCurrencyBRL(kpis.ticketMedio)}</p>
+                <div className="flex w-full items-center  gap-1 bg-green-100 text-green-700 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-medium">
+                   <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" />
+                  <span>~</span>
+                </div>
+              </Card>
+            </div>
+
+
+            {/* Evolução de Vendas (Com Toggle Diário/Mensal) */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+              <div className="flex flex-col lg:flex-row lg:items-start justify-between mb-6 gap-4">
+                
+                {/* Título e Descrição */}
+                <div>
+                  <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
+                    Evolução de Vendas
+                  </h2>
+                  <p className="text-slate-500 text-sm">
+                    {evolutionView === "daily" 
+                      ? "Acompanhe a receita diária do período selecionado." 
+                      : "Histórico de faturamento dos últimos 12 meses."}
+                  </p>
+                </div>
+
+                {/* --- BOTÃO DE ALTERNÂNCIA (TOGGLE - LUCRATIVIDADE PROCEDIMENTO) --- */}
+                <div className="flex self-start lg:self-center bg-slate-100 p-1 rounded-lg shadow-inner border border-slate-200">
+                    <button
+                      onClick={() => setEvolutionView("daily")}
+                      className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-all duration-300 ${
+                        evolutionView === "daily"
+                          ? "bg-[#59A52C] text-white shadow-sm border border-[#4a8c24]" 
+                          : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                      }`}
+                    >
+                      Diário
+                    </button>
+                    <button
+                      onClick={() => setEvolutionView("monthly")}
+                      className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-all duration-300 ${
+                        evolutionView === "monthly"
+                          ? "bg-[#59A52C] text-white shadow-sm border border-[#4a8c24]" 
+                          : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                      }`}
+                    >
+                      Mensal
+                    </button>
+                </div>
+              </div>
+
+              <div className="h-72 w-full">
+                {evolutionChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={evolutionChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#59A52C" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#59A52C" stopOpacity={0.02} />
+                        </linearGradient>
+                        </defs>
+                        
+                        {/* Eixo X Dinâmico (EIXO X INTELIGENTE (Mobile vs Desktop)) */}
+                        <XAxis 
+                          dataKey="xLabel" 
+                          // Fonte menor no mobile (10px) para caber melhor
+                          tick={{ fontSize: isMobile ? 10 : 12, fill: "#64748b" }} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          
+                          // LÓGICA DE INTERVALO:
+                          // Se for Mobile: "preserveStartEnd" (O gráfico decide quais esconder para não encavalar)
+                          // Se for Desktop + Mensal: 0 (Força mostrar todos os 12 meses)
+                          interval={isMobile ? "preserveStartEnd" : (evolutionView === "monthly" ? 0 : "preserveStartEnd")}
+                          
+                          // LÓGICA DE TEXTO:
+                          // Se for Mobile + Mensal: Mostra só "Jan" (remove o /26) para economizar espaço
+                          tickFormatter={(value) => {
+                            if (isMobile && evolutionView === "monthly") {
+                              return value.split("/")[0] // Pega só a parte antes da barra
+                            }
+                            return value
+                          }}
+                        />
+                        
+                        <YAxis
+                          tick={{ fontSize: 12, fill: "#64748b" }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
+                        />
+                        
+                        {/* Tooltip Adaptado */}
+                        <Tooltip 
+                          content={({ active, payload, label }: any) => {
+                            if (!active || !payload?.length) return null
+                            // Pega o título customizado que criamos no useMemo (tooltipTitle)
+                            const customTitle = payload[0].payload.tooltipTitle
+                            const value = payload[0].value
+                            return (
+                              <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200">
+                                <p className="text-xs text-slate-500 font-medium mb-2">{customTitle}</p>
+                                <div className="flex items-center justify-between gap-6">
+                                  <span className="text-xs text-slate-600">Receita:</span>
+                                  <span className="text-sm font-bold text-slate-900">{formatCurrencyBRL(value)}</span>
+                                </div>
+                              </div>
+                            )
+                          }} 
+                        />
+                        
+                        {/* Mantido visual exato: Area Monotone com Stroke Verde */}
+                        <Area
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="#59A52C"
+                          strokeWidth={3} // Aumentei levemente para ficar mais bonito
+                          fill="url(#revenueFill)"
+                          animationDuration={1000} // Animação suave na troca
+                         />
+                    </AreaChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+                        <TrendingUp className="w-8 h-8 opacity-20" />
+                        <p className="text-sm">
+                           {evolutionView === "monthly" ? "Aguardando histórico mensal..." : "Nenhuma venda neste período."}
+                        </p>
+                    </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Lucratividade (Margem) vs Faturamento por Procedimento (FULL WIDTH + SMART WRAP MOBILE) */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+                <div className="flex flex-col mb-6">
+                  
+                  {/* Cabeçalho com Título e Tooltip */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 className="text-xl lg:text-2xl font-bold text-slate-900">
+                          {metricMode === "profit" ? "Lucratividade por Procedimento" : "Faturamento por Procedimento"}
+                        </h2>
+                        
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="outline-none" title="Clique para entender o cálculo">
+                              <Info className="w-4 h-4 text-slate-400 hover:text-[#59A52C] transition-colors cursor-pointer" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent side="top" align="start" className="w-72 p-4 bg-white border-slate-200 shadow-xl rounded-xl">
+                            <h4 className="font-bold text-slate-900 text-sm mb-2">Entenda a Diferença</h4>
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-xs font-bold text-[#59A52C]">Margem (Lucro):</p>
+                                <p className="text-xs text-slate-600">O que sobra no bolso após pagar custos diretos (Comissão, Material, Taxas).</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-blue-600">Faturamento (Volume):</p>
+                                <p className="text-xs text-slate-600">O valor total vendido (Bruto), sem descontar nada.</p>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <p className="text-slate-500 text-sm">
+                        {metricMode === "profit" 
+                          ? "Resultado após descontar custos diretos (Comissões, Materiais e Taxas)"
+                          : "Volume total de vendas bruto (sem descontos)"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* --- BOTÃO DE ALTERNÂNCIA (TOGGLE - LUCRO X FATURAMENTO) --- */}
+                  <div className="flex justify-center mt-6">
+                    <div className="inline-flex bg-slate-100 p-1 rounded-lg shadow-inner border border-slate-200">
+                      
+                      {/* Lado Esquerdo: LUCRO */}
+                      <button
+                        onClick={() => setMetricMode("profit")}
+                        className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-300 ${
+                          metricMode === "profit"
+                            ? "bg-[#59A52C] text-white shadow-sm border border-[#4a8c24]" // Selecionado (Verde)
+                            : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50" // Não Selecionado (Cinza)
+                        }`}
+                      >
+                        Lucro Líquido
+                      </button>
+
+                      {/* Lado Direito: FATURAMENTO */}
+                      <button
+                        onClick={() => setMetricMode("revenue")}
+                        className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-300 ${
+                          metricMode === "revenue"
+                            ? "bg-[#59A52C] text-white shadow-sm border border-[#4a8c24]" // Selecionado (Verde)
+                            : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50" // Não Selecionado (Cinza)
+                        }`}
+                      >
+                        Faturamento Bruto
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Área do Gráfico */}
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={procedureProfitability}
+                      // Mantendo a margem inferior maior para o Eixo X
+                      margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+                    >
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: isMobile ? 10 : 11, fill: "#94a3b8" }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(value) => {
+                           if (value === 0) return "R$ 0";
+                           return `R$ ${(value / 1000).toFixed(0)}k`; 
+                        }}
+                      />
+                      
+                      <YAxis
+                        type="category"
+                        dataKey="procedure"
+                        tick={<CustomYAxisTick />}
+                        axisLine={false}
+                        tickLine={false}
+                        width={isMobile ? 110 : 150} 
+                      />
+                      
+                      {/* Tooltip Personalizado que se adapta à métrica */}
+                      <Tooltip 
+                        cursor={{fill: 'transparent'}} 
+                        content={({ active, payload, label }: any) => {
+                          if (!active || !payload?.length) return null
+                          const value = payload[0].value
+                          return (
+                            <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200 z-50">
+                              <p className="text-xs text-slate-500 font-medium mb-2">{label}</p>
+                              <div className="flex items-center justify-between gap-4">
+                                <span className="text-xs text-slate-600">
+                                  {metricMode === "profit" ? "Margem:" : "Faturamento:"}
+                                </span>
+                                <span className={`text-sm font-bold ${metricMode === "profit" ? "text-[#59A52C]" : "text-blue-600"}`}>
+                                  {formatCurrencyBRL(value)}
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        }} 
+                      />
+                      
+                      {/* BARRA DINÂMICA: 
+                          Se for profit -> dataKey="profit" e cor Verde
+                          Se for revenue -> dataKey="revenue" e cor Azul (para diferenciar visualmente)
+                      */}
+                      <Bar 
+                        dataKey={metricMode === "profit" ? "profit" : "revenue"}
+                        fill={metricMode === "profit" ? "#59A52C" : "#3b82f6"} 
+                        radius={[4, 4, 4, 4]} 
+                        barSize={isMobile ? 24 : 18} 
+                        background={{ fill: '#f1f5f9', radius: 4 }} 
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+            </Card>
+
+            {/* NOVO: Painel Unificado de Planejamento Financeiro & Projeções */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200 col-span-full">
+              {/* Cabeçalho */}
+              <div className="mb-8">
+                <h2 className="text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <TrendingUp className="w-6 h-6 text-[#59A52C]" />
+                  Planejamento Financeiro & Projeções
+                </h2>
+                <p className="text-slate-500 text-sm mt-1">
+                  Análise dos recebíveis (Crédito) projetado para os próximos meses.
+                </p>
+              </div>
+
+              {/* 1. KPIs de Topo (Layout Reorganizado: 2 no Mobile, 3 no Desktop) */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                
+                {/* Total já Garantido - Ocupa 2 espaços no Mobile para destaque */}
+                <div className="col-span-2 lg:col-span-1 p-4 rounded-xl bg-[#59A52C]/10 border border-[#59A52C]/20 flex flex-col justify-center">
+                  <p className="text-xs text-[#59A52C] font-bold uppercase tracking-wide mb-1">Total já Garantido (12 meses)</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-[#59A52C]">
+                    {formatCurrencyBRL(projectionsData.totalProjected)}
+                  </p>
+                </div>
+
+                {/* Pico de Recebimento */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wide mb-1">Pico de Recebimento</p>
+                  <div className="flex items-end gap-2">
+                    <p className="text-xl font-bold text-slate-900 capitalize">{projectionsData.peakMonth.month}</p>
+                    <p className="text-sm text-slate-600 mb-1">
+                      ({projectionsData.peakMonth.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })})
+                    </p>
+                  </div>
+                </div>
+
+                {/* Média Mensal */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wide mb-1">Média Mensal</p>
+                  <p className="text-xl font-bold text-slate-900">
+                    {formatCurrencyBRL(projectionsData.avgMonthly)}
+                  </p>
+                </div>
+                
+                {/* NOTA: O bloco de "Tendência Natural de Queda" foi removido daqui completamente para corrigir o erro */}
+              </div>
+
+              {/* 2. Área Gráfica Principal */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Coluna Esquerda: Gráfico de Barras */}
+                <div className="lg:col-span-2 flex flex-col h-full">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4">Cronograma de Entradas - Valores Garantidos</h3>
+                  <div className="h-[320px] w-full flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={futureCashFlow} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#59A52C" stopOpacity={1} />
+                            <stop offset="100%" stopColor="#86efac" stopOpacity={0.6} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="month" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                        <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip 
+                          cursor={{ fill: 'transparent' }}
+                          content={({ active, payload }: any) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-white px-3 py-2 rounded-lg shadow-xl border border-slate-100 text-xs">
+                                  <p className="font-bold mb-1">{payload[0].payload.month}</p>
+                                  <p className="text-[#59A52C]">Garantido: {formatCurrencyBRL(payload[0].value)}</p>
+                                </div>
+                              )
+                            }
+                            return null
+                          }} 
+                        />
+                        <Bar dataKey="amount" fill="url(#barGradient)" radius={[4, 4, 0, 0]} barSize={40} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  {/* Legenda */}
+                  <div className="flex items-center gap-6 mt-4 justify-center lg:justify-start">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-[#59A52C] rounded-sm"></div>
+                      <span className="text-xs text-slate-600">Recebíveis de Crédito (Já vendido)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coluna Direita: Curva de Recebimento + Tabela Trimestral */}
+                <div className="flex flex-col h-full border-t lg:border-t-0 lg:border-l border-slate-100 pt-6 lg:pt-0 lg:pl-8">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4">Curva de Recebimento (Garantido)</h3>
+                  
+                  {/* Mini Gráfico de Área */}
+                  <div className="h-[120px] w-full mb-6">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={futureCashFlow}>
+                        <defs>
+                          <linearGradient id="miniGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#59A52C" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="#59A52C" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Area type="monotone" dataKey="amount" stroke="#59A52C" strokeWidth={2} fill="url(#miniGradient)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Tabela de Trimestres */}
+                  <div className="flex-1 space-y-3">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Por Trimestre</h4>
+                    {[
+                      { l: "Q1 (Jan-Mar)", v: projectionsData.quarters.Q1 },
+                      { l: "Q2 (Abr-Jun)", v: projectionsData.quarters.Q2 },
+                      { l: "Q3 (Jul-Set)", v: projectionsData.quarters.Q3 },
+                      { l: "Q4 (Out-Dez)", v: projectionsData.quarters.Q4 },
+                    ].map((q, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-slate-50">
+                        <span className="text-slate-600">{q.l}</span>
+                        <span className="font-bold text-slate-900">{formatCurrencyBRL(q.v)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </Card>
+
+            {/* Despesas e Custos + Top 5 Pacientes */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Despesas e Custos (Card 1) */}
+              <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">Despesas e Custos</h2>
+                    <p className="text-slate-500 text-sm">Composição do faturamento do período</p>
+                  </div>
+                </div>
+
+                
+                {/* Gráfico de Distribuição de Custos */}
+                <div className="flex flex-col">
+                                   
+                  {/* CORREÇÃO MOBILE: Adicionei 'pt-6' para empurrar o gráfico para baixo no celular */}
+                  <div className="h-[340px] w-full relative mb-8 pt-6 lg:pt-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={costData}
+                          cx="50%"
+                          cy="50%" /* Mantemos 50% (centro) pois o padding da div (pt-6) já resolve o corte */
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={2}
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {costData.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={undefined} 
+                          align="center"
+                          wrapperStyle={{ paddingTop: "24px" }} /* Mais espaço para a legenda não grudar */
+                          formatter={(value, entry: any) => (
+                            <span className="text-xs text-slate-600 mx-2 inline-block mb-1">
+                              <span className="font-medium">{value}:</span> {entry.payload.percentage}% = <span className="font-bold text-slate-800">{formatCurrencyBRL(entry.payload.value)}</span>
+                            </span>
+                          )}
+                        />
+                        <Tooltip 
+                          formatter={(value: any) => formatCurrencyBRL(Number(value))}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+
+                    {costData.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <span className="text-slate-400 text-sm">Sem dados de custo</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* --- BOX DE RESUMO DE CUSTOS (Fixo) --- */}
+                <div className="mt-2 mb-6 p-3 rounded-xl border border-amber-200 bg-amber-50 flex items-start gap-3">
+                   <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                   <div>
+                     <p className="text-sm font-bold text-amber-900">Resumo de Custos</p>
+                      <p className="text-xs text-amber-800 mt-1">
+                       <span className="font-bold">
+                         {/* Cálculo da % Total de Custos */}
+                         {apiData?.kpis.faturamentoBruto ? Math.round((((apiData.kpis.faturamentoBruto - (apiData.kpis.lucroLiquido || 0)) / apiData.kpis.faturamentoBruto) * 100)) : 0}%
+                       </span> do faturamento são custos operacionais e comissões.
+                      </p>
+                   </div>
+                </div>
+
+                {/* Blocos de Custo Total vs Lucro Real (Mantidos no topo) */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50">
+                      <p className="text-xs text-slate-500 mb-1">Custo Total</p>
+                      <p className="text-sm font-bold text-slate-700">
+                        {formatCurrencyBRL((apiData?.kpis.faturamentoBruto || 0) - (apiData?.kpis.lucroLiquido || 0))}
+                      </p>
+                   </div>
+                   <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50">
+                      <p className="text-xs text-emerald-600 mb-1">Lucro Real</p>
+                      <p className="text-sm font-bold text-emerald-700">
+                        {formatCurrencyBRL(apiData?.kpis.lucroLiquido || 0)}
+                      </p>
+                   </div>
+                </div>
+
+                {/* Lista de Comissões por Profissional (Limpa, sem blocos repetidos embaixo) */}
+                {commissionsByProf.length > 0 && (
+                  <div className="border-t border-slate-100 pt-4">
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                      Detalhamento de Comissões
+                    </h3>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {commissionsByProf.map((prof, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                          <span className="text-sm text-slate-900 font-bold">{prof.name}</span>
+                          <span className="text-sm font-bold text-[#2f6e12]">{formatCurrencyBRL(prof.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              {/* Top 5 Pacientes (HÍBRIDO: Accordion no Mobile / Fixo no Desktop) */}
+              <Card className="shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+                
+                {/* --- VERSÃO MOBILE (ACCORDION) --- */}
+                <div className="lg:hidden">
+                  <Accordion 
+                    type="single" 
+                    collapsible 
+                    value={mobileTopPatientsOpen} 
+                    onValueChange={setMobileTopPatientsOpen}
+                  >
+                    <AccordionItem value="item-1" className="border-none">
+                      {/* Trigger com seta verde [&>svg]:text-[#59A52C] */}
+                      <AccordionTrigger className="px-6 py-6 hover:no-underline hover:bg-slate-50/50 transition-colors [&>svg]:text-[#59A52C]">
+                        <div className="flex items-center justify-between w-full pr-2">
+                          <div className="text-left">
+                            <h2 className="text-xl font-bold text-slate-900 mb-1">Top 5 Pacientes</h2>
+                            <p className="text-slate-500 text-sm">Maiores valores faturados</p>
+                          </div>
+                          
+                          {/* Texto Verde Dinâmico */}
+                          <span className="text-xs font-bold text-[#59A52C] mr-2">
+                            {mobileTopPatientsOpen === "item-1" ? "Fechar Top 5" : "Abrir Top 5"}
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+
+                      <AccordionContent className="px-6 pb-6 pt-2">
+                        {/* Renderiza a lista aqui dentro no mobile */}
+                        <div className="space-y-3">
+                           {renderPatientsList(topPatients)}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
+
+                {/* --- VERSÃO DESKTOP (FIXA) --- */}
+                <div className="hidden lg:block p-8">
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900 mb-1">Top 5 Pacientes</h2>
+                      <p className="text-slate-500 text-sm">Com maiores valores faturados no período selecionado</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {/* Renderiza a lista sempre visível no desktop */}
+                    {renderPatientsList(topPatients)}
+                  </div>
+                </div>
+
+              </Card>
+            </div>
+
+            {/* Extrato detalhado */}
+            <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
+                    Extrato Detalhado de Vendas
+                  </h2>
+                  <p className="text-slate-500 text-sm">Pesquise rapidamente filtrando por "Paciente, Procedimento, Forma de Pagamento ou Data"</p>
+                </div>
+              </div>
+
+              <Accordion 
+                type="single" 
+                collapsible 
+                value={accordionValue}
+                onValueChange={setAccordionValue}
+              >
+                <AccordionItem value="item-1" className="border-none">
+                  <AccordionTrigger className="px-4 py-3 rounded-xl bg-[#59A52C]/30 hover:bg-[#59A52C]/70 transition-colors no-underline">
+                    <span className="text-sm font-semibold text-slate-900">
+                      {accordionValue === "item-1" ? "Fechar Extrato" : "Abrir Extrato"}
+                    </span>
+                  </AccordionTrigger>
+
+                  <AccordionContent className="pt-5">
+                    {/* --- ÁREA DE FILTROS --- */}
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
+                      {/* Select atualizado com Pagamento */}
+                      <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
+                        <SelectTrigger className="w-full lg:w-56 bg-white border-slate-200">
+                          <SelectValue placeholder="Tipo de filtro" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="paciente">Paciente</SelectItem>
+                          <SelectItem value="procedimento">Procedimento</SelectItem>
+                          <SelectItem value="pagamento">Forma de Pagamento</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="relative flex-1">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Input
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          // Texto de ajuda atualizado
+                          placeholder="Pesquise por Paciente, Procedimento, Pagamento..."
+                          className="pl-9 bg-white border-slate-200"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 w-full lg:w-auto">
+                        <Input
+                          value={dateFilter}
+                          onChange={(e) => setDateFilter(e.target.value)}
+                          placeholder="Data (ex: 20/01)"
+                          className="bg-white border-slate-200"
+                        />
+                        <Button variant="outline" className="whitespace-nowrap" onClick={handleClearFilters}>
+                          Limpar Filtros
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* --- TABELA / CARDS LIST --- */}
+                    <div className="overflow-hidden border border-slate-200 rounded-xl">
+                      {/* Cabeçalho (Só aparece no Desktop lg:grid) */}
+                      <div className="hidden lg:grid grid-cols-5 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <span>Data</span>
+                        <span>Paciente</span>
+                        <span>Procedimento</span>
+                        <span className="text-right">Valor</span>
+                        <span className="text-right">Forma Pagto</span>
+                      </div>
+
+                      <div className="divide-y divide-slate-200 bg-white">
+                        {filteredSalesRows.length === 0 && (
+                          <div className="px-4 py-6 text-sm text-slate-500 text-center">Nenhum registro encontrado.</div>
+                        )}
+
+                        {filteredSalesRows.map((row: SalesRow, idx: number) => (
+                          <div
+                            key={`${row.date}-${row.patient}-${idx}`}
+                            // MOBILE: Flex Column (Card) | DESKTOP: Grid (Tabela)
+                            className="flex flex-col gap-2 p-4 lg:grid lg:grid-cols-5 lg:px-4 lg:py-3 lg:gap-0 hover:bg-slate-50/50 transition-colors text-sm text-slate-700"
+                          >
+                            {/* Grupo 1: Data e Valor (No mobile ficam no topo, um em cada ponta) */}
+                            <div className="flex justify-between items-center lg:contents">
+                               <span className="text-xs text-slate-500 lg:text-sm lg:text-slate-700 flex items-center">
+                                 {formatDateBR(row.date)}
+                               </span>
+                               {/* No mobile o valor sobe para o topo direito para destaque */}
+                               <span className="lg:hidden font-bold text-slate-900">
+                                 {formatCurrencyBRL(row.value)}
+                               </span>
+                             </div>
+
+                            {/* Grupo 2: Paciente (Destaque mobile) */}
+                            <div className="font-bold text-slate-900 lg:font-medium lg:flex lg:items-center">
+                              {row.patient}
+                            </div>
+
+                            {/* Grupo 3: Procedimento */}
+                            <div className="text-slate-600 lg:text-slate-700 lg:flex lg:items-center">
+                              {row.procedure}
+                            </div>
+
+                            {/* Valor (Apenas Desktop - pois no mobile já mostramos no topo) */}
+                            <div className="hidden lg:flex justify-end items-center font-semibold text-slate-900">
+                              {formatCurrencyBRL(row.value)}
+                            </div>
+
+                            {/* Forma de Pagamento com Cores Dinâmicas (Com Parcelas) */}
+                            <div className="flex lg:justify-end items-center mt-1 lg:mt-0">
+                              <span 
+                                className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold border ${getPaymentBadgeColor(row.payment)} border-transparent/10`}
+                              >
+                                {row.payment}
+                                {/* LÓGICA: Se for Crédito E tiver mais de 1 parcela, mostra (Nx) */}
+                                {row.payment.toLowerCase().includes("crédito") && (row as any).qtdParcelas > 1 && (
+                                  <span className="ml-1 opacity-90 font-bold">
+                                    ({(row as any).qtdParcelas}x)
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </Card>
+
+            {/* Footer spacing */}
+            <div className="h-6" />
+          </div>
+        </div>
+        
+      </main>
+  )
+}

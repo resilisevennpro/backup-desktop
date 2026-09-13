@@ -1,0 +1,13 @@
+Tudo sobre a Integração de API Oficial WhatsApp em seu SaaS (Como ser um Meta Business Partner)
+
+https://www.youtube.com/watch?v=vIuX0tt44ws&t=3904s 
+
+
+default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net; frame-src https://www.facebook.com https://web.facebook.com; connect-src 'self' https://graph.facebook.com https://connect.facebook.net https://n8n.resilisevenn.pro https://degdbpstlcrmpibtqwiy.supabase.co wss://degdbpstlcrmpibtqwiy.supabase.co https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' https: data:; media-src 'self' blob: https://degdbpstlcrmpibtqwiy.supabase.co https://*.supabase.co https://*.ua.zapi.files https://*.zapi.files; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
+
+
+EM USO NO N8N
+Bearer EAAM3chakRPABRbbPBjj27RgDXbKlHi0Up7lWiod9NlQMEYPHIoDLBUnZCG9J2kVDrbRVCkwbIr6pa31qics21wsklcqZCsZCczlkhpJk6Chssim4CrKazZC4yjk58ObalOFZBvHf92ZAGNLik5ExgHPil8CMeSwrIJKtDYjg0ZBHWqXoMGUmblRZA3O5JFRUucwb8P5bY3wXuESANBFx90pz3ZCQK60URVCHD34rwJwbM
+
+EAAM3chakRPABRWDte0yzCxU0PBx56kPvuga7KohyOXEWpUVvKWoHLkdsJ9CAIFRvCkLgnBDOxdTnpJxmT0VafPnMEqwagvA0NEnUM6dOQGk5kjFdgH98Qe2ZBTAZBRw6806ZB3BzBDi9a7ZCYnr2yjwBxOqYTPrnSY7dcHgo1rbVHs3EWVL2WUMG2tAcOC7IgJWb8Yux3ufM8UrC7FTTZCnebuZAdDZCfJZAXbwZBgRTWVR9fZArXg9RE1jHIgm8ksXD7oT5NrZCEY7Ie2v96ZBkFKdIKtVUcAZDZD
+

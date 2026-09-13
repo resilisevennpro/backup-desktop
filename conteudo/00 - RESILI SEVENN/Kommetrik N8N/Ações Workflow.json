@@ -1,0 +1,776 @@
+{
+  "name": "[IA_MODULAR][METRIK][AÇÕES]",
+  "nodes": [
+    {
+      "parameters": {
+        "inputText": "={{ $('acao').item.json.output }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "=leads desqualificados/1",
+              "description": "=Somente quando que o Agente falar extamente essa frase: \"Entendi. Embora essa dívida seja preocupante, dificilmente o banco entra com processo de execução pelo baixo valor e alto custo processual.\""
+            },
+            {
+              "category": "leads desqualificados/2",
+              "description": "Somente quando que o Agente falar essa frase, ou proximo: \"Já solicitei para um especialista entrar em contato com você\""
+            }
+          ]
+        },
+        "options": {
+          "fallback": "other"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        -464,
+        176
+      ],
+      "id": "3ca615b6-15b1-4976-977f-82cf31c1ea1c",
+      "name": "Text Classifier2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini-2025-04-14",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini-2025-04-14"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -464,
+        384
+      ],
+      "id": "2e3698a2-a394-479f-ab17-43b53e0e2bfa",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('acao').item.json.output }}",
+        "options": {
+          "systemMessage": "=Você deverá interpretar a resposta do cliente e fazer um resumo da resposta dele."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -240
+      ],
+      "id": "9fd3acaf-33a1-49a6-bae9-57067f0fb679",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "authentication": "longLivedToken",
+        "resource": "leads",
+        "operation": "updateLeads",
+        "collection": {
+          "lead": [
+            {
+              "id": "={{ $('acao').item.json.lead_id }}",
+              "pipeline_id": 10798136,
+              "status_id": 82802160,
+              "custom_fields_values": {
+                "custom_field": [
+                  {
+                    "data": "{\"id\":2095491,\"type\":\"textarea\"}",
+                    "value": "={{ $json.output }}"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-kommo.kommo",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -240
+      ],
+      "id": "e36d2776-9376-46a2-a0f5-b160ea8cc999",
+      "name": "Update leads4",
+      "credentials": {
+        "kommoLongLivedApi": {
+          "id": "lcx3kao191sI9Utt",
+          "name": "[RUARCKE]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        -80
+      ],
+      "id": "cffd1835-b024-4bcc-b6fb-d1b65c67b71a",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('acao').item.json.contact_id }}",
+        "tableName": "ruarcke",
+        "contextWindowLength": 40
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        -80
+      ],
+      "id": "1061fbbe-3705-401f-9dee-39904172ed4e",
+      "name": "Postgres Chat Memory1",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "longLivedToken",
+        "resource": "leads",
+        "operation": "updateLeads",
+        "collection": {
+          "lead": [
+            {
+              "id": "={{ $('acao').item.json.lead_id }}",
+              "pipeline_id": 10787656,
+              "status_id": 82735548,
+              "custom_fields_values": {
+                "custom_field": [
+                  {
+                    "data": "{\"id\":2095491,\"type\":\"textarea\"}",
+                    "value": "={{ $json.output }}"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-kommo.kommo",
+      "typeVersion": 1,
+      "position": [
+        256,
+        144
+      ],
+      "id": "e9cb9ef7-91c3-4e63-90c2-0729dadb1f1d",
+      "name": "Update leads5",
+      "credentials": {
+        "kommoLongLivedApi": {
+          "id": "lcx3kao191sI9Utt",
+          "name": "[RUARCKE]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## AÇÕES",
+        "height": 780,
+        "width": 1420,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -816,
+        -272
+      ],
+      "id": "556ae7fd-9b5f-4af7-b00e-58de5f10bfd6",
+      "name": "Sticky Note34"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('acao').item.json.output }}",
+        "options": {
+          "systemMessage": "=Você deverá interpretar a resposta do cliente e fazer um resumo da resposta dele."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        176
+      ],
+      "id": "6c9469f7-b06a-4ad9-82bc-aac84f66f9c1",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        336
+      ],
+      "id": "5aab0fa0-2773-43ac-9932-4072eab4e32f",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('acao').item.json.contact_id }}",
+        "tableName": "ruarcke",
+        "contextWindowLength": 40
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        32,
+        336
+      ],
+      "id": "09b6f4a5-2ec9-43a6-95ee-af0190c91819",
+      "name": "Postgres Chat Memory2",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('acao').item.json.output }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Você deve ler o histórico recente, identificar (se existirem) as seguintes informações\ne responder EXCLUSIVAMENTE com um objeto JSON, sem comentários:\n\n{\n  \"nome\": \"<nome completo do lead>\",\n  \"email\": \"<email do lead>\",\n  \"dataHora\": \"<data e hora da reunião em ISO 8601 – ex: 2025-07-23T16:00:00-03:00>\",\n  \"googleMeet\": \"<URL completa da call no Google Meet>\"\n}\n\n• Se algum dado ainda não estiver claro, responda o campo com null.  \n• NÃO coloque texto fora do JSON.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        -176
+      ],
+      "id": "36dfdf1b-427e-4acc-a6ac-b0cd858611f0",
+      "name": "AI Agent3"
+    },
+    {
+      "parameters": {
+        "authentication": "longLivedToken",
+        "resource": "leads",
+        "operation": "updateLeads",
+        "collection": {
+          "lead": [
+            {
+              "id": "={{ $('acao').item.json.lead_id }}",
+              "name": "={{ $json.output.nome }}",
+              "pipeline_id": 10787656,
+              "status_id": 0,
+              "custom_fields_values": {
+                "custom_field": [
+                  {
+                    "data": "{\"id\":1882918,\"type\":\"textarea\"}",
+                    "value": "={{ $json.output.email }}"
+                  },
+                  {
+                    "data": "{\"id\":2095489,\"type\":\"text\"}",
+                    "value": "={{ $json.output.googleMeet }}"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-kommo.kommo",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -240
+      ],
+      "id": "4faeda5c-7bf6-43e3-b146-d215cb24642c",
+      "name": "Update leads",
+      "credentials": {
+        "kommoLongLivedApi": {
+          "id": "lcx3kao191sI9Utt",
+          "name": "[RUARCKE]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -672,
+        0
+      ],
+      "id": "99144a02-03c3-4762-b5bd-e6893731abea",
+      "name": "OpenAI Chat Model6",
+      "credentials": {
+        "openAiApi": {
+          "id": "numtYMzWNU7pIbRd",
+          "name": "[METRIK][OPEN_AI}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('acao').item.json.contact_id }}",
+        "tableName": "ruarcke",
+        "contextWindowLength": 40
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -544,
+        0
+      ],
+      "id": "262521b3-0609-46f9-aaa3-44a9cfded545",
+      "name": "Postgres Chat Memory3",
+      "credentials": {
+        "postgres": {
+          "id": "8VOrXqE39eTa45EZ",
+          "name": "[METRIK]"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"nome\": \"João da Silva\",\n  \"email\": \"joao@example.com\",\n  \"dataHora\": \"2025-07-23T16:00:00-03:00\",\n  \"googleMeet\": \"https://meet.google.com/abc-defg-hij\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -432,
+        0
+      ],
+      "id": "b6be6551-c10f-4733-8c46-cc0a0c0f76a6",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "29745e14-d8df-408c-8b2c-b7f4cf015535",
+              "leftValue": "={{ $node[\"acao\"].json.output?.toLowerCase().includes(\"agendamento confirmado\") }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -736,
+        224
+      ],
+      "id": "f15a6792-13ed-4126-b550-08a3c2ddb2e0",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('acao').item.json.domain }}/api/v4/leads/{{ $('acao').item.json.lead_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "authorization",
+              "value": "=Bearer {{ $('Kommo').item.json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \n  \"custom_fields_values\": [ \n    {\n      \"field_id\": 1914890, \n      \"values\": [ \n        {\n          \"value\":  {{ $json.output.dataHora }}\n        }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -112,
+        -32
+      ],
+      "id": "d018c823-70e1-4f31-a058-9893b572af8d",
+      "name": "preencheData"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Function node\n// items = [\n//   {\n//     json: {\n//       output: {\n//         nome: \"Owen\",\n//         email: \"owenmarqes011@gmail.com\",\n//         dataHora: \"2025-07-23T09:30:00-03:00\",\n//         googleMeet: \"https://meet.google.com/gwr-fqto-hci\"\n//       }\n//     }\n//   }\n// ]\n\nreturn items.map(item => {\n  const isoString = item.json.output.dataHora;      // \"2025-07-23T09:30:00-03:00\"\n  const unixTime  = Math.floor(new Date(isoString).getTime() / 1000); // segundos\n\n  item.json.output.dataHora = unixTime;             // troca o campo pelo unixtime\n  return item;                                      // devolve o item alterado\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        -32
+      ],
+      "id": "47db8af2-a829-4cb1-8fef-caccdfd9b3e8",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "output"
+            },
+            {
+              "name": "lead_id"
+            },
+            {
+              "name": "contact_id"
+            },
+            {
+              "name": "domain"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1328,
+        224
+      ],
+      "id": "8e71e18d-fc7e-4720-8ac3-c4d85641d098",
+      "name": "acao"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "56ef2216-e095-4abe-9883-43aa82679cf8",
+              "name": "token",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1136,
+        224
+      ],
+      "id": "0ddd078d-edc1-4202-8c8c-13ea79619d05",
+      "name": "Kommo"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        256,
+        352
+      ],
+      "id": "25cc04a0-4a99-406f-b1e7-c1ffd78e2cd4",
+      "name": "No Operation, do nothing"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Text Classifier2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Text Classifier2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Update leads4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Update leads5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update leads": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text Classifier2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "preencheData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "acao": {
+      "main": [
+        [
+          {
+            "node": "Kommo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kommo": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f1fc4edc-22d7-429a-b644-4980d13220b1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "egAX9SIsFROzGI9M",
+  "tags": [
+    {
+      "createdAt": "2025-07-28T16:32:37.843Z",
+      "updatedAt": "2025-07-28T16:32:37.843Z",
+      "id": "KBmh4LOWWSQpT31a",
+      "name": "METRIK"
+    }
+  ]
+}

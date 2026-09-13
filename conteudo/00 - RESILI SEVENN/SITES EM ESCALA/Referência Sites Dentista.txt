@@ -1,0 +1,63 @@
+Referência Dentista
+
+LANDING PAGE 
+https://www.behance.net/gallery/236942451/Lumia-Odontologia-Landing-page-dentista?tracking_source=search_projects|site+odontologia&l=13
+https://www.behance.net/gallery/170424207/Landing-Page-Dentista?tracking_source=search_projects|site+odontologia&l=15
+https://www.behance.net/gallery/201786873/Pagina-de-vendas-Dentista?tracking_source=search_projects%7Csite+odontologia
+https://www.behance.net/gallery/201376917/Site-Dra-Rafaela-Melo?tracking_source=search_projects%7Csite+odontologia
+https://www.behance.net/gallery/218965199/DrAnelise-l-Odontologia?tracking_source=search_projects|site+odontologia&l=3
+https://www.behance.net/gallery/193008173/Landing-Page-Dentista?tracking_source=search_projects|site+odontologia&l=0
+https://www.behance.net/gallery/234033413/Landing-Page-Dentista-Dra-Thais-Caetano?tracking_source=search_projects|site+odontologia&l=8
+
+https://www.primelentesdentais.com/saojosesc?
+
+
+INSTITUCIONAL
+https://www.behance.net/gallery/232596669/Site-Odontologista-Dra-Leticia-Gruber?tracking_source=search_projects%7Csite+odontologia
+https://odontospace.com.br/
+https://www.behance.net/gallery/241603315/Projeto-Landing-Page-Clinica-CEHOM?tracking_source=search_projects|site+odontologia&l=2
+https://www.behance.net/gallery/207686735/Site-e-Landing-Page-Odontologia-Esttica-e-Dentista?tracking_source=search_projects|site+odontologia&l=6
+
+
+
+IMAGEM DENTISTA MODELO 3
+- https://img.freepik.com/fotos-premium/adoravel-cosmetologista-com-pele-clara-vestindo-uniforme-medico-preto-posando-dentro-de-casa-isolado-sobre-o-fundo-cinza-do-estudio_7502-6856.jpg
+- https://img.freepik.com/fotos-gratis/vista-frontal-da-linda-mulher-caucasiana-em-uniforme-medico-preto-em-pe-no-estudio-cosmetologista-femea-competente-segurando-os-bracos-cruzados-sobre-um-fundo-cinza_7502-9241.jpg
+
+
+https://vbmidia.com.br/
+http://fysilabdigital.com.br/links-bio/
+
+Projeto Site
+
+
+FERRAMENTAS
+https://www.youtube.com/watch?v=qFhHrDKQ7Vk
+- Extrator de Contatos
+
+⦁	Mapscraper.net
+⦁	G-Map Extractor
+⦁	LeadsSniper.
+
+- Disparo de Mensagens
+- Land-book.com (sites para inspiração)
+- Cria modelo base
+- Dispara mensagens para leads com modelo base do site publicado
+- Se lead fechar, conecta o site no GitHub
+- Pega o link do site no GitHub, baixa no PC e depois coloca no próprio projeto do cliente
+
+Opicional: Abrir pasta no Terminal e dar um Git clone
+
+
+
+Tenho algumas dúvidas. Na etapa 2, o cursor tem um limite de interações com o chat no plano gratuito (que eu já esgotei), quando custa o plano pago?
+
+E se eu for gastar com edição, mais vale assinar o v0 ou o cursor? no V0 ou no cursor eu consigo ver a edição (site editado com as novas atualizações) antes de publicar?
+
+E para o que o qwen iria servir?
+
+Outra duvida, é possível prospectar via direct instagram? sou bom em achar dentistas manualmente e salvar os instagrans
+
+Estou disposto agora a assinar uma ferramenta de extração + n8n + disparo de mensagens no whatsapp (Se for ágil e necessário podemos ultrapassar o orçamento de 100 reais)
+
+E para hospedar os sites, seria apenas na minha estrutura mesmo, apenas apontando para o domínio do cliente?isso deixaria a hospedagem na minha base, e se o cliente quiser manter o site ativo e ficar com a estrutura, eu cobraria um valor a mais para hospedar na própria estrutura dele?e sobre manutenção do site? caso o cliente não queira pagar manutenção (que me geraria MRR), ai eu devo deixar apenas na minha hospedgem mesmo ou entrego o projeto na hospedagem dele?

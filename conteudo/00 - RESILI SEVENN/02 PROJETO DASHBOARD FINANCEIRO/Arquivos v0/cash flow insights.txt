@@ -1,0 +1,167 @@
+"use client"
+
+import { Card } from "@/components/ui/card"
+import { TrendingUp, AlertCircle, Calendar, DollarSign, Target } from "lucide-react"
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts"
+
+const miniChartData = [
+  { month: "Jan", amount: 3200 },
+  { month: "Fev", amount: 5000 },
+  { month: "Mar", amount: 4100 },
+  { month: "Abr", amount: 3800 },
+  { month: "Mai", amount: 4500 },
+  { month: "Jun", amount: 3600 },
+  { month: "Jul", amount: 2800 },
+  { month: "Ago", amount: 2100 },
+  { month: "Set", amount: 1500 },
+  { month: "Out", amount: 900 },
+  { month: "Nov", amount: 400 },
+  { month: "Dez", amount: 200 },
+]
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs">
+        <p className="font-semibold">{payload[0].payload.month}</p>
+        <p>R$ {payload[0].value.toLocaleString("pt-BR")}</p>
+      </div>
+    )
+  }
+  return null
+}
+
+export function CashFlowInsights() {
+  const totalProjected = miniChartData.reduce((sum, item) => sum + item.amount, 0)
+  const peakMonth = miniChartData.reduce((max, item) => (item.amount > max.amount ? item : max), miniChartData[0])
+  const avgMonthly = totalProjected / miniChartData.length
+
+  return (
+    <Card className="p-8 shadow-lg rounded-2xl bg-gradient-to-br from-white to-slate-50 border-slate-200">
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-10 h-10 bg-gradient-to-br from-[#6fca3a] to-[#4ade80] rounded-xl flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900">Insights de Recebíveis</h2>
+        </div>
+        <p className="text-slate-500 text-sm">Análise narrativa do fluxo de caixa projetado</p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-8 h-8 bg-[#6fca3a]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-4 h-4 text-[#6fca3a]" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Maior Entrada</p>
+                <p className="text-2xl font-bold text-[#6fca3a] mb-1">{peakMonth.month} 2026</p>
+                <p className="text-lg font-semibold text-slate-900">R$ {peakMonth.amount.toLocaleString("pt-BR")}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Este é o mês com maior volume de parcelas confirmadas. Planeje investimentos ou coberturas de custo para
+              este período.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Alerta de Queda</p>
+                <p className="text-2xl font-bold text-amber-600 mb-1">-96%</p>
+                <p className="text-sm text-slate-700">Jan → Dez 2026</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Declínio acentuado ao longo do ano. Considere estratégias para captar novos parcelamentos.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Target className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Média Mensal</p>
+                <p className="text-2xl font-bold text-slate-900">R$ {avgMonthly.toFixed(0)}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Receita média mensal garantida pelos parcelamentos existentes até o final do ano.
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-[#6fca3a] to-[#4ade80] rounded-xl p-5 shadow-md text-white">
+            <div className="flex items-start gap-3">
+              <Calendar className="w-5 h-5 flex-shrink-0 mt-1" />
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide mb-1 text-white/90">Total Projetado</p>
+                <p className="text-3xl font-bold mb-2">R$ {totalProjected.toLocaleString("pt-BR")}</p>
+                <p className="text-xs leading-relaxed text-white/90">
+                  Soma de todas as parcelas a receber nos próximos 12 meses via cartão de crédito.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Evolução Anual</h3>
+          <ResponsiveContainer width="100%" height={380}>
+            <AreaChart data={miniChartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+              <defs>
+                <linearGradient id="insightGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6fca3a" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#6fca3a" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="month" stroke="#94A3B8" fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis
+                stroke="#94A3B8"
+                fontSize={10}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="amount"
+                stroke="#6fca3a"
+                strokeWidth={2.5}
+                fill="url(#insightGradient)"
+                animationDuration={1200}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+
+          <div className="mt-4 pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-600">Q1 (Jan-Mar)</span>
+              <span className="font-semibold text-slate-900">R$ 12.300</span>
+            </div>
+            <div className="flex items-center justify-between text-xs mt-2">
+              <span className="text-slate-600">Q2 (Abr-Jun)</span>
+              <span className="font-semibold text-slate-900">R$ 11.900</span>
+            </div>
+            <div className="flex items-center justify-between text-xs mt-2">
+              <span className="text-slate-600">Q3 (Jul-Set)</span>
+              <span className="font-semibold text-slate-900">R$ 6.400</span>
+            </div>
+            <div className="flex items-center justify-between text-xs mt-2">
+              <span className="text-slate-600">Q4 (Out-Dez)</span>
+              <span className="font-semibold text-slate-900">R$ 1.500</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}

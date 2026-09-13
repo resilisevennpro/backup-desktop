@@ -1,0 +1,25 @@
+1. Inteligência de Vendas & CRM (O Motor de Crescimento)
+Pipeline Kanban Visual: Gestão de leads por estágios (Novo, Qualificado, Agendado, Vendido) com sistema de arrastar e soltar.
+Sevenn Score (Lead Score): Termômetro de 0 a 100 que indica o quão "quente" está o lead com base em interações e visualização de propostas.
+Super Modal do Lead: Prontuário unificado contendo histórico de conversas, anamnese digital, galeria de fotos "Antes e Depois" e histórico financeiro.
+Resumo de Histórico com IA: Botão que utiliza inteligência artificial para ler conversas anteriores e gerar um briefing rápido para o doutor antes da consulta.
+2. Atendimento & IA (A Operação Autônoma)
+Chat Multicanal Realtime: Interface estilo WhatsApp Web integrada ao sistema para centralizar conversas do WhatsApp e Instagram.
+Agente de IA Híbrido: IA que qualifica leads e agenda consultas automaticamente, mas permite a intervenção humana a qualquer momento.
+Isolamento por Clinic: Arquitetura de segurança onde cada clínica possui sua própria instância isolada da API de mensagens.
+NPS Automatizado (Smart Delay): Disparo automático de pesquisa de satisfação via WhatsApp 24 horas após o atendimento para medir a reputação da clínica.
+3. Agenda & Gestão Clínica
+Calendário Multi-profissional: Visualização de horários por doutor/esteticista com filtros inteligentes.
+Lógica de Procedimentos: Bloqueio automático de slots na agenda com base na duração específica de cada serviço (ex: Botox 30min vs. Harmonização 2h).
+Sincronização Externa: Integração com Google Calendar para que o profissional veja seus compromissos no celular pessoal.
+Assinatura Digital de Termos: Coleta de aceite de LGPD e termos de consentimento diretamente pelo celular do paciente.
+4. Financeiro & Marketing (O Dashboard de Lucro)
+Fluxo de Caixa Automatizado: Geração automática de contas a receber assim que um lead é marcado como "Vendido" no CRM.
+Módulo de Comissões: Cálculo automático do valor devido a cada profissional com base na porcentagem cadastrada por procedimento.
+Dashboard de ROI (Meta Ads): Cruzamento de dados de investimento em anúncios com faturamento real para saber exatamente quanto cada real investido trouxe de retorno.
+Disparos em Massa (Plano Black): Ferramenta de remarketing para listas de clientes antigos, exclusiva para o plano mais alto.
+5. Controle do Dono (Super Admin & Segurança)
+Painel de Gestão de Clientes: Interface exclusiva para você monitorar o status de todas as clínicas assinantes, planos e inadimplências.
+Modo Impersonation: Capacidade de acessar o painel de um cliente (com rastro de auditoria) para prestar suporte técnico rápido.
+RBAC (Níveis de Acesso): Bloqueio de menus sensíveis (como financeiro) para usuários com perfil "Staff" (secretárias).
+Valuation Dashboard: Visualização em tempo real das métricas de saúde do seu SaaS (MRR e Churn) para acompanhar o valor de venda da sua empresa.

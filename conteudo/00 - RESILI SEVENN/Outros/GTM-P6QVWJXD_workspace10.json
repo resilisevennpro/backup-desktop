@@ -1,0 +1,713 @@
+{
+    "exportFormatVersion": 2,
+    "exportTime": "2026-08-12 12:19:25",
+    "containerVersion": {
+        "path": "accounts/6265268418/containers/204156790/versions/0",
+        "accountId": "6265268418",
+        "containerId": "204156790",
+        "containerVersionId": "0",
+        "container": {
+            "path": "accounts/6265268418/containers/204156790",
+            "accountId": "6265268418",
+            "containerId": "204156790",
+            "name": "drarlanneuro.com",
+            "publicId": "GTM-P6QVWJXD",
+            "usageContext": [
+                "WEB"
+            ],
+            "fingerprint": "1757965032944",
+            "tagManagerUrl": "https://tagmanager.google.com/#/container/accounts/6265268418/containers/204156790/workspaces?apiLink=container",
+            "features": {
+                "supportUserPermissions": true,
+                "supportEnvironments": true,
+                "supportWorkspaces": true,
+                "supportGtagConfigs": false,
+                "supportBuiltInVariables": true,
+                "supportClients": false,
+                "supportFolders": true,
+                "supportTags": true,
+                "supportTemplates": true,
+                "supportTriggers": true,
+                "supportVariables": true,
+                "supportVersions": true,
+                "supportZones": true,
+                "supportTransformations": false
+            },
+            "tagIds": [
+                "GTM-P6QVWJXD"
+            ]
+        },
+        "tag": [
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "4",
+                "name": "[Google] - Vinculador de Conversões",
+                "type": "gclidw",
+                "parameter": [
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableCrossDomain",
+                        "value": "true"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableUrlPassthrough",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "linkerDomains",
+                        "value": "drarlanmarques.com.br, drarlanneuro.com"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableCookieOverrides",
+                        "value": "false"
+                    }
+                ],
+                "fingerprint": "1757613698880",
+                "firingTriggerId": [
+                    "2147479553"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "6",
+                "name": "[Google] - Contato WhatsApp [drarlanneuro]",
+                "type": "awct",
+                "parameter": [
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableNewCustomerReporting",
+                        "value": "false"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableConversionLinker",
+                        "value": "true"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableProductReporting",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionCookiePrefix",
+                        "value": "_gcl"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableShippingData",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionId",
+                        "value": "16862203803"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionLabel",
+                        "value": "-_HICO_NmZ0aEJufw-g-"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "rdp",
+                        "value": "false"
+                    }
+                ],
+                "fingerprint": "1770817497163",
+                "firingTriggerId": [
+                    "5",
+                    "7"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "8",
+                "name": "[Google] - Tag Global + Remarketing",
+                "type": "googtag",
+                "parameter": [
+                    {
+                        "type": "TEMPLATE",
+                        "key": "tagId",
+                        "value": "AW-16862203803"
+                    }
+                ],
+                "fingerprint": "1760969586512",
+                "firingTriggerId": [
+                    "2147479573"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "13",
+                "name": "[GA4] - Vinculador GA4",
+                "type": "googtag",
+                "parameter": [
+                    {
+                        "type": "TEMPLATE",
+                        "key": "tagId",
+                        "value": "G-XL8CNNV1K5"
+                    }
+                ],
+                "fingerprint": "1760968761227",
+                "firingTriggerId": [
+                    "2147479573"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "14",
+                "name": "[GA4] - Lead Whatsapp [drarlanneuro]",
+                "type": "gaawe",
+                "parameter": [
+                    {
+                        "type": "BOOLEAN",
+                        "key": "sendEcommerceData",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "eventName",
+                        "value": "generate_lead"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "measurementIdOverride",
+                        "value": "G-XL8CNNV1K5"
+                    }
+                ],
+                "fingerprint": "1770816352102",
+                "firingTriggerId": [
+                    "5",
+                    "7"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "17",
+                "name": "[GA4] - Lead Whatsapp [LP Enxaqueca]",
+                "type": "gaawe",
+                "parameter": [
+                    {
+                        "type": "BOOLEAN",
+                        "key": "sendEcommerceData",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "eventName",
+                        "value": "lead_enxaqueca"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "measurementIdOverride",
+                        "value": "G-XL8CNNV1K5"
+                    }
+                ],
+                "fingerprint": "1771866364616",
+                "firingTriggerId": [
+                    "18"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "19",
+                "name": "[Google] - Contato WhatsApp [LP Enxaqueca]",
+                "type": "awct",
+                "parameter": [
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableNewCustomerReporting",
+                        "value": "false"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableConversionLinker",
+                        "value": "true"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableProductReporting",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionCookiePrefix",
+                        "value": "_gcl"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableShippingData",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionId",
+                        "value": "16862203803"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionLabel",
+                        "value": "ddvrCPK_5fYbEJufw-g-"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "rdp",
+                        "value": "false"
+                    }
+                ],
+                "fingerprint": "1770817505336",
+                "firingTriggerId": [
+                    "18"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "22",
+                "name": "[Google] - Contato WhatsApp [Neurocirurgia]",
+                "type": "awct",
+                "parameter": [
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableNewCustomerReporting",
+                        "value": "false"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableConversionLinker",
+                        "value": "true"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableProductReporting",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionCookiePrefix",
+                        "value": "_gcl"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "enableShippingData",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionId",
+                        "value": "16862203803"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "conversionLabel",
+                        "value": "9vrXCJ-4zf0bEJufw-g-"
+                    },
+                    {
+                        "type": "BOOLEAN",
+                        "key": "rdp",
+                        "value": "false"
+                    }
+                ],
+                "fingerprint": "1771866558072",
+                "firingTriggerId": [
+                    "21"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "tagId": "24",
+                "name": "[GA4] - Lead Whatsapp [LP Cirurgia]",
+                "type": "gaawe",
+                "parameter": [
+                    {
+                        "type": "BOOLEAN",
+                        "key": "sendEcommerceData",
+                        "value": "false"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "eventName",
+                        "value": "lead_cirurgia"
+                    },
+                    {
+                        "type": "TEMPLATE",
+                        "key": "measurementIdOverride",
+                        "value": "G-XL8CNNV1K5"
+                    }
+                ],
+                "fingerprint": "1771866389743",
+                "firingTriggerId": [
+                    "21"
+                ],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": {
+                    "type": "MAP"
+                },
+                "consentSettings": {
+                    "consentStatus": "NOT_SET"
+                }
+            }
+        ],
+        "trigger": [
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "triggerId": "5",
+                "name": "[Botão WhatsApp] [NEUROLOGISTA + BIO]",
+                "type": "LINK_CLICK",
+                "filter": [
+                    {
+                        "type": "CONTAINS",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Click URL}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "whatsapp"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "CONTAINS",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Page URL}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "lp.drarlanneuro.com"
+                            },
+                            {
+                                "type": "BOOLEAN",
+                                "key": "negate",
+                                "value": "true"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "CONTAINS",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Page URL}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "/neurocirurgiao"
+                            },
+                            {
+                                "type": "BOOLEAN",
+                                "key": "negate",
+                                "value": "true"
+                            }
+                        ]
+                    }
+                ],
+                "waitForTags": {
+                    "type": "BOOLEAN",
+                    "value": "false"
+                },
+                "checkValidation": {
+                    "type": "BOOLEAN",
+                    "value": "false"
+                },
+                "waitForTagsTimeout": {
+                    "type": "TEMPLATE",
+                    "value": "2000"
+                },
+                "uniqueTriggerId": {
+                    "type": "TEMPLATE"
+                },
+                "fingerprint": "1771866512870"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "triggerId": "7",
+                "name": "Botão WhatsApp Flutuante",
+                "type": "CLICK",
+                "filter": [
+                    {
+                        "type": "CONTAINS",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Click Classes}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "joinchat__button__open"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "CONTAINS",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Page Path}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "lp.drarlanneuro.com"
+                            },
+                            {
+                                "type": "BOOLEAN",
+                                "key": "negate",
+                                "value": "true"
+                            }
+                        ]
+                    }
+                ],
+                "fingerprint": "1770817187894"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "triggerId": "18",
+                "name": "[Botão WhatsApp] [LP Enxaqueca]",
+                "type": "LINK_CLICK",
+                "filter": [
+                    {
+                        "type": "CONTAINS",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Click URL}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "Enxaqueca"
+                            }
+                        ]
+                    }
+                ],
+                "waitForTags": {
+                    "type": "BOOLEAN",
+                    "value": "false"
+                },
+                "checkValidation": {
+                    "type": "BOOLEAN",
+                    "value": "false"
+                },
+                "waitForTagsTimeout": {
+                    "type": "TEMPLATE",
+                    "value": "2000"
+                },
+                "uniqueTriggerId": {
+                    "type": "TEMPLATE"
+                },
+                "fingerprint": "1770817130392"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "triggerId": "21",
+                "name": "[Botão WhatsApp] [NEUROCIRURGIA]",
+                "type": "LINK_CLICK",
+                "filter": [
+                    {
+                        "type": "CONTAINS",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Click URL}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "Neurocirurgia"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "CONTAINS",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Page URL}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "lp.drarlanneuro.com"
+                            },
+                            {
+                                "type": "BOOLEAN",
+                                "key": "negate",
+                                "value": "true"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "ENDS_WITH",
+                        "parameter": [
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg0",
+                                "value": "{{Page URL}}"
+                            },
+                            {
+                                "type": "TEMPLATE",
+                                "key": "arg1",
+                                "value": "drarlanneuro.com"
+                            },
+                            {
+                                "type": "BOOLEAN",
+                                "key": "negate",
+                                "value": "true"
+                            }
+                        ]
+                    }
+                ],
+                "waitForTags": {
+                    "type": "BOOLEAN",
+                    "value": "false"
+                },
+                "checkValidation": {
+                    "type": "BOOLEAN",
+                    "value": "false"
+                },
+                "waitForTagsTimeout": {
+                    "type": "TEMPLATE",
+                    "value": "2000"
+                },
+                "uniqueTriggerId": {
+                    "type": "TEMPLATE"
+                },
+                "fingerprint": "1771866257156"
+            }
+        ],
+        "builtInVariable": [
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "type": "PAGE_URL",
+                "name": "Page URL"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "type": "PAGE_HOSTNAME",
+                "name": "Page Hostname"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "type": "PAGE_PATH",
+                "name": "Page Path"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "type": "REFERRER",
+                "name": "Referrer"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "type": "EVENT",
+                "name": "Event"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "type": "CLICK_CLASSES",
+                "name": "Click Classes"
+            },
+            {
+                "accountId": "6265268418",
+                "containerId": "204156790",
+                "type": "CLICK_URL",
+                "name": "Click URL"
+            }
+        ],
+        "fingerprint": "1786537165687",
+        "tagManagerUrl": "https://tagmanager.google.com/#/versions/accounts/6265268418/containers/204156790/versions/0?apiLink=version"
+    }
+}

@@ -1,0 +1,206 @@
+table_name,column_name,data_type,is_nullable,column_default
+appointments,id,uuid,NO,uuid_generate_v4()
+appointments,clinic_id,uuid,NO,null
+appointments,lead_id,uuid,NO,null
+appointments,professional_id,uuid,NO,null
+appointments,service_id,uuid,YES,null
+appointments,start_time,timestamp with time zone,NO,null
+appointments,end_time,timestamp with time zone,NO,null
+appointments,status,USER-DEFINED,NO,'Pendente'::appointment_status
+appointments,notes,text,YES,null
+appointments,google_calendar_event_id,character varying,YES,null
+appointments,created_at,timestamp with time zone,YES,now()
+appointments,updated_at,timestamp with time zone,YES,now()
+appointments,google_event_id,character varying,YES,null
+appointments,concluded_by,uuid,YES,null
+appointments,procedure_id,uuid,YES,null
+chats,id,uuid,NO,gen_random_uuid()
+chats,clinic_id,uuid,NO,null
+chats,whatsapp_instance_id,uuid,YES,null
+chats,customer_number,text,NO,null
+chats,customer_name,text,YES,null
+chats,last_message,text,YES,null
+chats,unread_count,integer,YES,0
+chats,created_at,timestamp with time zone,YES,now()
+chats,updated_at,timestamp with time zone,YES,now()
+chats,customer_avatar,text,YES,null
+chats,is_typing,boolean,YES,false
+chats,is_deleted,boolean,YES,false
+chats,deleted_at,timestamp with time zone,YES,null
+clinics,id,uuid,NO,uuid_generate_v4()
+clinics,name,character varying,NO,null
+clinics,plan_tier,USER-DEFINED,NO,'start'::plan_tier
+clinics,is_active,boolean,NO,true
+clinics,limits,jsonb,YES,"'{""features"": {""ai_agent"": false, ""instagram"": false, ""marketing"": false, ""multi_whatsapp"": false}, ""max_leads"": 1000, ""max_users"": 3, ""max_whatsapp_instances"": 1}'::jsonb"
+clinics,settings,jsonb,YES,"'{""timezone"": ""America/Sao_Paulo"", ""business_hours"": {""friday"": {""end"": ""18:00"", ""start"": ""08:00""}, ""monday"": {""end"": ""18:00"", ""start"": ""08:00""}, ""sunday"": {""end"": null, ""start"": null}, ""tuesday"": {""end"": ""18:00"", ""start"": ""08:00""}, ""saturday"": {""end"": ""13:00"", ""start"": ""08:00""}, ""thursday"": {""end"": ""18:00"", ""start"": ""08:00""}, ""wednesday"": {""end"": ""18:00"", ""start"": ""08:00""}}}'::jsonb"
+clinics,email,character varying,YES,null
+clinics,phone,character varying,YES,null
+clinics,address,text,YES,null
+clinics,subscription_status,character varying,YES,'active'::character varying
+clinics,subscription_ends_at,timestamp with time zone,YES,null
+clinics,created_at,timestamp with time zone,YES,now()
+clinics,updated_at,timestamp with time zone,YES,now()
+clinics,status,character varying,YES,'ativo'::character varying
+clinics,vip_ltv_threshold,numeric,YES,5000
+clinics,meta_faturamento,numeric,YES,0
+clinics,verba_marketing,numeric,YES,0
+clinics,meta_margem_liquida,numeric,YES,20
+clinics,imposto_aliquota,numeric,YES,0
+clinics,subscription_value,numeric,YES,null
+clinics,integrations_access,ARRAY,YES,'{}'::text[]
+lead_activities,id,uuid,NO,gen_random_uuid()
+lead_activities,lead_id,uuid,YES,null
+lead_activities,type,text,NO,null
+lead_activities,description,text,YES,null
+lead_activities,metadata,jsonb,YES,null
+lead_activities,created_at,timestamp with time zone,YES,now()
+lead_activities,clinic_id,uuid,NO,null
+leads,id,uuid,NO,uuid_generate_v4()
+leads,clinic_id,uuid,NO,null
+leads,pipeline_stage_id,text,YES,null
+leads,name,character varying,NO,null
+leads,email,character varying,YES,null
+leads,phone,character varying,NO,null
+leads,avatar_url,text,YES,null
+leads,utm_source,character varying,YES,null
+leads,utm_medium,character varying,YES,null
+leads,utm_campaign,character varying,YES,null
+leads,utm_content,character varying,YES,null
+leads,utm_term,character varying,YES,null
+leads,status,text,NO,'Novo Lead'::text
+leads,estimated_value,numeric,YES,null
+leads,next_action,text,YES,null
+leads,notes,text,YES,null
+leads,tags,ARRAY,YES,null
+leads,custom_fields,jsonb,YES,'{}'::jsonb
+leads,ai_active,boolean,NO,true
+leads,last_interaction_at,timestamp with time zone,YES,null
+leads,assigned_to,uuid,YES,null
+leads,created_at,timestamp with time zone,YES,now()
+leads,updated_at,timestamp with time zone,YES,now()
+leads,sevenn_score,integer,YES,0
+leads,ai_status,character varying,YES,'active'::character varying
+leads,ai_conversation_summary,text,YES,null
+leads,analysis_sentiment,character varying,YES,null
+leads,analysis_next_step,text,YES,null
+leads,analysis_full_report,text,YES,null
+leads,strategy_daily_count,integer,YES,0
+leads,strategy_last_reset,timestamp with time zone,YES,now()
+leads,source,character varying,YES,null
+leads,professional_id,uuid,YES,null
+leads,procedure,character varying,YES,null
+leads,cpf,character varying,YES,null
+leads,budget,numeric,YES,0.00
+leads,doctor_id,uuid,YES,null
+leads,procedure_id,uuid,YES,null
+leads,total_ltv,numeric,YES,0
+leads,stage_history,jsonb,YES,'[]'::jsonb
+leads,closed_at,timestamp with time zone,YES,null
+leads,sales_cycle_days,numeric,YES,null
+leads,next_followup_date,timestamp with time zone,YES,null
+leads,nps_sent,boolean,YES,false
+messages,id,uuid,NO,uuid_generate_v4()
+messages,clinic_id,uuid,NO,null
+messages,lead_id,uuid,NO,null
+messages,whatsapp_instance_id,uuid,YES,null
+messages,content,text,NO,null
+messages,sender,character varying,NO,null
+messages,channel,USER-DEFINED,NO,'whatsapp'::communication_channel
+messages,status,character varying,YES,'sent'::character varying
+messages,external_id,character varying,YES,null
+messages,metadata,jsonb,YES,'{}'::jsonb
+messages,created_at,timestamp with time zone,YES,now()
+messages,direction,text,YES,null
+messages,operator_id,uuid,YES,null
+messages,media_url,text,YES,null
+messages,media_type,text,YES,null
+messages,integration_id,uuid,YES,null
+messages,chat_id,uuid,YES,null
+pipeline_stages,id,text,NO,uuid_generate_v4()
+pipeline_stages,clinic_id,uuid,NO,null
+pipeline_stages,name,character varying,NO,null
+pipeline_stages,slug,character varying,NO,null
+pipeline_stages,color,character varying,YES,'#3b82f6'::character varying
+pipeline_stages,position,integer,NO,0
+pipeline_stages,is_active,boolean,NO,true
+pipeline_stages,created_at,timestamp with time zone,YES,now()
+pipeline_stages,updated_at,timestamp with time zone,YES,now()
+pipeline_stages,pipeline_id,text,YES,'vendas_principal'::text
+pipeline_stages,is_system_stage,boolean,YES,false
+pipeline_stages,description,text,YES,null
+professionals,id,uuid,NO,uuid_generate_v4()
+professionals,clinic_id,uuid,NO,null
+professionals,name,character varying,NO,null
+professionals,email,character varying,YES,null
+professionals,phone,character varying,YES,null
+professionals,specialty,character varying,YES,null
+professionals,calendar_color,character varying,YES,'#59A52C'::character varying
+professionals,is_active,boolean,NO,true
+professionals,working_hours,jsonb,YES,'{}'::jsonb
+professionals,created_at,timestamp with time zone,YES,now()
+professionals,updated_at,timestamp with time zone,YES,now()
+professionals,active,boolean,YES,true
+professionals,commission_percentage,numeric,YES,0
+professionals,color,character varying,YES,'blue'::character varying
+professionals,instagram,text,YES,null
+professionals,tipo_atuacao,text,YES,'parceiro'::text
+professionals,descontar_taxas,boolean,YES,false
+professionals,descontar_material,boolean,YES,false
+profiles,id,uuid,NO,null
+profiles,clinic_id,uuid,YES,null
+profiles,full_name,character varying,NO,null
+profiles,avatar_url,text,YES,null
+profiles,phone,character varying,YES,null
+profiles,role,USER-DEFINED,NO,'staff'::user_role
+profiles,permissions,jsonb,YES,'[]'::jsonb
+profiles,is_active,boolean,NO,true
+profiles,last_seen_at,timestamp with time zone,YES,null
+profiles,created_at,timestamp with time zone,YES,now()
+profiles,updated_at,timestamp with time zone,YES,now()
+profiles,email,text,YES,null
+role_permissions,id,uuid,NO,gen_random_uuid()
+role_permissions,clinic_id,uuid,NO,null
+role_permissions,role,text,NO,null
+role_permissions,feature,text,NO,null
+role_permissions,action,text,NO,null
+role_permissions,is_allowed,boolean,YES,true
+role_permissions,updated_at,timestamp with time zone,YES,now()
+service_professionals,id,uuid,NO,gen_random_uuid()
+service_professionals,service_id,uuid,NO,null
+service_professionals,professional_id,uuid,NO,null
+service_professionals,created_at,timestamp with time zone,YES,now()
+services,id,uuid,NO,uuid_generate_v4()
+services,clinic_id,uuid,NO,null
+services,name,character varying,NO,null
+services,description,text,YES,null
+services,base_price,numeric,NO,0
+services,category,character varying,YES,null
+services,is_active,boolean,NO,true
+services,created_at,timestamp with time zone,YES,now()
+services,updated_at,timestamp with time zone,YES,now()
+services,active,boolean,YES,true
+services,duration,integer,YES,60
+services,target_sales_cycle_days,numeric,YES,null
+services,custo_material,numeric,YES,0
+services,preco_base,numeric,YES,0
+services,periodicidade_retorno_meses,integer,YES,0
+services,associated_tag_id,uuid,YES,null
+services,descricao_comercial,text,YES,null
+services,argumentos_venda,text,YES,null
+services,faq,text,YES,null
+services,indicacoes,text,YES,null
+services,valor_minimo,numeric,YES,null
+services,valor_maximo,numeric,YES,null
+services,nivel_dor,text,YES,null
+services,tempo_recuperacao,text,YES,null
+services,combinacoes_sugeridas,text,YES,null
+services,contra_indicacoes,text,YES,null
+services,duracao_resultado,text,YES,null
+services,deleted_at,timestamp with time zone,YES,null
+whatsapp_connections,id,uuid,NO,gen_random_uuid()
+whatsapp_connections,clinic_id,uuid,YES,null
+whatsapp_connections,instance_name,text,NO,null
+whatsapp_connections,connection_name,text,NO,null
+whatsapp_connections,phone_number,text,YES,null
+whatsapp_connections,status,text,YES,'pending'::text
+whatsapp_connections,created_at,timestamp with time zone,YES,"timezone('utc'::text, now())"

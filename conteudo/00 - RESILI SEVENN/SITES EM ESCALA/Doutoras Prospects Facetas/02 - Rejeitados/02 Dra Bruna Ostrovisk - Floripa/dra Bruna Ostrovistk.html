@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO On-Page -->
+    <title>Facetas em Resina em Florianópolis SC | Dra. Bruna Ostrovski</title>
+    <meta name="description" content="Transforme seu sorriso com Facetas em Resina em Florianópolis SC. Dra. Bruna Ostrovski, especialista em estética dental de alta performance. Agende sua avaliação.">
+    <meta name="keywords" content="Facetas em Resina, Lentes de Contato Dental, Dentista Florianópolis, Estética Dental, Dra Bruna Ostrovski">
+    <meta name="author" content="Dra. Bruna Ostrovski">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Facetas em Resina em Florianópolis SC | Dra. Bruna Ostrovski">
+    <meta property="og:description" content="Transforme seu sorriso com Facetas em Resina em Florianópolis SC. Especialista em estética dental de alta performance.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.instagram.com/drabrunaostrovski/">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2576&auto=format&fit=crop">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        noir: '#050505',
+                        surface: '#121212',
+                        paper: '#ffffff',
+                        primary: '#DB20C7',      // Magenta / Pink
+                        secondary: '#f3b6b6',    // Rose Gold
+                        textMain: '#F3F4F6',
+                        textDark: '#1a1a1a',
+                        textMuted: '#9CA3AF',
+                        textMutedLight: '#4B5563',
+                    },
+                    fontFamily: {
+                        serif: ['"Playfair Display"', 'serif'],
+                        sans: ['"DM Sans"', 'sans-serif'],
+                    },
+                    backgroundImage: {
+                        'gradient-noir': 'linear-gradient(to bottom, #050505, #121212)',
+                        'gradient-light': 'linear-gradient(to bottom, #ffffff, #f9fafb)',
+                    },
+                    boxShadow: {
+                        'glow-medium': '0 0 20px rgba(219, 32, 199, 0.25), 0 0 8px rgba(219, 32, 199, 0.1)',
+                        'shadow-light': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                        'bottom-primary': '0 4px 6px -1px rgba(219, 32, 199, 0.25)', 
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Cursor Piscante */
+        .animate-blink {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Borda Giratória (Border Flow) - Botões */
+        @keyframes border-rotate {
+            from { --angle: 0deg; }
+            to { --angle: 360deg; }
+        }
+        @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+        .btn-border-flow {
+            position: relative;
+            background: #DB20C7;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .btn-border-flow::before {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset: -4px; 
+            animation: border-rotate 3s linear infinite;
+            border-radius: 12px;
+            background: conic-gradient(from var(--angle), transparent 20%, #DB20C7, #000000, #DB20C7, transparent 80%);
+        }
+
+        .dark .btn-border-flow::before {
+            background: conic-gradient(from var(--angle), transparent 20%, #DB20C7, #FFFFFF, #DB20C7, transparent 80%);
+        }
+
+        .btn-border-flow::after {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            inset: 3px; 
+            background: #DB20C7;
+            border-radius: 6px;
+        }
+        
+        .btn-border-flow:hover::before {
+            animation-duration: 1.5s;
+        }
+
+        /* Base Styles */
+        body { 
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        /* Glassmorphism Dark */
+        .dark .glass-card {
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid rgba(219, 32, 199, 0.3);
+            box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        /* Glassmorphism Light */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(219, 32, 199, 0.2);
+            box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        /* Animations */
+        .reveal { opacity: 0; transform: translateY(30px); transition: all 1s cubic-bezier(0.5, 0, 0, 1); }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        .dark ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-track { background: #f3f4f6; }
+        
+        ::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #DB20C7; }
+
+        /* Float Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes float-delayed {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-delayed { animation: float-delayed 5s ease-in-out infinite 2s; }
+        .animate-bounce-slow { animation: bounce 3s infinite; }
+    </style>
+</head>
+<body class="font-sans antialiased overflow-x-hidden selection:bg-primary selection:text-paper bg-gray-50 text-textDark dark:bg-noir dark:text-textMain">
+
+    <script>
+        // Lógica do Tema (Dark/Light)
+        if (localStorage.theme === 'light') {
+            document.documentElement.classList.remove('dark');
+        } else {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Efeito de Digitação
+        document.addEventListener('DOMContentLoaded', () => {
+            const typingSpan = document.querySelector('.typing-word');
+            
+            if (typingSpan) {
+                const words = ["com auto estima.", "com Facetas em Resina."];
+                let wordIndex = 0;
+                let charIndex = 0;
+                let isDeleting = false;
+                
+                const typeEffect = () => {
+                    const currentWord = words[wordIndex];
+                    const currentChar = currentWord.substring(0, charIndex);
+                    
+                    typingSpan.textContent = currentChar;
+                    
+                    let typeSpeed = isDeleting ? 50 : 100;
+
+                    if (!isDeleting && charIndex === currentWord.length) {
+                        typeSpeed = 2000;
+                        isDeleting = true;
+                    } else if (isDeleting && charIndex === 0) {
+                        isDeleting = false;
+                        wordIndex = (wordIndex + 1) % words.length;
+                        typeSpeed = 500;
+                    }
+
+                    charIndex = isDeleting ? charIndex - 1 : charIndex + 1;
+                    
+                    setTimeout(typeEffect, typeSpeed);
+                }
+
+                typeEffect();
+            }
+        });
+    </script>
+
+    <nav class="fixed w-full z-50 top-0 transition-all duration-300 bg-white/90 dark:bg-noir/90 backdrop-blur-md border-b border-gray-200 dark:border-white/5">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#" class="font-serif text-xl md:text-2xl tracking-widest uppercase text-noir dark:text-white transition-colors">Dra. Bruna Ostrovski<span class="text-primary">.</span></a>
+            
+            <div class="flex items-center gap-6">
+                <button id="theme-toggle" class="text-noir dark:text-white hover:text-primary dark:hover:text-primary transition-colors focus:outline-none" aria-label="Alternar tema">
+                    <i id="theme-toggle-dark-icon" class="fas fa-moon hidden text-lg"></i>
+                    <i id="theme-toggle-light-icon" class="fas fa-sun hidden text-lg"></i>
+                </button>
+
+                <a href="https://wa.me/5548992110850" target="_blank" rel="noopener noreferrer" class="hidden md:inline-block border border-primary text-primary hover:bg-primary hover:text-paper px-6 py-2 text-xs uppercase tracking-widest font-bold transition-all duration-300 rounded-sm shadow-md dark:shadow-glow-medium">
+                    Agendar
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="relative min-h-[100dvh] flex flex-col md:grid md:grid-cols-2 pt-16 md:pt-0 bg-white dark:bg-noir transition-colors duration-500">
+        
+        <div class="order-2 md:order-1 flex flex-col justify-center px-6 py-16 md:px-16 lg:px-24 relative z-10">
+            <div class="reveal">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="h-[1px] w-8 bg-primary"></span>
+                    <span class="text-primary tracking-[0.3em] text-xs font-bold uppercase">Odontologia Estética</span>
+                </div>
+                
+                <h1 class="font-serif text-5xl md:text-5xl lg:text-6xl font-medium leading-[1.1] mb-8 text-noir dark:text-white transition-colors min-h-[6.5em] md:min-h-[4.5em] lg:min-h-[3.3em]">
+                    Recupere a alegria de sorrir <span class="italic font-light text-primary drop-shadow-md typing-word"></span><span class="text-primary animate-blink">|</span>
+                </h1>
+                
+                <p class="text-textMutedLight dark:text-textMuted text-lg leading-relaxed mb-12 max-w-md font-light border-l border-primary/50 pl-6 transition-colors">
+                    Tratamentos especializados em Facetas de Resina em Florianópolis. Sorriso de Artista em 1 dia.
+                </p>
+                
+                <a href="https://wa.me/5548992110850" target="_blank" rel="noopener noreferrer" class="group inline-flex items-center gap-4 text-noir dark:text-white text-sm uppercase tracking-widest font-bold hover:text-primary transition-colors">
+                    <span class="border-b border-primary group-hover:border-noir dark:group-hover:border-white pb-1 transition-all shadow-bottom-primary">Iniciar Transformação</span>
+                    <i class="fas fa-arrow-right text-primary transform group-hover:translate-x-2 transition-transform drop-shadow-sm"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="order-1 md:order-2 relative h-[50vh] md:h-full w-full overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2576&auto=format&fit=crop" 
+                 alt="Dra. Bruna Ostrovski - Especialista em Facetas em Resina em Florianópolis SC" 
+                 class="absolute inset-0 w-full h-full object-cover object-top filter brightness-[0.9] dark:brightness-[0.7] transition-all duration-500">
+            
+            <div class="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent md:bg-gradient-to-l md:from-white/50 md:to-transparent dark:from-noir dark:md:from-noir/50 transition-colors duration-500"></div>
+
+            <div class="absolute bottom-6 right-6 md:bottom-12 md:right-12 glass-card py-2 px-4 rounded-xl flex items-center gap-4 max-w-[200px] md:max-w-[240px] animate-float-delayed z-10 dark:shadow-glow-medium">
+                <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-textMutedLight dark:text-white/70 uppercase tracking-wider">Localização</p>
+                    <p class="text-sm text-noir dark:text-white font-medium font-serif">Florianópolis - SC</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="py-24 px-6 bg-gray-50 dark:bg-surface transition-colors duration-500 relative">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-20 reveal">
+                <h2 class="font-serif text-3xl md:text-5xl mb-4 text-noir dark:text-white transition-colors">
+                    Você se identifica com algum destes <span class="text-primary italic">sinais?</span>
+                </h2>
+                <div class="h-px w-24 bg-primary mx-auto mt-6"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-gray-200 dark:bg-white/5 border border-gray-200 dark:border-white/5">
+                <div class="bg-[#DB20C7] dark:bg-[#DB20C7] p-10 transition-all duration-500 group reveal delay-100">
+                    <div class="text-3xl text-white mb-6 font-light group-hover:-translate-y-2 transition-transform drop-shadow-md">
+                        <i class="fas fa-face-frown-open"></i>
+                    </div>
+                    <h3 class="font-serif text-xl mb-4 text-noir dark:text-noir">Vergonha ao Sorrir</h3>
+                    <p class="text-[#e5e7eb] dark:text-[#e5e7eb] text-sm leading-relaxed font-light">Você evita fotos, cobre a boca ao rir ou se sente inseguro em reuniões sociais.</p>
+                </div>
+
+                <div class="bg-[#DB20C7] dark:bg-[#DB20C7] p-10  transition-all duration-500 group reveal delay-200">
+                    <div class="text-3xl text-white mb-6 font-light group-hover:-translate-y-2 transition-transform drop-shadow-md">
+                        <i class="fas fa-teeth"></i>
+                    </div>
+                    <h3 class="font-serif text-xl mb-4 text-noir dark:text-white">Dentes Amarelados</h3>
+                    <p class="text-[#e5e7eb] dark:text-[#e5e7eb] text-sm leading-relaxed font-light">Mesmo com clareamentos, as manchas persistem e o tom não é uniforme.</p>
+                </div>
+
+                <div class="bg-[#DB20C7] dark:bg-[#DB20C7] p-10  transition-all duration-500 group reveal delay-300">
+                    <div class="text-3xl text-white mb-6 font-light group-hover:-translate-y-2 transition-transform drop-shadow-md">
+                        <i class="fas fa-heart-crack"></i>
+                    </div>
+                    <h3 class="font-serif text-xl mb-4 text-noir dark:text-white">Desgaste e Fraturas</h3>
+                    <p class="text-[#e5e7eb] dark:text-[#e5e7eb] text-sm leading-relaxed font-light">Dentes com pontas quebradas ou aspecto serrilhado que tiram a jovialidade.</p>
+                </div>
+
+                <div class="bg-[#DB20C7] dark:bg-[#DB20C7] p-10  transition-all duration-500 group reveal delay-400">
+                    <div class="text-3xl text-white mb-6 font-light group-hover:-translate-y-2 transition-transform drop-shadow-md">
+                        <i class="fas fa-arrows-left-right-to-line"></i>
+                    </div>
+                    <h3 class="font-serif text-xl mb-4 text-noir dark:text-white">Espaços Indesejados</h3>
+                    <p class="text-[#e5e7eb] dark:text-[#e5e7eb] text-sm leading-relaxed font-light">Diastemas (espaços entre os dentes) que comprometem a harmonia.</p>
+                </div>
+            </div>
+
+            <div class="mt-12 text-center reveal delay-500 max-w-2xl mx-auto border-t border-primary pt-8">
+                <h3 class="font-serif text-3xl text-noir dark:text-white mb-4">Se sim, você encontrou a profissional certa!</h3>
+                <p class="text-textMutedLight dark:text-textMuted text-lg font-light leading-relaxed">
+                    Transformamos inseguranças em obras de arte. Deixe para trás o desconforto e descubra o poder de um sorriso harmonicamente planejado para o seu rosto.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="agendar" class="flex flex-col md:grid md:grid-cols-2 bg-white dark:bg-noir border-y border-gray-100 dark:border-white/5 overflow-hidden transition-colors duration-500">
+        
+        <div class="flex flex-col justify-center px-6 py-20 md:px-16 lg:px-24 order-2 md:order-1 relative z-20 bg-white/90 dark:bg-noir/90 md:bg-transparent">
+            <div class="reveal">
+                <h2 class="font-serif text-3xl md:text-5xl font-medium mb-6 leading-tight text-noir dark:text-white">
+                    Mais do que dentes.
+                    Criamos <span class="text-primary italic drop-shadow-md">arte funcional.</span>
+                </h2>
+                <p class="text-textMutedLight dark:text-textMuted text-lg mb-8 leading-relaxed font-light">
+                    A verdadeira estética não é sobre brancura artificial, mas sobre harmonia.
+                    Unimos a precisão da engenharia digital com a delicadeza da escultura manual para entregar resultados indistinguíveis do natural.
+                </p>
+                
+                <ul class="space-y-4 mb-12">
+                    <li class="flex items-center gap-3 text-textDark dark:text-textMain">
+                        <span class="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs"><i class="fas fa-check"></i></span>
+                        <span class="font-medium">Planejamento 100% Online</span>
+                    </li>
+                    <li class="flex items-center gap-3 text-textDark dark:text-textMain">
+                        <span class="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs"><i class="fas fa-check"></i></span>
+                        <span class="font-medium">Resinas Premium Importadas (Japão/Suíça)</span>
+                    </li>
+                    <li class="flex items-center gap-3 text-textDark dark:text-textMain">
+                        <span class="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs"><i class="fas fa-check"></i></span>
+                        <span class="font-medium">Procedimento realizado em menos de 6 horas</span>
+                    </li>
+                </ul>
+
+                <div class="text-center md:text-left mt-8">
+                    <a href="https://wa.me/5548992110850" target="_blank" rel="noopener noreferrer" class="btn-border-flow inline-block text-white dark:text-noir hover:text-white transition-all duration-300 px-8 py-3 text-xs font-bold uppercase tracking-widest rounded-lg shadow-md transform hover:-translate-y-1">
+                        <span class="relative z-10">Quero transformar meu sorriso</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative order-1 md:order-2 flex items-center justify-center min-h-[600px] md:h-auto py-12 md:py-0 z-10">
+            <div class="absolute inset-0 bg-radial-gradient from-primary/10 to-transparent pointer-events-none"></div>
+
+            <div class="relative w-full max-w-lg h-auto md:h-[600px] flex flex-col md:block items-center justify-center gap-6 md:gap-0 p-6">
+                
+                <svg class="absolute top-0 left-0 w-full h-full pointer-events-none z-0 hidden md:block opacity-40" viewBox="0 0 500 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 100 150 Q 40 300, 100 450 Q 250 580, 400 450 Q 460 300, 400 150 Q 325 225, 250 300 Q 175 225, 100 150" stroke="#DB20C7" stroke-width="1.5" stroke-dasharray="6 6" stroke-linecap="round" />
+                </svg>
+
+                <div class="absolute top-0 bottom-0 left-1/2 w-px border-l border-dashed border-primary/30 -translate-x-1/2 md:hidden z-0"></div>
+
+                <div class="relative z-20 order-1 md:absolute md:top-1/2 md:-translate-y-1/2 md:-left-24 lg:-left-32 bg-white/90 dark:bg-noir/90 border border-primary/30 px-5 py-3 rounded-xl text-center shadow-lg animate-float md:order-none transition-colors">
+                    <span class="text-primary font-bold block text-xl md:text-2xl">+ de 5</span>
+                    <span class="text-[10px] md:text-xs uppercase tracking-wider font-bold text-noir/80 dark:text-white/80 leading-tight">Anos de<br>Expertise</span>
+                </div>
+
+                <div class="relative z-10 order-2 md:absolute md:top-10 md:left-4 w-48 h-32 md:w-40 md:h-28 rounded-xl overflow-hidden border border-primary/40 shadow-md dark:shadow-glow-medium hover:scale-105 transition-transform duration-500 bg-gray-100 dark:bg-surface">
+                    <img src="https://lh3.googleusercontent.com/d/1PKFR0mXfTypi4gPP5Gm9XHxDLg5cRnkc" alt="Antes e Depois Facetas em Resina Dra Bruna Ostrovski" loading="lazy" class="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity">
+                </div>
+
+                <div class="relative z-10 order-3 md:absolute md:top-10 md:right-4 w-48 h-32 md:w-44 md:h-32 rounded-xl overflow-hidden border border-primary/40 shadow-md dark:shadow-glow-medium hover:scale-105 transition-transform duration-500 bg-gray-100 dark:bg-surface">
+                    <img src="https://lh3.googleusercontent.com/d/1PKFR0mXfTypi4gPP5Gm9XHxDLg5cRnkc" alt="Antes e Depois Facetas em Resina Dra Bruna Ostrovski" loading="lazy" class="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity">
+                </div>
+
+                <div class="relative z-10 order-4 md:absolute md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 w-56 h-36 md:w-56 md:h-36 rounded-xl overflow-hidden border border-primary/40 shadow-md dark:shadow-glow-medium hover:scale-105 transition-transform duration-500 bg-gray-100 dark:bg-surface">
+                    <img src="https://lh3.googleusercontent.com/d/1PKFR0mXfTypi4gPP5Gm9XHxDLg5cRnkc" alt="Antes e Depois Facetas em Resina Dra Bruna Ostrovski" loading="lazy" class="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity">
+                </div>
+
+                <div class="relative z-10 order-5 md:absolute md:bottom-10 md:left-8 w-48 h-32 md:w-44 md:h-32 rounded-xl overflow-hidden border border-primary/40 shadow-md dark:shadow-glow-medium hover:scale-105 transition-transform duration-500 bg-gray-100 dark:bg-surface">
+                    <img src="https://lh3.googleusercontent.com/d/1PKFR0mXfTypi4gPP5Gm9XHxDLg5cRnkc" alt="Antes e Depois Facetas em Resina Dra Bruna Ostrovski" loading="lazy" class="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity">
+                </div>
+
+                <div class="relative z-10 order-6 md:absolute md:bottom-10 md:right-4 w-48 h-32 md:w-40 md:h-28 rounded-xl overflow-hidden border border-primary/40 shadow-md dark:shadow-glow-medium hover:scale-105 transition-transform duration-500 bg-gray-100 dark:bg-surface">
+                    <img src="https://lh3.googleusercontent.com/d/1PKFR0mXfTypi4gPP5Gm9XHxDLg5cRnkc" alt="Antes e Depois Facetas em Resina Dra Bruna Ostrovski" loading="lazy" class="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity">
+                </div>
+
+                <div class="relative z-20 order-7 md:absolute md:top-0 md:-right-16 lg:-right-24 bg-white/90 dark:bg-noir/90 border border-primary/30 px-5 py-3 rounded-xl text-center shadow-lg animate-float-delayed md:order-none transition-colors">
+                    <span class="text-noir dark:text-white font-bold block text-xl md:text-2xl">+ 780</span>
+                    <span class="text-[10px] md:text-xs uppercase tracking-wider font-bold text-primary leading-tight">Pacientes<br>Atendidos</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-24 px-6 bg-gray-50 dark:bg-surface transition-colors duration-500 relative">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <h2 class="font-serif text-3xl md:text-4xl mb-3 text-noir dark:text-white">A Tecnologia por trás da Resina Premium</h2>
+                <p class="text-textMutedLight dark:text-textMuted font-light">Inovação a serviço da sua autoestima.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="border border-gray-200 dark:border-white/10 p-8 rounded-xl hover:border-primary transition-all duration-300 reveal delay-100 bg-white dark:bg-noir group shadow-sm dark:shadow-none">
+                    <i class="fas fa-feather-alt text-3xl text-primary mb-4 drop-shadow-md group-hover:scale-110 transition-transform"></i>
+                    <h3 class="font-serif text-xl mb-2 text-noir dark:text-white">Minimamente Invasivo</h3>
+                    <p class="text-sm text-textMutedLight dark:text-textMuted font-light">Técnica aditiva que preserva a estrutura natural do dente, sem desgastes agressivos.</p>
+                </div>
+                
+                <div class="border border-gray-200 dark:border-white/10 p-8 rounded-xl hover:border-primary transition-all duration-300 reveal delay-200 bg-white dark:bg-noir group shadow-sm dark:shadow-none">
+                    <i class="fas fa-atom text-3xl text-primary mb-4 drop-shadow-md group-hover:scale-110 transition-transform"></i>
+                    <h3 class="font-serif text-xl mb-2 text-noir dark:text-white">Nanotecnologia</h3>
+                    <p class="text-sm text-textMutedLight dark:text-textMuted font-light">Resinas híbridas com partículas de cerâmica, garantindo resistência superior.</p>
+                </div>
+                
+                <div class="border border-gray-200 dark:border-white/10 p-8 rounded-xl hover:border-primary transition-all duration-300 reveal delay-300 bg-white dark:bg-noir group shadow-sm dark:shadow-none">
+                    <i class="fas fa-palette text-3xl text-primary mb-4 drop-shadow-md group-hover:scale-110 transition-transform"></i>
+                    <h3 class="font-serif text-xl mb-2 text-noir dark:text-white">Estética Natural</h3>
+                    <p class="text-sm text-textMutedLight dark:text-textMuted font-light">Mimetização perfeita de textura, translucidez e cor, indistinguível do dente natural.</p>
+                </div>
+                
+                <div class="border border-gray-200 dark:border-white/10 p-8 rounded-xl hover:border-primary transition-all duration-300 reveal delay-400 bg-white dark:bg-noir group shadow-sm dark:shadow-none">
+                    <i class="fas fa-stopwatch text-3xl text-primary mb-4 drop-shadow-md group-hover:scale-110 transition-transform"></i>
+                    <h3 class="font-serif text-xl mb-2 text-noir dark:text-white">Agilidade</h3>
+                    <p class="text-sm text-textMutedLight dark:text-textMuted font-light">Transformação completa do sorriso realizada, na maioria dos casos, em sessão única.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="flex flex-col md:flex-row bg-white dark:bg-noir border-y border-gray-100 dark:border-white/5 transition-colors duration-500">
+        
+        <div class="w-full md:w-1/2 flex flex-col justify-center p-8 md:p-20 order-2 md:order-1">
+            <h2 class="font-serif text-4xl mb-12 text-noir dark:text-white">Nosso Protocolo</h2>
+            
+            <div class="relative border-l border-primary/30 ml-3 space-y-12">
+                <div class="relative pl-12 reveal delay-100 group">
+                    <span class="absolute -left-[9px] top-1 w-[18px] h-[18px] rounded-full bg-white dark:bg-noir border border-primary group-hover:bg-primary transition-colors"></span>
+                    <span class="text-xs uppercase tracking-widest text-primary font-bold">01</span>
+                    <h4 class="font-serif text-xl font-medium mt-1 text-noir dark:text-white">Avaliação Inicial</h4>
+                    <p class="text-sm text-textMutedLight dark:text-textMuted mt-2 font-light">Análise detalhada do seu sorriso, expectativas e saúde bucal para um planejamento personalizado.</p>
+                </div>
+
+                <div class="relative pl-12 reveal delay-200 group">
+                    <span class="absolute -left-[9px] top-1 w-[18px] h-[18px] rounded-full bg-white dark:bg-noir border border-primary group-hover:bg-primary transition-colors"></span>
+                    <span class="text-xs uppercase tracking-widest text-primary font-bold">02</span>
+                    <h4 class="font-serif text-xl font-medium mt-1 text-noir dark:text-white">Planejamento do Sorriso</h4>
+                    <p class="text-sm text-textMutedLight dark:text-textMuted mt-2 font-light">Desenho do novo sorriso respeitando a harmonia do seu rosto, garantindo que o resultado final seja natural e exclusivo..</p>
+                </div>
+
+                <div class="relative pl-12 reveal delay-300 group">
+                    <span class="absolute -left-[9px] top-1 w-[18px] h-[18px] rounded-full bg-white dark:bg-noir border border-primary group-hover:bg-primary transition-colors"></span>
+                    <span class="text-xs uppercase tracking-widest text-primary font-bold">03</span>
+                    <h4 class="font-serif text-xl font-medium mt-1 text-noir dark:text-white">Execução Artística</h4>
+                    <p class="text-sm text-textMutedLight dark:text-textMuted mt-2 font-light">Aplicação das facetas em resina de forma artesanal, esculpindo dente a dente com materiais de altíssima qualidade.</p>
+                </div>
+
+                <div class="relative pl-12 reveal delay-400 group">
+                    <span class="absolute -left-[9px] top-1 w-[18px] h-[18px] rounded-full bg-white dark:bg-noir border border-primary group-hover:bg-primary transition-colors"></span>
+                    <span class="text-xs uppercase tracking-widest text-primary font-bold">04</span>
+                    <h4 class="font-serif text-xl font-medium mt-1 text-noir dark:text-white">Acabamento e Polimento</h4>
+                    <p class="text-sm text-textMutedLight dark:text-textMuted mt-2 font-light">Etapa final para garantir o brilho, a textura natural e a longevidade do seu novo sorriso.</p>
+                </div>
+            </div>
+
+            <div class="mt-12 reveal delay-500 text-center">
+                <a href="https://wa.me/5548992110850" target="_blank" rel="noopener noreferrer" class="btn-border-flow inline-block text-white dark:text-noir hover:text-white transition-all duration-300 px-8 py-4 text-xs font-bold uppercase tracking-widest rounded-md shadow-md transform hover:-translate-y-1">
+                    <span class="relative z-10">Solicitar Avaliação</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="w-full md:w-1/2 relative min-h-[400px] md:h-auto overflow-hidden order-1 md:order-2 bg-gray-50 dark:bg-surface">
+            <img src="/images/design-mode/71a325_8b83912be6d9439e8a5b0995b0e2c30d~mv2.png" 
+                 alt="Sorriso Perfeito com Facetas em Resina Dra Bruna Ostrovski" 
+                 loading="lazy"
+                 class="w-full h-full object-cover">
+        </div>
+
+    </section>
+
+    <section class="flex flex-col md:flex-row min-h-[600px] bg-gray-50 dark:bg-surface relative overflow-hidden transition-colors duration-500">
+        <div class="w-full md:w-5/12 relative h-[500px] md:h-auto bg-white dark:bg-[#0a0a0a]">
+            <img src="/images/design-mode/vista-frontal-da-linda-mulher-caucasiana-em-uniforme-medico-preto-em-pe-no-estudio-cosmetologista-femea-competente-segurando-os-bracos-cruzados-sobre-um-fundo-cinza_7502-9241.jpg" 
+                 alt="Dra. Bruna Ostrovski - Especialista em Facetas em Resina" 
+                 loading="lazy"
+                 class="absolute inset-0 w-full h-full object-cover object-top opacity-100 transition-all duration-1000">
+            <div class="absolute inset-0 bg-gradient-to-t from-gray-50 via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:to-white/10 dark:from-surface/60 dark:md:to-surface/10"></div>
+        </div>
+
+        <div class="w-full md:w-7/12 flex flex-col justify-center p-12 md:p-24 bg-white dark:bg-surface z-10 transition-colors duration-500">
+            <div class="max-w-xl reveal">
+                <div class="flex items-center gap-3 mb-8">
+                    <span class="h-[2px] w-10 bg-primary shadow-glow-medium"></span>
+                    <span class="text-primary uppercase tracking-[0.2em] text-xs font-bold">Dentista Estética</span>
+                </div>
+
+                <h2 class="font-serif text-4xl md:text-5xl text-noir dark:text-white mb-8">Dra. Bruna Ostrovski</h2>
+                
+                <p class="text-textMutedLight dark:text-textMuted text-lg leading-relaxed mb-10 font-light italic border-l-2 border-primary/30 pl-6">
+                    "Minha paixão é devolver a autoestima através de sorrisos que parecem ter nascido com o paciente. Acredito na odontologia que une a máxima tecnologia com um olhar humano e artístico."
+                </p>
+
+                <div class="flex flex-col gap-8">
+                    <div class="font-serif text-4xl text-gray-200 dark:text-white/20 italic select-none">
+                        Bruna Ostrovski
+                    </div>
+                    
+                    <div class="flex gap-4">
+                        <span class="px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full text-xs font-bold text-textMutedLight dark:text-textMuted uppercase tracking-wider">CRO 14428 SC</span>
+                        <span class="px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full text-xs font-bold text-textMutedLight dark:text-textMuted uppercase tracking-wider">Especialista em Resina</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-24 px-6 bg-white dark:bg-noir border-t border-gray-100 dark:border-white/5 transition-colors duration-500">
+        <div class="max-w-3xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <h2 class="font-serif text-3xl md:text-4xl mb-4">
+                    <span class="text-primary drop-shadow-md">Dúvidas</span> <span class="text-noir dark:text-white">Frequentes</span>
+                </h2>
+                <p class="text-textMutedLight dark:text-textMuted font-light">Esclareça os principais pontos sobre o tratamento.</p>
+            </div>
+
+            <div class="space-y-4 reveal delay-100">
+                <details class="group bg-gray-50 dark:bg-surface border border-gray-200 dark:border-white/5 open:border-primary/30 transition-all duration-300">
+                    <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-noir dark:text-white hover:text-primary transition-colors">
+                        <span>Qual a durabilidade das facetas em resina?</span>
+                        <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down text-xs text-primary"></i></span>
+                    </summary>
+                    <div class="text-textMutedLight dark:text-textMuted font-light mt-0 px-6 pb-6 leading-relaxed text-sm">
+                        Com a manutenção adequada (polimento anual) e cuidados básicos, as resinas nano-híbridas de alta performance que utilizamos têm uma longevidade média de 5 a 10 anos, mantendo excelente brilho e integridade.
+                    </div>
+                </details>
+
+                <details class="group bg-gray-50 dark:bg-surface border border-gray-200 dark:border-white/5 open:border-primary/30 transition-all duration-300">
+                    <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-noir dark:text-white hover:text-primary transition-colors">
+                        <span>É necessário desgastar os dentes naturais?</span>
+                        <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down text-xs text-primary"></i></span>
+                    </summary>
+                    <div class="text-textMutedLight dark:text-textMuted font-light mt-0 px-6 pb-6 leading-relaxed text-sm">
+                        Na grande maioria dos casos, não. Nossa filosofia é minimamente invasiva (aditiva). Quando necessário, o preparo é microscópico, apenas para garantir a adaptação perfeita do material, preservando a estrutura saudável.
+                    </div>
+                </details>
+
+                <details class="group bg-gray-50 dark:bg-surface border border-gray-200 dark:border-white/5 open:border-primary/30 transition-all duration-300">
+                    <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-noir dark:text-white hover:text-primary transition-colors">
+                        <span>O procedimento causa dor?</span>
+                        <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down text-xs text-primary"></i></span>
+                    </summary>
+                    <div class="text-textMutedLight dark:text-textMuted font-light mt-0 px-6 pb-6 leading-relaxed text-sm">
+                        O procedimento é extremamente confortável e, na maioria das vezes, realizado sem necessidade de anestesia, pois trabalhamos sobre o esmalte do dente sem atingir terminações nervosas.
+                    </div>
+                </details>
+
+                <details class="group bg-gray-50 dark:bg-surface border border-gray-200 dark:border-white/5 open:border-primary/30 transition-all duration-300">
+                    <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-noir dark:text-white hover:text-primary transition-colors">
+                        <span>A resina mancha com café ou vinho?</span>
+                        <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down text-xs text-primary"></i></span>
+                    </summary>
+                    <div class="text-textMutedLight dark:text-textMuted font-light mt-0 px-6 pb-6 leading-relaxed text-sm">
+                        As resinas modernas possuem alta estabilidade de cor. Porém, como dentes naturais, o excesso de corantes pode causar pigmentação superficial ao longo dos anos. Isso é facilmente removido na sessão anual de polimento e manutenção.
+                    </div>
+                </details>
+
+                <details class="group bg-gray-50 dark:bg-surface border border-gray-200 dark:border-white/5 open:border-primary/30 transition-all duration-300">
+                    <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-noir dark:text-white hover:text-primary transition-colors">
+                        <span>Quanto tempo demora o tratamento?</span>
+                        <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down text-xs text-primary"></i></span>
+                    </summary>
+                    <div class="text-textMutedLight dark:text-textMuted font-light mt-0 px-6 pb-6 leading-relaxed text-sm">
+                        Após a aprovação do planejamento online, a transformação do sorriso é realizada geralmente em sessão única (Day Clinic) ou duas sessões, dependendo da complexidade do caso.
+                    </div>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-primary text-paper pt-20 border-t border-noir/10 transition-colors duration-500" id="contato">
+        <div class="max-w-7xl mx-auto px-6 mb-16">
+            <div class="flex flex-col md:flex-row justify-between items-center md:items-start gap-10">
+                
+                <div class="text-center md:text-left">
+                    <h3 class="font-serif text-3xl tracking-widest mb-4 uppercase text-paper">Dra. Bruna Ostrovski</h3>
+                    <p class="text-paper/80 text-xs uppercase tracking-widest font-medium">Odontologia Estética Premium</p>
+                </div>
+
+                <div class="text-center md:text-right">
+                    <p class="text-paper font-serif text-lg mb-2">Florianópolis - SC</p>
+                    <p class="text-paper/80 font-medium text-sm mb-4">Avenida Rio Branco 380, Centro</p>
+                    
+                    <p class="text-paper/80 font-medium text-xs mb-6">Seg a Sext: 09h às 18h</p>
+
+                    <div class="flex justify-center md:justify-end gap-4">
+                        <a href="https://www.instagram.com/drabrunaostrovski/" target="_blank" rel="noopener noreferrer" class="px-6 py-2 border border-paper/30 text-paper text-xs uppercase tracking-widest hover:bg-paper hover:text-primary transition-all rounded-sm font-bold">
+                            Instagram
+                        </a>
+                        <a href="https://www.google.com/maps/place/Bruna+Ostrovski+Odontologia+Est%C3%A9tica+Especializada/@-27.5924208,-48.5593579,979m/data=!3m2!1e3!4b1!4m6!3m5!1s0x95273a14df9885eb:0xf07fe3f0dc38472f!8m2!3d-27.5924209!4d-48.554487!16s%2Fg%2F11j1j6l4j9?entry=ttu&g_ep=EgoyMDI2MDIyMy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" class="px-6 py-2 border border-paper/30 text-paper text-xs uppercase tracking-widest hover:bg-paper hover:text-primary transition-all rounded-sm font-bold">
+                            Localização
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-noir w-full py-6 text-center md:text-left border-t border-white/10">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-center items-center gap-4 text-xs font-bold text-primary">
+                <p class="text-white/90 tracking-wide">SITE DEMONSTRATIVO NÃO OFICIAL <span class="hidden md:inline mx-1 text-primary">|</span> <span class="text-primary">@2025 Resili Sevenn Marketing e Vendas.</span> Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <a href="https://wa.me/5548992110850" target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 w-14 h-14 bg-[#25D366] text-white rounded-full flex items-center justify-center text-3xl shadow-lg hover:scale-110 transition-transform z-50 animate-bounce-slow" aria-label="Falar no WhatsApp">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+
+    <!-- Scripts de Interação e Animação -->
+    <script>
+        // 1. Dark Mode Logic (Toggle)
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+        const htmlElement = document.documentElement;
+
+        function updateThemeIcons() {
+            if (htmlElement.classList.contains('dark')) {
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+            } else {
+                lightIcon.classList.add('hidden');
+                darkIcon.classList.remove('hidden');
+            }
+        }
+
+        updateThemeIcons();
+
+        themeToggleBtn.addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            
+            if (htmlElement.classList.contains('dark')) {
+                localStorage.theme = 'dark';
+            } else {
+                localStorage.theme = 'light';
+            }
+            updateThemeIcons();
+        });
+
+        // 2. Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal');
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        revealElements.forEach(element => revealObserver.observe(element));
+    </script>
+
+    <!-- Schema.org JSON-LD para SEO Local -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Dentist",
+      "name": "Dra. Bruna Ostrovski - Odontologia Estética",
+      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2576&auto=format&fit=crop",
+      "@id": "https://www.instagram.com/drabrunaostrovski/",
+      "url": "https://www.instagram.com/drabrunaostrovski/",
+      "telephone": "+5548992110850",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Avenida Rio Branco 380, Centro",
+        "addressLocality": "Florianópolis",
+        "addressRegion": "SC",
+        "addressCountry": "BR"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": -27.5924209,
+        "longitude": -48.554487
+      },
+      "openingHoursSpecification": {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday"
+        ],
+        "opens": "09:00",
+        "closes": "18:00"
+      },
+      "sameAs": [
+        "https://www.instagram.com/drabrunaostrovski/"
+      ],
+      "medicalSpecialty": "Cosmetic Dentistry",
+      "description": "Especialista em Facetas em Resina em Florianópolis SC. Transforme seu sorriso em apenas 1 dia com a Dra. Bruna Ostrovski."
+    }
+    </script>
+</body>
+</html>

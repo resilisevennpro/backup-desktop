@@ -1,0 +1,39 @@
+----------------------------------------------------------------------------------
+Utmify Meta Script Anúncios
+
+utm_source=FB&utm_campaign={{campaign.name}}|{{campaign.id}}&utm_medium={{adset.name}}|{{adset.id}}&utm_content={{ad.name}}|{{ad.id}}&utm_term={{placement}}&xcod=FBhQwK21wXxR{{campaign.name}}|{{campaign.id}}hQwK21wXxR{{adset.name}}|{{adset.id}}hQwK21wXxR{{ad.name}}|{{ad.id}}hQwK21wXxR{{placement}}
+
+----------------------------------------------------------------------------------
+
+PARAMETRO URL AUTOMATICO
+
+utm_source=facebook&utm_medium={{placement}}&utm_campaign={{campaign.name}}&utm_content={{adset.name}}&utm_term={{ad.name}}
+
+-------------------------
+Explicando cada parte:
+
+utm_source=facebook – ORIGEM
+Define a fonte do tráfego, neste caso, "facebook". Isso identifica que o tráfego veio da plataforma de anúncios do Facebook.
+
+utm_medium={{placement}} – MEIO DA CAMPANHA
+Indica o "meio" ou localização onde o anúncio foi exibido. Com o placement, você pode ver se o anúncio foi exibido, por exemplo, no Feed, Stories, ou Reels.
+
+utm_campaign={{campaign.name}} – NOME DA CAMPANHA
+Identifica a campanha do anúncio, usando o nome da campanha para rastrear a performance no nível de campanha.
+
+utm_content={{adset.name}} – CONTEÚDO
+Define o nome do conjunto de anúncios, ajudando a identificar qual conjunto de anúncios específico trouxe o tráfego.
+
+utm_term={{ad.name}} – TERMO DE PESQUISA OU NOME ANUNCIO
+Captura o nome do anúncio, identificando o anúncio específico que foi clicado.
+
+----------------------------------------------------------------------------------
+
+UTMIFY PÁGINA DE VENDAS
+
+<script
+  src="https://cdn.utmify.com.br/scripts/utms/latest.js"
+  data-utmify-prevent-subids
+  async
+  defer
+></script>

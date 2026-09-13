@@ -1,0 +1,75 @@
+Implemente um efeito de contagem crescente (count-up) na seção “Resultados que Falam por Si”, com estas regras:
+
+Comportamento
+
+A contagem só inicia quando os números ficarem visíveis no viewport (usuário rolou até a seção).
+
+Duração fixa: 3000ms (3s) do início até o valor final.
+
+Rodar 1 vez por página (não repetir se o usuário rolar para fora e voltar).
+
+Interpolação linear (sem saltos bruscos).
+
+Acessibilidade: se prefers-reduced-motion estiver ativo, mostrar diretamente os valores finais (sem animação).
+
+Formatação
+
+Usar Intl.NumberFormat('pt-BR') para formatar com separador de milhar “.”.
+
+Permitir prefixo e sufixo estáticos fora do número (ex.: “+”, “ mil”, “ anos”).
+
+Valores finais desejados:
+
+3 (exibir como “+3” e sufixo “ anos”)
+
+550 (exibir como “+550” e sufixo “ mil”)
+
+1200 (exibir como “+1.200” e sufixo “ leads e oportunidades geradas” — o sufixo pode permanecer no texto abaixo, o número em si deve ir com +1.200)
+
+Implementação (React + Tailwind)
+
+Criar um pequeno componente CountUpOnView com props:
+
+value: number (final), durationMs: number = 3000,
+
+prefix?: string, suffix?: string,
+
+className?: string.
+
+Usar IntersectionObserver no próprio componente com threshold: 0.3 e rootMargin: "0px 0px -10% 0px" para iniciar quando ~30% do elemento estiver visível.
+
+Animação via requestAnimationFrame:
+
+start = performance.now();
+
+em cada frame calcular progress = min((now - start)/duration, 1);
+
+current = Math.round(progress * value);
+
+renderizar prefix + Intl.NumberFormat('pt-BR').format(current) + suffix.
+
+Garantir disparo único usando um state hasPlayed.
+
+No SSR/hidratação, renderizar prefix + Intl.NumberFormat('pt-BR').format(0) para evitar “jump”.
+
+Respeitar prefers-reduced-motion: se ativo, pular a animação e mostrar o valor final.
+
+Aplicação nos três cards
+
+No primeiro card (Experiência): <CountUpOnView value={3} prefix="+" className="text-3xl md:text-4xl font-extrabold" /> e ao lado/abaixo o texto “anos de Experiência”.
+
+No segundo card (Investimento gerenciado): <CountUpOnView value={550} prefix="+" suffix="" className="text-3xl md:text-4xl font-extrabold" /> e manter o texto “mil gerenciado em anúncios” no subtítulo.
+
+No terceiro card (Leads): <CountUpOnView value={1200} prefix="+" className="text-3xl md:text-4xl font-extrabold" /> e manter no subtítulo “leads e oportunidades geradas”.
+
+Critérios de aceite
+
+A contagem não inicia no load, apenas quando o usuário rolar até a seção.
+
+Cada contador leva 3s exatos do 0/1 até o valor final.
+
+Formatação em pt-BR (ex.: 1200 → 1.200).
+
+O efeito roda uma única vez por sessão de scroll.
+
+Com prefers-reduced-motion, exibe diretamente o número final.

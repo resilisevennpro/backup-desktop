@@ -1,0 +1,455 @@
+// app/admin/page.tsx
+"use client"
+
+import type React from "react"
+import { useMemo, useState } from "react"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
+import { Copy, KeyRound, LogOut, Plus, MoreVertical, Check } from "lucide-react"
+
+// Observação: seu Admin ainda não está protegido no client.
+// Você já documentou isso — manter import do requireAdmin não é necessário aqui.
+// O ideal é proteger por Server Component/route middleware, mas vamos seguir como está.
+import { requireAdmin } from "@/lib/auth"
+
+interface Client {
+  id: string
+  clinica: string
+  email: string
+  sheetId: string
+  status: "active" | "inactive"
+
+  // IMPORTANTE para reset manual funcionar:
+  // quando você implementar o onboarding real (E9), você vai preencher isso com o user_id do Supabase Auth.
+  userId?: string
+}
+
+const mockClients: Client[] = [
+  {
+    id: "1",
+    clinica: "DentCare Plus",
+    email: "financeiro@dentcare.com",
+    sheetId: "3DzjOxu2ZTC7pHOfMxDfDbmiNWSrvvndu96QkxG4wrou",
+    status: "inactive",
+  },
+  {
+    id: "4",
+    clinica: "Oral Health Center",
+    email: "admin@oralhealth.com",
+    sheetId: "4EaKPYv3AUD8qIPgNyEgEcnjOXXtswwoev07RlyH5xspv",
+    status: "active",
+  },
+]
+
+export default function AdminPage() {
+  // =========================
+  // Client list state
+  // =========================
+  const [clients, setClients] = useState<Client[]>(mockClients)
+
+  // =========================
+  // Add client dialog state
+  // =========================
+  const [isAddClientOpen, setIsAddClientOpen] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+
+  const [newClinica, setNewClinica] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [newSheetId, setNewSheetId] = useState("")
+
+  // feedback do modal de criar
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null)
+
+  // =========================
+  // Reset password dialog state  ✅ (A)
+  // =========================
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
+  const [tempPassword, setTempPassword] = useState("")
+  const [resetSaving, setResetSaving] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null)
+
+  // =========================
+  // Copy feedback
+  // =========================
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const handleCopySheetId = (sheetId: string, clientId: string) => {
+    navigator.clipboard.writeText(sheetId)
+    setCopiedId(clientId)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  // =========================
+  // Add client handler (mantido simples)
+  // =========================
+  const handleAddClient = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    setCreateError(null)
+    setCreateSuccess(null)
+
+    try {
+      // hoje você está em mock. No E9 isso vira request real (criar user + clinic + profile)
+      const newItem: Client = {
+        id: String(Date.now()),
+        clinica: newClinica.trim(),
+        email: newEmail.trim(),
+        sheetId: newSheetId.trim(),
+        status: "active",
+      }
+
+      setClients((prev) => [newItem, ...prev])
+
+      setCreateSuccess("Cliente criado no mock (ainda não persistido no Supabase).")
+      setNewClinica("")
+      setNewEmail("")
+      setNewPassword("")
+      setNewSheetId("")
+      setIsAddClientOpen(false)
+    } catch (err: any) {
+      setCreateError(err?.message || "Erro ao criar cliente.")
+    }
+  }
+
+  // =========================
+  // Reset password handler ✅ (B)
+  // =========================
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    setResetError(null)
+    setResetSuccess(null)
+
+    if (!selectedClient) {
+      setResetError("Selecione um cliente para resetar a senha.")
+      return
+    }
+
+    if (!selectedClient.userId) {
+      setResetError(
+        "Este cliente ainda não tem userId. No E9 (onboarding real), vamos criar o usuário e salvar o userId aqui."
+      )
+      return
+    }
+
+    if (!tempPassword || tempPassword.length < 8) {
+      setResetError("A nova senha precisa ter no mínimo 8 caracteres.")
+      return
+    }
+
+    setResetSaving(true)
+    try {
+      const res = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedClient.userId,
+          newPassword: tempPassword,
+        }),
+      })
+
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Erro ao resetar senha.")
+      }
+
+      setResetSuccess("Senha resetada com sucesso.")
+      setTempPassword("")
+      setIsResetPasswordOpen(false)
+    } catch (err: any) {
+      setResetError(err?.message || "Erro ao resetar senha.")
+    } finally {
+      setResetSaving(false)
+    }
+  }
+
+  // =========================
+  // Abrir modal reset com limpeza ✅ (C)
+  // =========================
+  const openResetForClient = (client: Client) => {
+    setSelectedClient(client)
+
+    // limpa feedback sempre que abrir
+    setResetError(null)
+    setResetSuccess(null)
+
+    // opcional: também limpar senha anterior
+    setTempPassword("")
+
+    setIsResetPasswordOpen(true)
+  }
+
+  const statusBadge = (s: Client["status"]) => {
+    if (s === "active") return <Badge className="bg-green-600">Ativo</Badge>
+    return <Badge variant="secondary">Inativo</Badge>
+  }
+
+  const clientsCount = useMemo(() => clients.length, [clients.length])
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Admin</h1>
+          <p className="text-sm text-muted-foreground">Clientes cadastrados: {clientsCount}</p>
+        </div>
+
+        {/* Add Client Dialog */}
+        <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
+          <DialogTrigger asChild>
+            <Button
+              className="bg-[#6fca3a] hover:bg-[#5db832] text-white"
+              onClick={() => {
+                // ✅ ajuste pedido (sem quebrar DialogTrigger)
+                setCreateError(null)
+                setCreateSuccess(null)
+                setIsAddClientOpen(true)
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Cliente
+            </Button>
+          </DialogTrigger>
+
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Adicionar Novo Cliente</DialogTitle>
+              <DialogDescription>Preencha os dados para cadastrar uma nova clínica no sistema.</DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleAddClient}>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clinica">Nome da Clínica</Label>
+                  <Input
+                    id="clinica"
+                    placeholder="Ex: Odonto Premium"
+                    value={newClinica}
+                    onChange={(e) => setNewClinica(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email (Login)</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="admin@clinica.com"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha Inicial</Label>
+                  <Input
+                    id="password"
+                    type="text"
+                    placeholder="senha123"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="font-mono"
+                    required
+                  />
+                  <p className="text-xs text-gray-500">Visível para você copiar e enviar ao cliente</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sheetId">Google Sheet ID</Label>
+                  <Input
+                    id="sheetId"
+                    placeholder="1BxiMVs0XRA5nFMdKvBdBZjg..."
+                    value={newSheetId}
+                    onChange={(e) => setNewSheetId(e.target.value)}
+                    className="font-mono text-sm"
+                    required
+                  />
+                </div>
+
+                {/* feedback criar */}
+                {createError ? (
+                  <div className="text-sm text-red-600">{createError}</div>
+                ) : null}
+                {createSuccess ? (
+                  <div className="text-sm text-green-600">{createSuccess}</div>
+                ) : null}
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddClientOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" className="bg-[#6fca3a] hover:bg-[#5db832]">
+                  Adicionar Cliente
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl border bg-background">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Clínica</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Sheet ID</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {clients.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{c.clinica}</TableCell>
+                <TableCell>{c.email}</TableCell>
+
+                <TableCell className="font-mono text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate max-w-[260px]">{c.sheetId}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleCopySheetId(c.sheetId, c.id)}
+                      title="Copiar Sheet ID"
+                    >
+                      {copiedId === c.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </TableCell>
+
+                <TableCell>{statusBadge(c.status)}</TableCell>
+
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem
+                        onClick={() => openResetForClient(c)} // ✅ abre modal reset com limpeza (C)
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <KeyRound className="w-4 h-4" />
+                        <span>Resetar Senha</span>
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onClick={() => {
+                          // placeholder
+                          window.location.href = "/login"
+                        }}
+                        className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sair</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Reset Password Dialog ✅ (D) */}
+      <Dialog
+        open={isResetPasswordOpen}
+        onOpenChange={(open) => {
+          setIsResetPasswordOpen(open)
+          if (open) {
+            // garantir limpeza quando abrir por qualquer motivo
+            setResetError(null)
+            setResetSuccess(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resetar Senha</DialogTitle>
+            <DialogDescription>
+              {selectedClient
+                ? `Defina uma nova senha para: ${selectedClient.clinica} (${selectedClient.email})`
+                : "Selecione um cliente para resetar a senha."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="tempPassword">Nova Senha</Label>
+              <Input
+                id="tempPassword"
+                type="text"
+                value={tempPassword}
+                onChange={(e) => setTempPassword(e.target.value)}
+                placeholder="mínimo 8 caracteres"
+                className="font-mono"
+                required
+              />
+              <p className="text-xs text-gray-500">
+                Esta senha será aplicada direto no usuário do Supabase Auth (service role).
+              </p>
+            </div>
+
+            {resetError ? <div className="text-sm text-red-600">{resetError}</div> : null}
+            {resetSuccess ? <div className="text-sm text-green-600">{resetSuccess}</div> : null}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsResetPasswordOpen(false)
+                }}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="submit"
+                className="bg-[#6fca3a] hover:bg-[#5db832]"
+                disabled={resetSaving}
+              >
+                {resetSaving ? "Salvando..." : "Confirmar Reset"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

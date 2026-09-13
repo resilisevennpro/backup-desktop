@@ -1,0 +1,8 @@
+A opção de Filtro padrão de "Tornouse Paciente em:" tem que ser a data do mês atual personalizada de acordo com  o dia final. Ex: Se hoje é dia 28/01, o padrão quandoa acessar a página tem que ser "Jan 01 - Jan 28". E este padrão não pode ter cor selecionada como slate (é sem cor preenchimento, apenas cor de fonte.).
+
+Além disso quando clico em um paciente. "ex:  Priscila Ferreira" o retorno é "Lead não encontrado". Mas na verdade precisamos redirecionar pro lugar certo que é: --> "Lógica de Navegação
+, Ao clicar na linha da tabela: O sistema deve redirecionar para a rota dinâmica /crm/won/[id]."
+
+Nota para a IA: Não crie uma nova página de detalhes. Reutilize a LeadDetailsPage existente, pois ela já contém as abas de Chat, Prontuário, Galeria e Financeiro que precisamos."
+
+Par isso, replique os mesmos leads que ja estão no pipeline na etapa "Venda Realizada" para a página de pacientes (pois o comportamento por Padrão tem que ser --> todo lead que entrou na etapa do pipeline de "VEnda Realizada" se tornou um paciente e tem que ir direto para a página de paciente. Independente se futuramente mudou de etapa ou foi arquivado.

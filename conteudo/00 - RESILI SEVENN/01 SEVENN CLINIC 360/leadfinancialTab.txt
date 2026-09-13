@@ -1,0 +1,684 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    TrendingUp,
+    AlertCircle,
+    Plus,
+    Copy,
+    Receipt,
+    AlertTriangle,
+    Link as LinkIcon,
+    CreditCard,
+    QrCode,
+    Banknote,
+    FileText,
+    Trash2,
+    Edit,
+    Check
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+import { useFinanceStore } from "@/store/useFinanceStore";
+import type { Transaction } from "@/components/finance/types";
+import { useParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCrmStore } from "@/store/useCrmStore";
+import { useSettingsStore } from "@/store/useSettingsStore";
+import { useServicesStore } from "@/store/useServicesStore";
+import { AddTransactionModal } from "@/components/finance/AddTransactionModal";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+
+interface PaymentLink {
+    id: string;
+    title: string;
+    url: string;
+}
+
+export function LeadFinancialTab() {
+    const { leadId } = useParams();
+    const { clinic } = useAuth();
+    const { transactions: allTransactions, fetchTransactions, updateTransaction } = useFinanceStore();
+
+    // Data
+    const { leads, updateLead } = useCrmStore();
+    const { professionals, fetchProfessionals } = useSettingsStore();
+    const { services, fetchServices } = useServicesStore();
+    const currentLead = leads.find(l => l.id === leadId);
+
+    // Initial load
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchTransactions(clinic.id);
+            if (professionals.length === 0) fetchProfessionals(clinic.id);
+            if (services.length === 0) fetchServices(clinic.id);
+        }
+    }, [clinic?.id, fetchTransactions, fetchProfessionals, fetchServices, professionals.length, services.length]);
+
+    // FILTER TRANSACTIONS FOR THIS LEAD
+    // Prioritize filtering by lead_id, fallback to name matching
+    const leadTransactions = allTransactions.filter(t => {
+        if (t.lead_id && currentLead?.id) return t.lead_id === currentLead.id;
+        return currentLead ? t.patient === currentLead.name : false;
+    });
+
+    // --- STATE ---
+    const [leadLinks, setLeadLinks] = useState<PaymentLink[]>([]);
+    const [globalLinks, setGlobalLinks] = useState<PaymentLink[]>([]);
+
+    // Link Management States
+    const [selectedGlobalLink, setSelectedGlobalLink] = useState<string>("");
+    const [isEditLinkOpen, setIsEditLinkOpen] = useState(false);
+    const [editingLink, setEditingLink] = useState<PaymentLink | null>(null);
+    const [newLinkTitle, setNewLinkTitle] = useState("");
+    const [newLinkUrl, setNewLinkUrl] = useState("");
+
+    const [isNewSaleOpen, setIsNewSaleOpen] = useState(false);
+
+    const getBrazilISO = () => {
+        const now = new Date();
+        const offset = -3;
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const brazilDate = new Date(utc + (3600000 * offset));
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${brazilDate.getFullYear()}-${pad(brazilDate.getMonth() + 1)}-${pad(brazilDate.getDate())}T${pad(brazilDate.getHours())}:${pad(brazilDate.getMinutes())}:${pad(brazilDate.getSeconds())}-03:00`;
+    };
+    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState('');
+    const [paymentInstallments, setPaymentInstallments] = useState(1);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+
+    const isUrlValid = (text: string) => text.startsWith('http://') || text.startsWith('https://');
+
+    // Fetch Links
+    useEffect(() => {
+        if (leadId) fetchLeadLinks();
+        if (clinic?.id) fetchGlobalLinks();
+    }, [leadId, clinic?.id]);
+
+    const fetchLeadLinks = async () => {
+        if (!leadId) return;
+        const { data } = await supabase.from('lead_payment_links').select('*').eq('lead_id', leadId);
+        if (data) setLeadLinks(data);
+    };
+
+    const fetchGlobalLinks = async () => {
+        if (!clinic?.id) return;
+        const { data } = await supabase.from('global_payment_links').select('*').eq('clinic_id', clinic.id);
+        if (data) setGlobalLinks(data);
+    };
+
+    // --- CALCULATIONS ---
+    // LTV: Sum of all PAID income transactions
+    const totalPaid = leadTransactions
+        .filter(t => t.status === 'paid' && t.type === 'income')
+        .reduce((acc, t) => acc + t.amount, 0);
+
+    // Saldo Devedor: Sum of all PENDING income transactions
+    const totalDevedor = leadTransactions
+        .filter(t => t.status === 'pending' && t.type === 'income')
+        .reduce((acc, t) => acc + t.amount, 0);
+
+    // Orçamento em Aberto: Direct from leads table
+    const totalOrcamentos = currentLead?.budget || 0;
+
+    // --- ACTIONS ---
+
+    const handleSelectGlobalLink = async (linkId: string) => {
+        const link = globalLinks.find(l => l.id === linkId);
+        if (!link || !leadId) return;
+
+        // Save to lead_payment_links
+        try {
+            await supabase.from('lead_payment_links').insert({
+                lead_id: leadId,
+                title: link.title,
+                url: link.url
+            });
+            toast.success("Link adicionado ao lead!");
+            fetchLeadLinks();
+            setSelectedGlobalLink("");
+        } catch (error) {
+            toast.error("Erro ao adicionar link.");
+        }
+    };
+
+    const handleDeleteLink = (id: string) => {
+        setDeleteId(id);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteId) return;
+        try {
+            await supabase.from('lead_payment_links').delete().eq('id', deleteId);
+            toast.success("Link removido.");
+            fetchLeadLinks();
+            setDeleteId(null);
+        } catch (error) {
+            toast.error("Erro ao remover link.");
+        }
+    };
+
+    const handleUpdateLink = async () => {
+        if (!editingLink || !newLinkTitle || !newLinkUrl) return;
+        if (!isUrlValid(newLinkUrl)) {
+            toast.error("URL inválida.");
+            return;
+        }
+
+        try {
+            await supabase.from('lead_payment_links').update({ title: newLinkTitle, url: newLinkUrl }).eq('id', editingLink.id);
+            toast.success("Link atualizado.");
+            setIsEditLinkOpen(false);
+            fetchLeadLinks();
+        } catch (error) {
+            toast.error("Erro ao atualizar link.");
+        }
+    };
+
+    const handleCopyLink = (url: string) => {
+        navigator.clipboard.writeText(url);
+        toast.success("Link copiado!");
+    };
+
+    const handleNewSaleSuccess = async () => {
+        if (clinic?.id) {
+            fetchTransactions(clinic.id);
+        }
+        setIsNewSaleOpen(false);
+
+        // Clear budget after sale conversion
+        if (leadId && currentLead) {
+            await updateLead(leadId, { budget: 0 });
+            toast.success("Venda registrada e orçamento limpo!");
+        }
+    };
+
+    const handleConfirmReceipt = (t: Transaction) => {
+        if (t.amount <= 0) {
+            toast.error("Não é possível confirmar recebimento de valor zero.");
+            return;
+        }
+        setSelectedTransaction(t);
+        setIsPaymentOpen(true);
+    };
+
+    const handleRegisterPayment = async () => {
+        if (!selectedTransaction) return;
+
+        if (selectedTransaction.amount <= 0) {
+            toast.error("Não é possível confirmar recebimento de valor zero.");
+            return;
+        }
+
+        await updateTransaction(selectedTransaction.id, {
+            status: 'paid',
+            payment_method: paymentMethod, // Methods are already keys (pix, credit, debit, etc)
+            installments: (paymentMethod === 'credit' || paymentMethod === 'debit') ? paymentInstallments : 1,
+            payment_date: getBrazilISO()
+        });
+
+        if (clinic?.id) fetchTransactions(clinic.id); // Refresh data
+
+        setIsPaymentOpen(false);
+        setSelectedTransaction(null);
+        setPaymentMethod('');
+        setPaymentInstallments(1);
+        toast.success("Pagamento registrado!");
+    };
+
+    const handleGenerateReceipt = (t: Transaction) => {
+        // Placeholder for receipt generation
+        toast.info(`Gerando recibo para ${t.procedure || 'procedimento'}`);
+    };
+
+    // --- HELPERS ---
+    const formatCurrency = (val: number) => {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    };
+
+
+
+    const getStatusBadge = (status: Transaction['status']) => {
+        switch (status) {
+            case 'paid': return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none">Pago</Badge>;
+            case 'pending': return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none">Pendente</Badge>;
+            case 'overdue': return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-none">Atrasado</Badge>;
+            case 'cancelled': return <Badge variant="outline" className="text-slate-500">Cancelado</Badge>;
+            default: return <Badge variant="outline" className="text-slate-500">Outro</Badge>;
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-full bg-slate-50/50 p-6 space-y-6 overflow-y-auto">
+
+            {/* 1. Header KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="shadow-sm border-slate-200">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Total Faturado (LTV)</p>
+                            <h3 className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(totalPaid)}</h3>
+                        </div>
+                        <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center">
+                            <TrendingUp className="w-5 h-5 text-emerald-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className={cn("shadow-sm border-slate-200 relative overflow-hidden", totalDevedor > 0 ? "border-amber-200 bg-amber-50/30" : "")}>
+                    {totalDevedor > 0 && <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400" />}
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase text-amber-600/70 tracking-wider flex items-center gap-1">
+                                {totalDevedor > 0 && <AlertTriangle className="w-3 h-3" />} Saldo Devedor
+                            </p>
+                            <h3 className="text-2xl font-bold text-amber-600 mt-1">{formatCurrency(totalDevedor)}</h3>
+                        </div>
+                        <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                            <AlertCircle className="w-5 h-5 text-amber-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="shadow-sm border-slate-200">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Orçamento em Aberto</p>
+                            <h3 className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(totalOrcamentos)}</h3>
+                        </div>
+                        <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-6 min-h-0 flex-1">
+                {/* 2. Transactions List (Main 70%) */}
+                <div className="flex-[2] flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <Receipt className="w-4 h-4 text-slate-400" /> Histórico de Transações
+                        </h3>
+                        <div>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="sm"
+                                            className="bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold shadow-md shadow-slate-200 transition-all"
+                                            onClick={() => setIsNewSaleOpen(true)}
+                                        >
+                                            <Plus className="w-3.5 h-3.5 mr-1" /> Nova Cobrança
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-slate-800 text-white border-slate-700">
+                                        <p>Gera pendência financeira. Ideal para orçamentos e pagamentos futuros.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                        <AddTransactionModal
+                            isOpen={isNewSaleOpen}
+                            onClose={() => setIsNewSaleOpen(false)}
+                            onSuccess={handleNewSaleSuccess}
+                            defaultValues={{
+                                lead_id: leadId, // Pass lead context to auto-fill
+                                patient: currentLead?.name,
+                                // Isso garante que o seletor do modal receba o ID exato do médico
+                                professional_id: currentLead?.doctor_id,
+                                professional: professionals.find(p => p.id === currentLead?.doctor_id)?.name,
+                                procedure: services.find(s => s.id === currentLead?.procedure_id)?.name,
+                                amount: currentLead?.budget || 0 // Use budget as default amount
+                            }}
+                        />
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-1">
+                        <Table>
+                            <TableHeader className="bg-slate-50">
+                                <TableRow>
+                                    <TableHead className="w-[100px] text-xs font-bold text-slate-400 uppercase tracking-wider">Data</TableHead>
+                                    <TableHead className="text-xs font-bold text-slate-400 uppercase tracking-wider">Procedimento</TableHead>
+                                    <TableHead className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Valor</TableHead>
+                                    <TableHead className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Pagamento</TableHead>
+                                    <TableHead className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Status</TableHead>
+                                    <TableHead className="text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {leadTransactions.map((t) => (
+                                    <TableRow key={t.id} className="group hover:bg-slate-50/50">
+                                        <TableCell className="font-medium text-xs text-slate-600">
+                                            {(() => {
+                                                try {
+                                                    const d = new Date(t.transaction_date);
+                                                    return d.toLocaleDateString('pt-BR');
+                                                } catch (e) {
+                                                    return t.transaction_date;
+                                                }
+                                            })()}
+                                        </TableCell>
+                                        <TableCell className="font-bold text-xs text-slate-800">{t.procedure || t.description}</TableCell>
+                                        <TableCell className="text-right font-medium text-xs text-slate-600">{formatCurrency(t.amount)}</TableCell>
+                                        <TableCell className="text-center">
+                                            {t.payment_method ? (
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        "text-[10px] font-bold border-none px-2 py-0.5 whitespace-nowrap",
+                                                        t.payment_method === 'pix' ? "bg-emerald-100 text-emerald-700" :
+                                                            t.payment_method === 'money' ? "bg-green-100 text-green-800" :
+                                                                t.payment_method === 'credit' ? "bg-amber-100 text-amber-700" :
+                                                                    t.payment_method === 'debit' ? "bg-blue-100 text-blue-700" :
+                                                                        t.payment_method === 'boleto' ? "bg-indigo-100 text-indigo-700" :
+                                                                            t.payment_method === 'partnership' ? "bg-purple-100 text-purple-700" :
+                                                                                "bg-zinc-100 text-zinc-600"
+                                                    )}
+                                                >
+                                                    {(() => {
+                                                        const labels: Record<string, string> = {
+                                                            pix: 'Pix',
+                                                            money: 'Dinheiro',
+                                                            credit: 'Crédito',
+                                                            debit: 'Débito',
+                                                            boleto: 'Boleto',
+                                                            partnership: 'Parceria',
+                                                            other: 'Outro'
+                                                        };
+                                                        const label = labels[t.payment_method || ''] || t.payment_method || 'Outro';
+                                                        const installments = (t.payment_method === 'credit' || t.payment_method === 'debit') && t.installments && t.installments > 1
+                                                            ? ` - ${t.installments}x`
+                                                            : "";
+                                                        return `${label}${installments}`;
+                                                    })()}
+                                                </Badge>
+                                            ) : '-'}
+                                        </TableCell>
+                                        <TableCell className="text-center">{getStatusBadge(t.status)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-1">
+                                                {t.status === 'pending' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                                        title="Confirmar Recebimento"
+                                                        onClick={() => handleConfirmReceipt(t)}
+                                                    >
+                                                        <Check className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-7 w-7 p-0 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                                    title="Gerar Recibo"
+                                                    onClick={() => handleGenerateReceipt(t)}
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {leadTransactions.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-xs">
+                                            Nenhuma transação registrada.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
+
+                {/* 3. Payment Links (Sidebar 30%) */}
+                <div className="flex-[1] flex flex-col gap-4 min-w-[300px]">
+                    <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <LinkIcon className="w-4 h-4 text-slate-400" /> Links de Pagamento
+                    </h3>
+
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-4 h-full">
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-3">
+                            <p className="text-[10px] font-bold uppercase text-slate-400">Adicionar Link ao Lead</p>
+                            <Select value={selectedGlobalLink} onValueChange={handleSelectGlobalLink}>
+                                <SelectTrigger className="h-8 text-xs bg-white w-full">
+                                    <SelectValue placeholder="Selecionar Link Global..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {globalLinks.map(link => (
+                                        <SelectItem key={link.id} value={link.id}>
+                                            {link.title}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <div className="text-[10px] text-center text-slate-400">- ou -</div>
+
+                            {/* Manual Link Add (Optional - for custom one-offs) */}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-xs h-7"
+                                onClick={() => {
+                                    setEditingLink({ id: 'new', title: '', url: '' }); // Flag for new
+                                    setNewLinkTitle('');
+                                    setNewLinkUrl('');
+                                    setIsEditLinkOpen(true);
+                                }}
+                            >
+                                <Plus className="w-3 h-3 mr-1" /> Criar Link Específico
+                            </Button>
+                        </div>
+
+                        <div className="space-y-3 pt-2">
+                            {leadLinks.map(link => (
+                                <div key={link.id} className="group p-3 border border-slate-100 rounded-lg hover:border-slate-300 hover:shadow-sm transition-all bg-white relative">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className="text-xs font-bold text-slate-700 line-clamp-1 mr-2">{link.title}</span>
+                                        <div className="flex gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 text-slate-300 hover:text-emerald-600"
+                                                title="Copiar Link"
+                                                onClick={() => handleCopyLink(link.url)}
+                                            >
+                                                <Copy className="w-3 h-3" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 text-slate-300 hover:text-blue-600"
+                                                onClick={() => {
+                                                    setEditingLink(link);
+                                                    setNewLinkTitle(link.title);
+                                                    setNewLinkUrl(link.url);
+                                                    setIsEditLinkOpen(true);
+                                                }}
+                                            >
+                                                <Edit className="w-3 h-3" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 text-slate-300 hover:text-red-500"
+                                                onClick={() => handleDeleteLink(link.id)}
+                                            >
+                                                <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 truncate font-mono bg-slate-50 px-1 py-0.5 rounded text-left">{link.url}</p>
+                                </div>
+                            ))}
+                            {leadLinks.length === 0 && (
+                                <p className="text-xs text-slate-400 text-center py-4">Nenhum link salvo.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Payment Modal */}
+            <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Registrar Pagamento</DialogTitle>
+                        <DialogDescription>
+                            Confirme o recebimento do valor de <span className="font-bold text-slate-800">{selectedTransaction && formatCurrency(selectedTransaction.amount)}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-3 gap-3 py-4">
+                        {[
+                            { id: 'pix', label: 'Pix', icon: QrCode },
+                            { id: 'credit', label: 'Crédito', icon: CreditCard },
+                            { id: 'debit', label: 'Débito', icon: CreditCard },
+                            { id: 'money', label: 'Dinheiro', icon: Banknote },
+                            { id: 'boleto', label: 'Boleto', icon: FileText },
+                            { id: 'partnership', label: 'Parceria', icon: Check },
+                            { id: 'other', label: 'Outro', icon: Plus },
+                        ].map((method) => (
+                            <div
+                                key={method.id}
+                                className={cn(
+                                    "cursor-pointer rounded-lg border-2 p-3 flex flex-col items-center gap-2 hover:bg-slate-50 transition-all",
+                                    paymentMethod === method.id ? "border-emerald-500 bg-emerald-50/50 text-emerald-700" : "border-slate-100 text-slate-500"
+                                )}
+                                onClick={() => setPaymentMethod(method.id)}
+                            >
+                                <method.icon className="w-5 h-5" />
+                                <span className="text-[10px] font-bold uppercase">{method.label}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {(paymentMethod === 'credit' || paymentMethod === 'debit') && (
+                        <div className="space-y-2 pb-4 animate-in fade-in slide-in-from-top-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Parcelas</label>
+                            <Select value={String(paymentInstallments)} onValueChange={v => setPaymentInstallments(Number(v))}>
+                                <SelectTrigger className="h-10 border-slate-200 bg-slate-50 font-bold">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                                        <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleRegisterPayment} disabled={!paymentMethod} className="bg-emerald-600 text-white hover:bg-emerald-700 shadow-md">
+                            Confirmar Cobrança e Receber
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add/Edit Link Modal */}
+            <Dialog open={isEditLinkOpen} onOpenChange={setIsEditLinkOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingLink?.id === 'new' ? 'Novo Link' : 'Editar Link'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Título</label>
+                            <Input value={newLinkTitle} onChange={e => setNewLinkTitle(e.target.value)} placeholder="Ex: Promoção X" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">URL</label>
+                            <Input
+                                value={newLinkUrl}
+                                onChange={e => setNewLinkUrl(e.target.value)}
+                                placeholder="https://..."
+                                className={newLinkUrl && !isUrlValid(newLinkUrl) ? "border-red-300 focus-visible:ring-red-300" : ""}
+                            />
+                            {newLinkUrl && !isUrlValid(newLinkUrl) && (
+                                <p className="text-[10px] text-red-500 font-medium">A URL deve começar com http:// ou https://</p>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditLinkOpen(false)}>Cancelar</Button>
+                        <Button
+                            onClick={async () => {
+                                if (!leadId || !newLinkTitle || !newLinkUrl) return;
+                                if (!isUrlValid(newLinkUrl)) {
+                                    toast.error("URL inválida.");
+                                    return;
+                                }
+
+                                if (editingLink?.id === 'new') {
+                                    // Create new specific link
+                                    try {
+                                        await supabase.from('lead_payment_links').insert({ lead_id: leadId, title: newLinkTitle, url: newLinkUrl });
+                                        toast.success("Link criado!");
+                                    } catch (e) { toast.error("Erro ao criar link"); }
+                                } else {
+                                    handleUpdateLink();
+                                }
+                                setIsEditLinkOpen(false);
+                                fetchLeadLinks();
+                            }}
+                            disabled={!newLinkTitle || !newLinkUrl || !isUrlValid(newLinkUrl)}
+                        >
+                            Salvar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Excluir Link?</DialogTitle>
+                        <DialogDescription>
+                            Esta ação não pode ser desfeita. O link será removido permanentemente.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
+                        <Button variant="destructive" onClick={confirmDelete}>Sim, excluir</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+        </div>
+    );
+}

@@ -1,0 +1,709 @@
+-- =====================================================
+-- SEVENN CLINIC 360 - DATABASE SCHEMA
+-- =====================================================
+-- Este schema implementa multi-tenancy com isolamento por clinic_id
+-- Baseado no briefing sevenn360.md
+-- =====================================================
+
+-- =====================================================
+-- 1. EXTENSIONS
+-- =====================================================
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- =====================================================
+-- 2. ENUMS
+-- =====================================================
+
+-- Enum para roles de usuários (RBAC)
+CREATE TYPE user_role AS ENUM ('superadmin', 'owner', 'manager', 'staff');
+
+-- Enum para planos de assinatura
+CREATE TYPE plan_tier AS ENUM ('start', 'gold', 'black');
+
+-- Enum para status de leads no funil
+CREATE TYPE lead_status AS ENUM ('new', 'qualified', 'scheduled', 'no-show', 'won', 'lost');
+
+-- Enum para tipo de transação financeira
+CREATE TYPE transaction_type AS ENUM ('income', 'expense');
+
+-- Enum para status de transação
+CREATE TYPE transaction_status AS ENUM ('paid', 'pending', 'cancelled');
+
+-- Enum para status de agendamento
+CREATE TYPE appointment_status AS ENUM ('scheduled', 'confirmed', 'completed', 'cancelled', 'no-show');
+
+-- Enum para canais de comunicação
+CREATE TYPE communication_channel AS ENUM ('whatsapp', 'instagram', 'messenger', 'email', 'phone');
+
+-- =====================================================
+-- 3. TABELA CLINICS (Antiga Tenants)
+-- =====================================================
+CREATE TABLE clinics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    plan_tier plan_tier NOT NULL DEFAULT 'start',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    
+    -- Limites por plano (JSON para flexibilidade)
+    limits JSONB DEFAULT '{
+        "max_users": 3,
+        "max_whatsapp_instances": 1,
+        "max_leads": 1000,
+        "features": {
+            "ai_agent": false,
+            "instagram": false,
+            "marketing": false,
+            "multi_whatsapp": false
+        }
+    }'::jsonb,
+    
+    -- Configurações da clínica
+    settings JSONB DEFAULT '{
+        "business_hours": {
+            "monday": {"start": "08:00", "end": "18:00"},
+            "tuesday": {"start": "08:00", "end": "18:00"},
+            "wednesday": {"start": "08:00", "end": "18:00"},
+            "thursday": {"start": "08:00", "end": "18:00"},
+            "friday": {"start": "08:00", "end": "18:00"},
+            "saturday": {"start": "08:00", "end": "13:00"},
+            "sunday": {"start": null, "end": null}
+        },
+        "timezone": "America/Sao_Paulo"
+    }'::jsonb,
+    
+    -- Dados de contato
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    address TEXT,
+    
+    -- Controle de inadimplência
+    subscription_status VARCHAR(50) DEFAULT 'active', -- active, suspended, cancelled
+    subscription_ends_at TIMESTAMP WITH TIME ZONE,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX idx_clinics_plan_tier ON clinics(plan_tier);
+CREATE INDEX idx_clinics_is_active ON clinics(is_active);
+
+-- =====================================================
+-- 4. TABELA PROFILES (Usuários vinculados ao auth.users)
+-- =====================================================
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    -- Informações pessoais
+    full_name VARCHAR(255) NOT NULL,
+    avatar_url TEXT,
+    phone VARCHAR(20),
+    
+    -- RBAC
+    role user_role NOT NULL DEFAULT 'staff',
+    
+    -- Permissões customizadas (opcional)
+    permissions JSONB DEFAULT '[]'::jsonb,
+    
+    -- Metadata
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    last_seen_at TIMESTAMP WITH TIME ZONE,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX idx_profiles_clinic_id ON profiles(clinic_id);
+CREATE INDEX idx_profiles_role ON profiles(role);
+
+-- =====================================================
+-- 5. TABELA PIPELINE_STAGES (Colunas do Kanban)
+-- =====================================================
+CREATE TABLE pipeline_stages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) NOT NULL, -- 'new', 'qualified', 'scheduled', etc.
+    color VARCHAR(7) DEFAULT '#3b82f6', -- Hex color
+    position INTEGER NOT NULL DEFAULT 0,
+    
+    -- Configurações da coluna
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    UNIQUE(clinic_id, slug)
+);
+
+-- Índices
+CREATE INDEX idx_pipeline_stages_clinic_id ON pipeline_stages(clinic_id);
+CREATE INDEX idx_pipeline_stages_position ON pipeline_stages(position);
+
+-- =====================================================
+-- 6. TABELA LEADS
+-- =====================================================
+CREATE TABLE leads (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    pipeline_stage_id UUID REFERENCES pipeline_stages(id) ON DELETE SET NULL,
+    
+    -- Informações do lead
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(20) NOT NULL,
+    avatar_url TEXT,
+    
+    -- Origem (UTM tracking)
+    utm_source VARCHAR(100),
+    utm_medium VARCHAR(100),
+    utm_campaign VARCHAR(100),
+    utm_content VARCHAR(100),
+    utm_term VARCHAR(100),
+    
+    -- Status e valor
+    status lead_status NOT NULL DEFAULT 'new',
+    estimated_value DECIMAL(10, 2),
+    
+    -- Próximos passos e notas
+    next_action TEXT,
+    notes TEXT,
+    
+    -- Metadata
+    tags TEXT[], -- Array de tags
+    custom_fields JSONB DEFAULT '{}'::jsonb,
+    
+    -- Controle de IA
+    ai_active BOOLEAN NOT NULL DEFAULT true,
+    last_interaction_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Responsável
+    assigned_to UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX idx_leads_clinic_id ON leads(clinic_id);
+CREATE INDEX idx_leads_status ON leads(status);
+CREATE INDEX idx_leads_pipeline_stage_id ON leads(pipeline_stage_id);
+CREATE INDEX idx_leads_phone ON leads(phone);
+CREATE INDEX idx_leads_assigned_to ON leads(assigned_to);
+
+-- =====================================================
+-- 7. TABELA PROFESSIONALS (Profissionais da clínica)
+-- =====================================================
+CREATE TABLE professionals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    
+    -- Especialidade e cor para o calendário
+    specialty VARCHAR(100),
+    calendar_color VARCHAR(7) DEFAULT '#59A52C',
+    
+    -- Configurações de agenda
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    working_hours JSONB DEFAULT '{}'::jsonb,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX idx_professionals_clinic_id ON professionals(clinic_id);
+
+-- =====================================================
+-- 8. TABELA SERVICES (Serviços/Procedimentos)
+-- =====================================================
+CREATE TABLE services (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    
+    -- Duração e preço
+    duration_minutes INTEGER NOT NULL DEFAULT 60,
+    price DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    
+    -- Categoria
+    category VARCHAR(100),
+    
+    -- Controle
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX idx_services_clinic_id ON services(clinic_id);
+
+-- =====================================================
+-- 9. TABELA APPOINTMENTS (Agendamentos)
+-- =====================================================
+CREATE TABLE appointments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    -- Relacionamentos
+    lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    professional_id UUID NOT NULL REFERENCES professionals(id) ON DELETE CASCADE,
+    service_id UUID REFERENCES services(id) ON DELETE SET NULL,
+    
+    -- Data e hora
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    
+    -- Status
+    status appointment_status NOT NULL DEFAULT 'scheduled',
+    
+    -- Notas
+    notes TEXT,
+    
+    -- Google Calendar sync
+    google_calendar_event_id VARCHAR(255),
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Constraint: end_time deve ser maior que start_time
+    CONSTRAINT valid_appointment_time CHECK (end_time > start_time)
+);
+
+-- Índices
+CREATE INDEX idx_appointments_clinic_id ON appointments(clinic_id);
+CREATE INDEX idx_appointments_lead_id ON appointments(lead_id);
+CREATE INDEX idx_appointments_professional_id ON appointments(professional_id);
+CREATE INDEX idx_appointments_start_time ON appointments(start_time);
+CREATE INDEX idx_appointments_status ON appointments(status);
+
+-- =====================================================
+-- 10. TABELA FINANCIAL_TRANSACTIONS
+-- =====================================================
+CREATE TABLE financial_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    -- Relacionamentos (opcional)
+    lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
+    
+    -- Informações da transação
+    description VARCHAR(255) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    type transaction_type NOT NULL,
+    category VARCHAR(100),
+    
+    -- Status e data
+    status transaction_status NOT NULL DEFAULT 'pending',
+    transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE,
+    paid_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Notas
+    notes TEXT,
+    
+    -- Metadata
+    metadata JSONB DEFAULT '{}'::jsonb,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX idx_financial_transactions_clinic_id ON financial_transactions(clinic_id);
+CREATE INDEX idx_financial_transactions_type ON financial_transactions(type);
+CREATE INDEX idx_financial_transactions_status ON financial_transactions(status);
+CREATE INDEX idx_financial_transactions_transaction_date ON financial_transactions(transaction_date);
+
+-- =====================================================
+-- 11. TABELA WHATSAPP_INSTANCES (Instâncias Evolution API)
+-- =====================================================
+CREATE TABLE whatsapp_instances (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    -- Configuração da instância
+    instance_name VARCHAR(100) NOT NULL,
+    api_url TEXT NOT NULL,
+    api_key TEXT NOT NULL,
+    
+    -- Status
+    status VARCHAR(50) DEFAULT 'disconnected', -- connected, disconnected, error
+    qr_code TEXT,
+    
+    -- Metadata
+    phone_number VARCHAR(20),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    UNIQUE(clinic_id, instance_name)
+);
+
+-- Índices
+CREATE INDEX idx_whatsapp_instances_clinic_id ON whatsapp_instances(clinic_id);
+
+-- =====================================================
+-- 12. TABELA MESSAGES (Histórico de mensagens)
+-- =====================================================
+CREATE TABLE messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    -- Relacionamentos
+    lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    whatsapp_instance_id UUID REFERENCES whatsapp_instances(id) ON DELETE SET NULL,
+    
+    -- Conteúdo da mensagem
+    content TEXT NOT NULL,
+    sender VARCHAR(50) NOT NULL, -- 'user', 'ai', 'staff', 'system'
+    channel communication_channel NOT NULL DEFAULT 'whatsapp',
+    
+    -- Status
+    status VARCHAR(50) DEFAULT 'sent', -- sent, delivered, read, failed
+    
+    -- Metadata
+    external_id VARCHAR(255), -- ID da mensagem no WhatsApp/Instagram
+    metadata JSONB DEFAULT '{}'::jsonb,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX idx_messages_clinic_id ON messages(clinic_id);
+CREATE INDEX idx_messages_lead_id ON messages(lead_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
+
+-- =====================================================
+-- 13. TABELA MARKETING_EXPENSES (Custos de Marketing)
+-- =====================================================
+CREATE TABLE marketing_expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+    
+    -- Informações da despesa
+    source VARCHAR(100) NOT NULL, -- 'facebook_ads', 'google_ads', etc.
+    campaign_name VARCHAR(255),
+    amount DECIMAL(10, 2) NOT NULL,
+    
+    -- Data
+    expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    
+    -- Metadata
+    metadata JSONB DEFAULT '{}'::jsonb,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX idx_marketing_expenses_clinic_id ON marketing_expenses(clinic_id);
+CREATE INDEX idx_marketing_expenses_expense_date ON marketing_expenses(expense_date);
+
+-- =====================================================
+-- 14. ROW LEVEL SECURITY (RLS) POLICIES
+-- =====================================================
+
+-- Habilitar RLS em todas as tabelas
+ALTER TABLE clinics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pipeline_stages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE professionals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_instances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE marketing_expenses ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================
+-- POLICIES: CLINICS
+-- =====================================================
+CREATE POLICY "Users can view their own clinic"
+    ON clinics FOR SELECT
+    USING (
+        id IN (
+            SELECT clinic_id FROM profiles WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Only owners can update clinic"
+    ON clinics FOR UPDATE
+    USING (
+        id IN (
+            SELECT clinic_id FROM profiles 
+            WHERE id = auth.uid() AND role IN ('owner', 'superadmin')
+        )
+    );
+
+-- =====================================================
+-- POLICIES: PROFILES
+-- =====================================================
+CREATE POLICY "Users can view profiles in their clinic"
+    ON profiles FOR SELECT
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can update their own profile"
+    ON profiles FOR UPDATE
+    USING (id = auth.uid());
+
+CREATE POLICY "Owners can manage all profiles in clinic"
+    ON profiles FOR ALL
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles 
+            WHERE id = auth.uid() AND role = 'owner'
+        )
+    );
+
+-- =====================================================
+-- POLICIES: LEADS
+-- =====================================================
+CREATE POLICY "Users can view leads in their clinic"
+    ON leads FOR SELECT
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can create leads in their clinic"
+    ON leads FOR INSERT
+    WITH CHECK (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can update leads in their clinic"
+    ON leads FOR UPDATE
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles WHERE id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Only owners can delete leads"
+    ON leads FOR DELETE
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles 
+            WHERE id = auth.uid() AND role = 'owner'
+        )
+    );
+
+-- =====================================================
+-- POLICIES: FINANCIAL_TRANSACTIONS
+-- =====================================================
+-- Staff NÃO pode ver transações financeiras
+CREATE POLICY "Only owners and managers can view transactions"
+    ON financial_transactions FOR SELECT
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles 
+            WHERE id = auth.uid() AND role IN ('owner', 'manager')
+        )
+    );
+
+CREATE POLICY "Only owners and managers can manage transactions"
+    ON financial_transactions FOR ALL
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles 
+            WHERE id = auth.uid() AND role IN ('owner', 'manager')
+        )
+    );
+
+-- =====================================================
+-- POLICIES: MARKETING_EXPENSES
+-- =====================================================
+-- Apenas owners podem ver marketing (Plano Black)
+CREATE POLICY "Only owners can view marketing expenses"
+    ON marketing_expenses FOR SELECT
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles 
+            WHERE id = auth.uid() AND role = 'owner'
+        )
+    );
+
+CREATE POLICY "Only owners can manage marketing expenses"
+    ON marketing_expenses FOR ALL
+    USING (
+        clinic_id IN (
+            SELECT clinic_id FROM profiles 
+            WHERE id = auth.uid() AND role = 'owner'
+        )
+    );
+
+-- =====================================================
+-- POLICIES: OUTRAS TABELAS (Padrão de isolamento por clinic)
+-- =====================================================
+
+-- PIPELINE_STAGES
+CREATE POLICY "Users can view pipeline stages in their clinic"
+    ON pipeline_stages FOR SELECT
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Owners can manage pipeline stages"
+    ON pipeline_stages FOR ALL
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid() AND role = 'owner'));
+
+-- PROFESSIONALS
+CREATE POLICY "Users can view professionals in their clinic"
+    ON professionals FOR SELECT
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Owners and managers can manage professionals"
+    ON professionals FOR ALL
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'manager')));
+
+-- SERVICES
+CREATE POLICY "Users can view services in their clinic"
+    ON services FOR SELECT
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Owners and managers can manage services"
+    ON services FOR ALL
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'manager')));
+
+-- APPOINTMENTS
+CREATE POLICY "Users can view appointments in their clinic"
+    ON appointments FOR SELECT
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Users can manage appointments in their clinic"
+    ON appointments FOR ALL
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+
+-- WHATSAPP_INSTANCES
+CREATE POLICY "Users can view whatsapp instances in their clinic"
+    ON whatsapp_instances FOR SELECT
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Owners can manage whatsapp instances"
+    ON whatsapp_instances FOR ALL
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid() AND role = 'owner'));
+
+-- MESSAGES
+CREATE POLICY "Users can view messages in their clinic"
+    ON messages FOR SELECT
+    USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Users can create messages in their clinic"
+    ON messages FOR INSERT
+    WITH CHECK (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+
+-- =====================================================
+-- 15. FUNCTIONS & TRIGGERS
+-- =====================================================
+
+-- Função para atualizar updated_at automaticamente
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Aplicar trigger em todas as tabelas relevantes
+CREATE TRIGGER update_clinics_updated_at BEFORE UPDATE ON clinics
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_leads_updated_at BEFORE UPDATE ON leads
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_professionals_updated_at BEFORE UPDATE ON professionals
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_services_updated_at BEFORE UPDATE ON services
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_appointments_updated_at BEFORE UPDATE ON appointments
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_financial_transactions_updated_at BEFORE UPDATE ON financial_transactions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_whatsapp_instances_updated_at BEFORE UPDATE ON whatsapp_instances
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_marketing_expenses_updated_at BEFORE UPDATE ON marketing_expenses
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- 16. FUNÇÃO: Criar pipeline padrão
+-- =====================================================
+CREATE OR REPLACE FUNCTION create_default_pipeline_stages(p_clinic_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO pipeline_stages (clinic_id, name, slug, color, position) VALUES
+        (p_clinic_id, 'Novo Lead', 'new', '#3b82f6', 1),
+        (p_clinic_id, 'Qualificado', 'qualified', '#eab308', 2),
+        (p_clinic_id, 'Agendado', 'scheduled', '#8b5cf6', 3),
+        (p_clinic_id, 'No-Show', 'no-show', '#ef4444', 4),
+        (p_clinic_id, 'Venda Realizada', 'won', '#22c55e', 5),
+        (p_clinic_id, 'Descarte', 'lost', '#6b7280', 6)
+    ON CONFLICT (clinic_id, slug) DO NOTHING;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================================
+-- 17. FUNÇÃO: Onboarding de nova clínica
+-- =====================================================
+CREATE OR REPLACE FUNCTION onboarding_new_clinic(
+    p_user_id UUID,
+    p_full_name TEXT,
+    p_clinic_name TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_clinic_id UUID;
+    v_profile JSONB;
+BEGIN
+    -- 1. Criar a clínica
+    INSERT INTO clinics (name, plan_tier)
+    VALUES (p_clinic_name, 'start')
+    RETURNING id INTO v_clinic_id;
+
+    -- 2. Criar o perfil do usuário como Owner
+    INSERT INTO profiles (id, clinic_id, full_name, role)
+    VALUES (p_user_id, v_clinic_id, p_full_name, 'owner');
+
+    -- 3. Criar estágios padrão do Pipeline (Kanban)
+    PERFORM create_default_pipeline_stages(v_clinic_id);
+
+    -- 4. Retornar dados básicos
+    SELECT json_build_object(
+        'clinic_id', v_clinic_id,
+        'clinic_name', p_clinic_name,
+        'role', 'owner'
+    ) INTO v_profile;
+
+    RETURN v_profile;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- FIM DO SCHEMA
+-- =====================================================

@@ -1,0 +1,88 @@
+{
+  "name": "Threads Demo – Screencast Meta Review",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://graph.threads.net/v1.0/me/threads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "fields", "value": "id,text,timestamp,permalink,username" },
+            { "name": "limit", "value": "5" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-http",
+      "name": "1. Buscar meus posts no Threads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 200],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "THREADS_CREDENTIAL_ID",
+          "name": "Threads API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resposta = $input.first().json;\nconst posts = resposta.data || [];\n\nif (posts.length === 0) {\n  return [{ json: { mensagem: 'Nenhum post encontrado na conta.' } }];\n}\n\nreturn posts.map(post => ({\n  json: {\n    post_id: post.id,\n    texto: post.text || '',\n    data: post.timestamp,\n    link: post.permalink,\n    username: post.username || ''\n  }\n}));"
+      },
+      "id": "node-extrair",
+      "name": "2. Extrair dados dos posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "value": "SEU_GOOGLE_SHEETS_ID_AQUI",
+          "__rl": true,
+          "mode": "id"
+        },
+        "sheetName": {
+          "value": "Posts Relevantes Estética",
+          "__rl": true,
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data": "={{ $json.data }}",
+            "Username": "={{ $json.username }}",
+            "Link do Post": "={{ $json.link }}",
+            "Texto do Post": "={{ $json.texto }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "node-sheets",
+      "name": "3. Salvar no Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [660, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_CREDENTIAL_ID",
+          "name": "Sheets Resili Sevenn"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "1. Buscar meus posts no Threads": {
+      "main": [[{ "node": "2. Extrair dados dos posts", "type": "main", "index": 0 }]]
+    },
+    "2. Extrair dados dos posts": {
+      "main": [[{ "node": "3. Salvar no Google Sheets", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

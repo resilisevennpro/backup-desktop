@@ -1,0 +1,61 @@
+const handleSave = async () => {
+        if (!clinic?.id || !formData.patient || !formData.amount) {
+            alert("Preencha os campos obrigatórios (Paciente e Valor).");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            // Find professional ID from list if possible
+            const selectedProf = professionalsList.find(p => p.name === formData.professional);
+            const professionalId = selectedProf?.id || null;
+
+            const payload = {
+                clinic_id: clinic.id,
+                lead_id: formData.lead_id || null,
+                professional_id: professionalId, // UUID from profiles table
+                description: `${formData.procedure || 'Venda'} - ${formData.patient}`,
+                amount: parseFloat(formData.amount),
+                type: 'income',
+                category: 'Procedimentos',
+                transaction_date: formData.transaction_date,
+                status: 'pending',
+                payment_method: formData.payment_method, // CRITICAL: Save as direct column
+                installments: Number(formData.installments) || 1, // CRITICAL: Save as INTEGER
+                notes: formData.notes,
+                metadata: {
+                    patient_name: formData.patient,
+                    procedure_name: formData.procedure,
+                    professional_name: formData.professional
+                },
+                ...(transactionToEdit ? { is_edited: true } : {})
+            };
+
+            let error;
+            if (transactionToEdit?.id) {
+                // Update
+                const { error: updateError } = await supabase
+                    .from('financial_transactions')
+                    .update(payload)
+                    .eq('id', transactionToEdit.id);
+                error = updateError;
+            } else {
+                // Create
+                const { error: insertError } = await supabase
+                    .from('financial_transactions')
+                    .insert([payload]);
+                error = insertError;
+            }
+
+            if (error) throw error;
+
+            onSuccess();
+            onClose();
+        } catch (error) {
+            console.error("Error saving transaction:", error);
+            alert("Erro ao salvar operação.");
+        } finally {
+            setLoading(false);
+        }
+    };

@@ -1,0 +1,43 @@
+Botões: 6ea119
+
+#3e6812
+#1a4f1b
+#194110
+#316e13
+
+
+
+Fundo escuro preto (background primario): #000201
+Fundo escuro verde (background secundário): #010e0f
+
+
+Texto principal: #ffffff
+
+Cor principal / Verde predominante (botões, ícones, links): #6ea119
+
+Verde complementar (secundário / elementos de destaque): #3e6812
+
+Verde claro (variações em charts e detalhes): #1a4f1b
+
+Verde profundo (bordas, acentos sutis): #316e13
+
+Cinza claro (muted foreground): #cccccc
+
+Cinza médio (borda/acento do card): #194119
+
+Vermelho de erro / destrutivo: #f44444
+
+
+
+
+
+
+ 
+
+
+
+Vamos alterar também o custo da secretária virtual, subistitua "Custo: R$ 12.000/ano (R$ 1.000/mês).!" por "Custo: menos de 50% da secretária CLT: - de R$ 16.000/ano (- de R$ 1.200 por mês)
+
+Atualize também a frase que na estrutura esta logo abaixo por essa: "Economia de mais de R$ 16.000/ano + resultados 24/7 sem férias, faltas ou desligamentos."
+
+

@@ -1,0 +1,343 @@
+{
+  "name": "Sevenn VOIP — Análise Pós-Ligação",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voip-analysis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Gatilho",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "voip-analysis"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-key",
+              "leftValue": "={{ $request.headers['x-webhook-key'] }}",
+              "rightValue": "={{ $env.WEBHOOK_PROTECTION_KEY }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-auth",
+      "name": "Validar Chave",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'Unauthorized' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "resp-unauthorized",
+      "name": "Resposta 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 460]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "call_id",
+              "value": "={{ $json.body.call_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "transcript",
+              "value": "={{ $json.body.transcript }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "callback_url",
+              "value": "={{ $json.body.callback_url }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "lead_name",
+              "value": "={{ $json.body.lead?.name ?? 'Sem nome' }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "lead_stage",
+              "value": "={{ $json.body.lead?.stage ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "lead_tags",
+              "value": "={{ ($json.body.lead?.tags ?? []).join(', ') }}",
+              "type": "string"
+            },
+            {
+              "id": "a7",
+              "name": "webhook_key",
+              "value": "={{ $request.headers['x-webhook-key'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-fields",
+      "name": "Extrair Campos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "complete",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Você é um especialista em vendas e atendimento para clínicas de saúde e estética. Analise a transcrição de uma ligação e retorne SOMENTE um JSON válido, sem markdown, sem explicação, apenas o objeto JSON."
+            },
+            {
+              "role": "user",
+              "content": "=Transcrição da ligação:\n\"\"\"\n{{ $json.transcript }}\n\"\"\"\n\nContexto do lead:\n- Nome: {{ $json.lead_name }}\n- Etapa atual: {{ $json.lead_stage }}\n- Tags: {{ $json.lead_tags }}\n\nRetorne EXATAMENTE este JSON (sem markdown, sem texto extra):\n{\n  \"summary\": \"Resumo objetivo da ligação em 2-3 frases\",\n  \"score\": <número inteiro de 0 a 100 indicando interesse do lead>,\n  \"sentiment\": \"positivo\" | \"neutro\" | \"negativo\",\n  \"next_step\": \"Próxima ação recomendada para o atendente\"\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 500
+        }
+      },
+      "id": "openai-analysis",
+      "name": "Análise IA (OpenAI)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "parsed",
+              "value": "={{ JSON.parse($json.message.content) }}",
+              "type": "object"
+            },
+            {
+              "id": "p2",
+              "name": "call_id",
+              "value": "={{ $('Extrair Campos').item.json.call_id }}",
+              "type": "string"
+            },
+            {
+              "id": "p3",
+              "name": "callback_url",
+              "value": "={{ $('Extrair Campos').item.json.callback_url }}",
+              "type": "string"
+            },
+            {
+              "id": "p4",
+              "name": "webhook_key",
+              "value": "={{ $('Extrair Campos').item.json.webhook_key }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "parse-result",
+      "name": "Parsear Resultado",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.callback_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-webhook-key",
+              "value": "={{ $json.webhook_key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "call_id",
+              "value": "={{ $json.call_id }}"
+            },
+            {
+              "name": "summary",
+              "value": "={{ $json.parsed.summary }}"
+            },
+            {
+              "name": "score",
+              "value": "={{ $json.parsed.score }}"
+            },
+            {
+              "name": "sentiment",
+              "value": "={{ $json.parsed.sentiment }}"
+            },
+            {
+              "name": "next_step",
+              "value": "={{ $json.parsed.next_step }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "callback-supabase",
+      "name": "Callback → Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, call_id: $('Parsear Resultado').item.json.call_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "resp-ok",
+      "name": "Resposta 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Gatilho": {
+      "main": [
+        [
+          {
+            "node": "Validar Chave",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Chave": {
+      "main": [
+        [
+          {
+            "node": "Extrair Campos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Campos": {
+      "main": [
+        [
+          {
+            "node": "Análise IA (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Análise IA (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Parsear Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Resultado": {
+      "main": [
+        [
+          {
+            "node": "Callback → Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback → Supabase": {
+      "main": [
+        [
+          {
+            "node": "Resposta 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-06-05T00:00:00.000Z",
+      "updatedAt": "2026-06-05T00:00:00.000Z",
+      "id": "voip",
+      "name": "VOIP"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2026-06-05T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Obrigado - Resili Sevenn Marketing</title>
+
+  <style>
+    :root {
+      --bg: #000201;
+      --text: #ffffff;
+      --brand: #6ea119;
+      --brand-hover: #88d128;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: "Poppins", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    header {
+      position: absolute;
+      top: 24px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+    }
+
+    header img {
+      height: 55px;
+      transition: 0.3s ease;
+    }
+
+    @media (max-width: 640px) {
+      header img {
+        height: 42px;
+      }
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 0 1rem;
+    }
+
+    .icon {
+      background: var(--text);
+      color: var(--bg);
+      border-radius: 50%;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      color: var(--brand);
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      max-width: 620px;
+      line-height: 1.6;
+      margin: 0 auto 2rem;
+      font-size: 1.05rem;
+    }
+
+    .instagram-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--brand);
+      color: var(--text);
+      padding: 0.9rem 1.6rem;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: 0.3s ease;
+    }
+
+    .instagram-btn:hover {
+      background: var(--brand-hover);
+      transform: translateY(-2px);
+    }
+
+    .instagram-btn img {
+      width: 22px;
+      height: 22px;
+    }
+
+    footer {
+      width: 100%;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #444;
+      padding: 0.5rem 0 1rem;
+      background: var(--bg);
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <img src="https://resilisevenn.com.br/images/resili-sevenn-logo.png" alt="Resili Sevenn Marketing" />
+  </header>
+
+  <main>
+    <div class="icon">✔</div>
+    <h1>Muito Obrigado!</h1>
+    <p>
+      Nossa equipe irá avaliar suas respostas e entraremos em contato o mais rápido possível para darmos continuidade
+      e agendarmos uma <strong>SESSÃO ESTRATÉGICA GRATUITA</strong> para entendermos melhor o seu negócio e te mostrar a nossa Solução para Escalar o faturamento da sua Clínica!
+    </p>
+
+    <a href="https://instagram.com/ojacksondigital" target="_blank" class="instagram-btn" aria-label="Visite nosso Instagram">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram" />
+      Enquanto isso, visite o nosso Instagram
+    </a>
+  </main>
+
+  <footer>
+    © 2024 Resili Sevenn Marketing e Vendas - Todos os Direitos Reservados.
+  </footer>
+</body>
+</html>

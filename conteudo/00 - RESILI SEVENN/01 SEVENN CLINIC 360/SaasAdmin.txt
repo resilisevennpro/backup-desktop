@@ -1,0 +1,1461 @@
+import { useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+    Building2,
+    Plus,
+    Users,
+    Search,
+    Loader2,
+    TrendingDown,
+    Tag,
+    Bell,
+    Copy,
+    UserCog,
+    DollarSign,
+    X,
+    Mail,
+    Phone,
+    Calendar,
+    Eye,
+    KeyRound,
+    AlertTriangle,
+    Send,
+    Lock,
+    ChevronLeft,
+} from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ManageTagsDialog } from "@/components/lead/ManageTagsDialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+type ClinicStatus = 'ativo' | 'pausado' | 'suspenso' | 'cancelado';
+type PlanTier = 'start' | 'gold' | 'black';
+
+interface ClinicData {
+    id: string;
+    name: string;
+    plan_tier: PlanTier;
+    status: ClinicStatus;
+    subscription_value: number | null;
+    created_at: string;
+    created_at_raw: string;
+    owner_name?: string;
+    owner_email?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    integrations_access?: string[];
+    profiles_count?: number;
+    leads_count?: number;
+}
+
+interface SystemLog {
+    id: string;
+    clinic_id: string | null;
+    clinic_name?: string;
+    action: string;
+    details: string | null;
+    created_at: string;
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<ClinicStatus, { label: string; color: string; badgeClass: string }> = {
+    ativo: { label: 'Ativo', color: 'text-emerald-500', badgeClass: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/20' },
+    pausado: { label: 'Pausado', color: 'text-slate-400', badgeClass: 'bg-slate-500/15 text-slate-400 border-slate-500/20' },
+    suspenso: { label: 'Suspenso', color: 'text-amber-500', badgeClass: 'bg-amber-500/15 text-amber-500 border-amber-500/20' },
+    cancelado: { label: 'Cancelado', color: 'text-rose-500', badgeClass: 'bg-rose-500/15 text-rose-500 border-rose-500/20' },
+};
+
+const PLAN_DEFAULTS: Record<PlanTier, number> = {
+    start: 197,
+    gold: 397,
+    black: 897,
+};
+
+const PLAN_COLORS: Record<PlanTier, string> = {
+    start: 'border-slate-300 text-slate-600',
+    gold: 'border-amber-400 text-amber-600',
+    black: 'border-slate-700 text-slate-200 bg-slate-800',
+};
+
+// ─── Default Pipeline Stages (21 stages) ─────────────────────────────────────
+const DEFAULT_PIPELINE_STAGES = [
+    // vendas_principal (7)
+    { pipeline_id: 'vendas_principal', name: 'Novo Lead', color: '#3b82f6', position: 1, is_active: true, is_system_stage: true },
+    { pipeline_id: 'vendas_principal', name: 'Qualificado', color: '#8b5cf6', position: 2, is_active: true, is_system_stage: false },
+    { pipeline_id: 'vendas_principal', name: 'Agendado', color: '#f59e0b', position: 3, is_active: true, is_system_stage: true },
+    { pipeline_id: 'vendas_principal', name: 'Confirmado', color: '#10b981', position: 4, is_active: true, is_system_stage: false },
+    { pipeline_id: 'vendas_principal', name: 'No-Show', color: '#ef4444', position: 5, is_active: true, is_system_stage: true },
+    { pipeline_id: 'vendas_principal', name: 'Venda Realizada', color: '#22c55e', position: 6, is_active: true, is_system_stage: true },
+    { pipeline_id: 'vendas_principal', name: 'Perdido', color: '#6b7280', position: 7, is_active: true, is_system_stage: true },
+    // gestao_pacientes (7)
+    { pipeline_id: 'gestao_pacientes', name: 'Pós-Consulta', color: '#06b6d4', position: 1, is_active: true, is_system_stage: false },
+    { pipeline_id: 'gestao_pacientes', name: 'Em Tratamento', color: '#8b5cf6', position: 2, is_active: true, is_system_stage: false },
+    { pipeline_id: 'gestao_pacientes', name: 'Retorno Agendado', color: '#f59e0b', position: 3, is_active: true, is_system_stage: false },
+    { pipeline_id: 'gestao_pacientes', name: 'Tratamento Concluído', color: '#10b981', position: 4, is_active: true, is_system_stage: false },
+    { pipeline_id: 'gestao_pacientes', name: 'Reativação', color: '#ec4899', position: 5, is_active: true, is_system_stage: false },
+    { pipeline_id: 'gestao_pacientes', name: 'VIP', color: '#eab308', position: 6, is_active: true, is_system_stage: false },
+    { pipeline_id: 'gestao_pacientes', name: 'Inativo', color: '#6b7280', position: 7, is_active: true, is_system_stage: false },
+    // nutricao (7)
+    { pipeline_id: 'nutricao', name: 'Triagem Nutricional', color: '#a855f7', position: 1, is_active: true, is_system_stage: false },
+    { pipeline_id: 'nutricao', name: 'Plano Alimentar', color: '#14b8a6', position: 2, is_active: true, is_system_stage: false },
+    { pipeline_id: 'nutricao', name: 'Acompanhamento', color: '#f97316', position: 3, is_active: true, is_system_stage: false },
+    { pipeline_id: 'nutricao', name: 'Bioimpedância', color: '#06b6d4', position: 4, is_active: true, is_system_stage: false },
+    { pipeline_id: 'nutricao', name: 'Reavaliação', color: '#eab308', position: 5, is_active: true, is_system_stage: false },
+    { pipeline_id: 'nutricao', name: 'Alta Nutricional', color: '#22c55e', position: 6, is_active: true, is_system_stage: false },
+    { pipeline_id: 'nutricao', name: 'Resgate', color: '#ef4444', position: 7, is_active: true, is_system_stage: false },
+];
+
+// ─── Component ───────────────────────────────────────────────────────────────
+export default function SaaSAdminPage() {
+    const { profile, impersonateClinic, isImpersonating, stopImpersonating } = useAuth();
+    const [clinics, setClinics] = useState<ClinicData[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    // ── Status change confirmation ──
+    const [confirmDialog, setConfirmDialog] = useState<{
+        open: boolean;
+        clinicId: string;
+        clinicName: string;
+        newStatus: ClinicStatus;
+    }>({ open: false, clinicId: '', clinicName: '', newStatus: 'ativo' });
+
+    // ── Inline editing state for subscription_value ──
+    const [editingValueId, setEditingValueId] = useState<string | null>(null);
+    const [tempValue, setTempValue] = useState("");
+
+    // ── Activity Log modal ──
+    const [logsOpen, setLogsOpen] = useState(false);
+    const [logs, setLogs] = useState<SystemLog[]>([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+
+    // ── Onboarding modal ──
+    const [onboardOpen, setOnboardOpen] = useState(false);
+    const [onboarding, setOnboarding] = useState(false);
+    const [newClinic, setNewClinic] = useState({
+        name: '',
+        owner_name: '',
+        owner_email: '',
+        owner_whatsapp: '',
+        plan_tier: 'start' as PlanTier,
+        subscription_value: ''
+    });
+
+    // ── Impersonate confirmation ──
+    const [impersonateDialog, setImpersonateDialog] = useState<{ open: boolean, clinic: ClinicData | null }>({ open: false, clinic: null });
+
+
+
+    // ── Password management modal ──
+    const [passwordDialog, setPasswordDialog] = useState<{ open: boolean, clinic: ClinicData | null }>({ open: false, clinic: null });
+    const [tempPassword, setTempPassword] = useState('');
+    const [passwordLoading, setPasswordLoading] = useState(false);
+
+    // ── Churn data (from system_logs) ──
+    const [churnCount, setChurnCount] = useState(0);
+
+    // ── Master-Detail Navigation ──
+    const [viewMode, setViewMode] = useState<'table' | 'details'>('table');
+    const [selectedClinic, setSelectedClinic] = useState<ClinicData | null>(null);
+    const [draftClinic, setDraftClinic] = useState({
+        owner_name: '',
+        email: '',
+        phone: ''
+    });
+    const [profilesLoading, setProfilesLoading] = useState(false);
+    const [clinicProfiles, setClinicProfiles] = useState<any[]>([]);
+    const [integrationsDialog, setIntegrationsDialog] = useState(false);
+
+    // ─── Fetch ───────────────────────────────────────────────────────────────
+    useEffect(() => {
+        fetchClinics();
+        fetchChurnData();
+    }, []);
+
+    const fetchClinics = async () => {
+        try {
+            setLoading(true);
+            const { data: clinicsData, error: clinicsError } = await supabase
+                .from('clinics')
+                .select(`
+                    *, 
+                    profiles ( 
+                        id, 
+                        full_name, 
+                        role, 
+                        email, 
+                        phone, 
+                        is_active, 
+                        last_seen_at 
+                    )
+                `)
+                .order('created_at', { ascending: false });
+
+            if (clinicsError) throw clinicsError;
+
+            // Also fetch auth emails via a separate query to map profile IDs to emails
+            // We'll use clinics.email as primary email source
+            const mapped: ClinicData[] = clinicsData.map((c: any) => {
+                // Find the 'owner' profile; fallback to first profile's full_name; fallback to clinic name
+                const profiles = c.profiles || [];
+                const ownerProfile = profiles.find((p: any) => p.role === 'owner');
+                const firstProfile = profiles[0];
+                const ownerName = ownerProfile?.full_name || firstProfile?.full_name || '';
+
+                return {
+                    id: c.id,
+                    name: c.name,
+                    plan_tier: c.plan_tier || 'start',
+                    status: (c.status as ClinicStatus) || 'ativo',
+                    subscription_value: c.subscription_value ?? null,
+                    created_at: new Date(c.created_at).toLocaleDateString('pt-BR'),
+                    created_at_raw: c.created_at,
+                    owner_name: ownerName,
+                    owner_email: c.email || null,
+                    email: c.email,
+                    phone: c.phone,
+                    address: c.address,
+                    integrations_access: c.integrations_access || [],
+                    profiles_count: profiles.length,
+                };
+            });
+
+            setClinics(mapped);
+        } catch (error) {
+            console.error("Erro ao buscar clínicas:", error);
+            toast.error("Erro ao buscar clínicas.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ─── Churn (30d) from system_logs ────────────────────────────────────────
+    const fetchChurnData = async () => {
+        try {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const isoDate = thirtyDaysAgo.toISOString();
+
+            // Count clinics that had status changed to cancelado/suspenso in last 30 days
+            const { data: churnLogs, error: logsError } = await supabase
+                .from('system_logs')
+                .select('clinic_id')
+                .eq('action', 'status_change')
+                .gte('created_at', isoDate);
+
+            if (logsError) {
+                console.warn("Não foi possível buscar churn logs:", logsError.message);
+                return;
+            }
+
+            // Filter only logs whose details mention cancelado or suspenso
+            // We'll count unique clinic_ids that transitioned to those statuses
+            const churnedClinicIds = new Set<string>();
+            (churnLogs || []).forEach((log: any) => {
+                if (log.clinic_id) churnedClinicIds.add(log.clinic_id);
+            });
+
+            // For a more accurate approach, we also look for details containing 'Cancelado' or 'Suspenso'
+            const { data: detailedLogs } = await supabase
+                .from('system_logs')
+                .select('clinic_id, details')
+                .eq('action', 'status_change')
+                .gte('created_at', isoDate);
+
+            const churned = new Set<string>();
+            (detailedLogs || []).forEach((log: any) => {
+                const details = (log.details || '').toLowerCase();
+                if ((details.includes('cancelado') || details.includes('suspenso')) && log.clinic_id) {
+                    churned.add(log.clinic_id);
+                }
+            });
+
+            setChurnCount(churned.size);
+        } catch (error) {
+            console.error("Erro no cálculo de churn:", error);
+        }
+    };
+
+    // ─── Status Change ───────────────────────────────────────────────────────
+    const requestStatusChange = (clinicId: string, clinicName: string, newStatus: ClinicStatus) => {
+        setConfirmDialog({ open: true, clinicId, clinicName, newStatus });
+    };
+
+    const executeStatusChange = async () => {
+        const { clinicId, newStatus, clinicName } = confirmDialog;
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        try {
+            const { error } = await supabase.from('clinics').update({ status: newStatus }).eq('id', clinicId);
+            if (error) throw error;
+            setClinics(prev => prev.map(c => c.id === clinicId ? { ...c, status: newStatus } : c));
+
+            // Log
+            await supabase.from('system_logs').insert([{
+                clinic_id: clinicId,
+                action: 'status_change',
+                details: `Status de "${clinicName}" alterado para ${STATUS_CONFIG[newStatus].label}.`
+            }]);
+
+            toast.success(`Status de "${clinicName}" alterado para ${STATUS_CONFIG[newStatus].label}.`);
+        } catch (error) {
+            toast.error("Erro ao alterar status da clínica.");
+            console.error(error);
+        }
+    };
+
+    // ─── Plan Change ─────────────────────────────────────────────────────────
+    const handlePlanChange = async (clinicId: string, clinicName: string, newPlan: PlanTier) => {
+        try {
+            const { error } = await supabase.from('clinics').update({ plan_tier: newPlan }).eq('id', clinicId);
+            if (error) throw error;
+            setClinics(prev => prev.map(c => c.id === clinicId ? { ...c, plan_tier: newPlan } : c));
+
+            const clinic = clinics.find(c => c.id === clinicId);
+            const subVal = clinic?.subscription_value ?? PLAN_DEFAULTS[newPlan];
+            await supabase.from('system_logs').insert([{
+                clinic_id: clinicId,
+                action: 'plan_change',
+                details: `"${clinicName}" alterou plano para ${newPlan.toUpperCase()} (Valor: R$ ${subVal.toFixed(2)}).`
+            }]);
+
+            toast.success(`Plano de "${clinicName}" alterado para ${newPlan.toUpperCase()}.`);
+        } catch (error) {
+            toast.error("Erro ao alterar plano.");
+            console.error(error);
+        }
+    };
+
+    // ─── Subscription Value ──────────────────────────────────────────────────
+    const startEditingValue = (clinic: ClinicData) => {
+        setEditingValueId(clinic.id);
+        setTempValue(clinic.subscription_value != null ? String(clinic.subscription_value) : '');
+    };
+
+    const saveSubscriptionValue = async (clinicId: string) => {
+        const numValue = tempValue ? parseFloat(tempValue.replace(',', '.')) : null;
+        try {
+            const { error } = await supabase.from('clinics').update({ subscription_value: numValue }).eq('id', clinicId);
+            if (error) throw error;
+            setClinics(prev => prev.map(c => c.id === clinicId ? { ...c, subscription_value: numValue } : c));
+            setEditingValueId(null);
+
+            const clinicName = clinics.find(c => c.id === clinicId)?.name || '';
+            await supabase.from('system_logs').insert([{
+                clinic_id: clinicId,
+                action: 'subscription_value_change',
+                details: `Mensalidade de "${clinicName}" atualizada para R$ ${numValue?.toFixed(2) || 'padrão do plano'}.`
+            }]);
+
+            toast.success("Valor da mensalidade atualizado.");
+        } catch (error) {
+            toast.error("Erro ao salvar valor.");
+            console.error(error);
+        }
+    };
+
+    // ─── Activity Logs ───────────────────────────────────────────────────────
+    const fetchLogs = async () => {
+        setLogsLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('system_logs')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+            if (error) throw error;
+
+            // Enrich with clinic names
+            const clinicIds = [...new Set((data || []).map(l => l.clinic_id).filter(Boolean))];
+            let clinicNames: Record<string, string> = {};
+            if (clinicIds.length > 0) {
+                const { data: cData } = await supabase.from('clinics').select('id, name').in('id', clinicIds);
+                (cData || []).forEach((c: any) => { clinicNames[c.id] = c.name; });
+            }
+
+            setLogs((data || []).map((l: any) => ({
+                ...l,
+                clinic_name: l.clinic_id ? clinicNames[l.clinic_id] || l.clinic_id.substring(0, 8) : 'Sistema',
+            })));
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao carregar logs.");
+        } finally {
+            setLogsLoading(false);
+        }
+    };
+
+    const openLogs = () => { setLogsOpen(true); fetchLogs(); };
+
+    // ─── Onboarding ──────────────────────────────────────────────────────────
+    const handleOnboarding = async () => {
+        if (!newClinic.name.trim()) { toast.error("Nome da clínica é obrigatório."); return; }
+        setOnboarding(true);
+        try {
+            // 1. Create clinic
+            const subValue = newClinic.subscription_value ? parseFloat(newClinic.subscription_value.replace(',', '.')) : PLAN_DEFAULTS[newClinic.plan_tier];
+            const { data: createdClinic, error: createError } = await supabase
+                .from('clinics')
+                .insert([{
+                    name: newClinic.name,
+                    plan_tier: newClinic.plan_tier,
+                    status: 'ativo' as ClinicStatus,
+                    subscription_value: subValue,
+                    email: newClinic.owner_email || null,
+                    phone: newClinic.owner_whatsapp || null,
+                }])
+                .select()
+                .single();
+
+            if (createError) throw createError;
+
+            // 2. Create default pipeline stages (21)
+            const stages = DEFAULT_PIPELINE_STAGES.map(s => ({
+                ...s,
+                clinic_id: createdClinic.id,
+            }));
+
+            const { error: stagesError } = await supabase.from('pipeline_stages').insert(stages);
+            if (stagesError) {
+                console.error("Erro ao criar etapas:", stagesError);
+                toast.error("Clínica criada, mas houve erro ao criar os pipelines padrão.");
+            }
+
+            // 3. Create owner profile if email provided
+            if (newClinic.owner_email.trim()) {
+                // Create a basic profile entry (note: the actual auth user creation
+                // should happen via invite flow, but we create the profile record here)
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .insert([{
+                        id: createdClinic.id, // Temporary: use clinicId as placeholder; real ID comes from auth signup
+                        clinic_id: createdClinic.id,
+                        full_name: newClinic.owner_name || newClinic.name,
+                        role: 'owner',
+                        phone: newClinic.owner_whatsapp || null,
+                        is_active: true,
+                    }]);
+
+                if (profileError) {
+                    console.warn("Aviso: Não foi possível criar perfil inicial:", profileError.message);
+                    // Non-fatal: profile will be created on first login
+                }
+            }
+
+            // 4. System log
+            await supabase.from('system_logs').insert([{
+                clinic_id: createdClinic.id,
+                action: 'onboarding',
+                details: `Nova clínica "${newClinic.name}" criada com plano ${newClinic.plan_tier.toUpperCase()} (R$ ${subValue?.toFixed(2)}). 21 etapas de pipeline criadas. Responsável: ${newClinic.owner_name || 'N/A'}. E-mail: ${newClinic.owner_email || 'N/A'}.`
+            }]);
+
+            toast.success(`Clínica "${newClinic.name}" criada com sucesso!`);
+            setOnboardOpen(false);
+            setNewClinic({ name: '', owner_name: '', owner_email: '', owner_whatsapp: '', plan_tier: 'start', subscription_value: '' });
+            fetchClinics();
+        } catch (error: any) {
+            console.error(error);
+            toast.error(`Erro no onboarding: ${error.message}`);
+        } finally {
+            setOnboarding(false);
+        }
+    };
+
+    // ─── Impersonate ─────────────────────────────────────────────────────────
+    const handleImpersonate = async (clinic: ClinicData) => {
+        setImpersonateDialog({ open: false, clinic: null });
+        await impersonateClinic(clinic.id);
+        toast.success(`Você agora está visualizando como "${clinic.name}".`, { duration: 5000 });
+    };
+
+    // ─── Password Management (Admin) ─────────────────────────────────────────
+    const handleSendResetEmail = async (clinic: ClinicData) => {
+        const emailToReset = clinic.owner_email || clinic.email;
+        if (!emailToReset) {
+            toast.error('Nenhum e-mail cadastrado para esta clínica. Cadastre um e-mail primeiro.');
+            return;
+        }
+        setPasswordLoading(true);
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(emailToReset, {
+                redirectTo: `${window.location.origin}/reset-password`,
+            });
+            if (error) throw error;
+
+            // Log
+            await supabase.from('system_logs').insert([{
+                clinic_id: clinic.id,
+                action: 'password_reset_email',
+                details: `Admin "${profile?.full_name}" enviou e-mail de recuperação de senha para a clínica "${clinic.name}" (${emailToReset}).`
+            }]);
+
+            toast.success(`E-mail de recuperação enviado para ${emailToReset}.`);
+        } catch (error: any) {
+            console.error(error);
+            toast.error(`Erro ao enviar e-mail: ${error.message}`);
+        } finally {
+            setPasswordLoading(false);
+        }
+    };
+
+    const handleForcePassword = async (clinic: ClinicData) => {
+        if (!tempPassword || tempPassword.length < 6) {
+            toast.error('A senha deve ter pelo menos 6 caracteres.');
+            return;
+        }
+
+        const emailToReset = clinic.owner_email || clinic.email;
+        if (!emailToReset) {
+            toast.error('Nenhum e-mail vinculado. Não é possível alterar a senha sem identificar o usuário.');
+            return;
+        }
+
+        setPasswordLoading(true);
+        try {
+            // Note: supabase.auth.admin.updateUserById requires service_role key.
+            // From client-side, we use resetPasswordForEmail as the safe approach.
+            // If you have an Edge Function for admin password reset, call it here.
+            // Fallback: send reset email instead of forcing.
+            const { error } = await supabase.auth.resetPasswordForEmail(emailToReset, {
+                redirectTo: `${window.location.origin}/reset-password`,
+            });
+            if (error) throw error;
+
+            // Log
+            await supabase.from('system_logs').insert([{
+                clinic_id: clinic.id,
+                action: 'password_force_reset',
+                details: `Admin "${profile?.full_name}" forçou reset de senha para a clínica "${clinic.name}" (${emailToReset}). Um link de redefinição foi enviado.`
+            }]);
+
+            toast.success(`Link de redefinição enviado para ${emailToReset}. O cliente deverá definir a nova senha pelo link.`);
+            setTempPassword('');
+        } catch (error: any) {
+            console.error(error);
+            toast.error(`Erro ao resetar senha: ${error.message}`);
+        } finally {
+            setPasswordLoading(false);
+        }
+    };
+
+    // ─── Clinic Details (Master-Detail) ──────────────────────────────────────
+    const openDetails = async (clinic: ClinicData) => {
+        setSelectedClinic(clinic);
+        setViewMode('details');
+        setDraftClinic({
+            owner_name: clinic.owner_name || '',
+            email: clinic.email || '',
+            phone: clinic.phone || ''
+        });
+
+        setProfilesLoading(true);
+        try {
+            const { data: profiles, error } = await supabase
+                .from('profiles')
+                .select('id, full_name, role, email, phone, is_active, last_seen_at')
+                .eq('clinic_id', clinic.id)
+                .order('role', { ascending: true });
+
+            if (error) throw error;
+            setClinicProfiles(profiles || []);
+        } catch (error) {
+            console.error(error);
+            setClinicProfiles([]);
+        } finally {
+            setProfilesLoading(false);
+        }
+    };
+
+    const handleSaveCadastro = async () => {
+        if (!selectedClinic) return;
+        setLoading(true);
+        try {
+            const { error: clinicError } = await supabase
+                .from('clinics')
+                .update({
+                    email: draftClinic.email,
+                    phone: draftClinic.phone
+                })
+                .eq('id', selectedClinic.id);
+
+            if (clinicError) throw clinicError;
+
+            const ownerProfile = clinicProfiles.find(p => p.role === 'owner');
+            if (ownerProfile) {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update({ full_name: draftClinic.owner_name })
+                    .eq('id', ownerProfile.id);
+
+                if (profileError) throw profileError;
+
+                // Local state update
+                setClinicProfiles(prev => prev.map(p => p.id === ownerProfile.id ? { ...p, full_name: draftClinic.owner_name } : p));
+            }
+
+            toast.success("Cadastro atualizado com sucesso!");
+            setSelectedClinic(prev => prev ? {
+                ...prev,
+                email: draftClinic.email,
+                phone: draftClinic.phone,
+                owner_name: draftClinic.owner_name
+            } : null);
+            fetchClinics();
+        } catch (error) {
+            console.error("Erro ao salvar cadastro:", error);
+            toast.error("Erro ao salvar cadastro.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleUserActive = async (profileId: string, isActive: boolean) => {
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_active: isActive })
+                .eq('id', profileId);
+
+            if (error) throw error;
+            setClinicProfiles(prev => prev.map(p => p.id === profileId ? { ...p, is_active: isActive } : p));
+            toast.success(`Usuário ${isActive ? 'ativado' : 'pausado'}.`);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao atualizar status do usuário.");
+        }
+    };
+
+    const handleToggleIntegrations = async (enable: boolean) => {
+        if (!selectedClinic) return;
+
+        try {
+            const newValue = enable ? ['owner', 'manager'] : [];
+            const { error } = await supabase
+                .from('clinics')
+                .update({ integrations_access: newValue })
+                .eq('id', selectedClinic.id);
+
+            if (error) throw error;
+            setSelectedClinic(prev => prev ? { ...prev, integrations_access: newValue } : null);
+            toast.success(`Acesso a integrações ${enable ? 'liberado' : 'removido'}.`);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao atualizar acesso a integrações.");
+        }
+    };
+
+    // ─── Computed Metrics ────────────────────────────────────────────────────
+    const metrics = useMemo(() => {
+        const ativas = clinics.filter(c => c.status === 'ativo');
+        const mrr = ativas.reduce((sum, c) => sum + (c.subscription_value ?? PLAN_DEFAULTS[c.plan_tier] ?? 0), 0);
+
+        // Churn: use the fetched churn data from system_logs
+        const totalBase = ativas.length + churnCount;
+        const churnRate = totalBase > 0 ? ((churnCount / totalBase) * 100) : 0;
+
+        return { ativas: ativas.length, inativas: clinics.length - ativas.length, mrr, churnRate, churned: churnCount };
+    }, [clinics, churnCount]);
+
+    // ─── Filter ──────────────────────────────────────────────────────────────
+    const filteredClinics = clinics.filter(c =>
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.owner_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // ─── Guard ───────────────────────────────────────────────────────────────
+    if (profile?.role !== 'superadmin') {
+        return <div className="p-8 text-center">Acesso negado. Apenas Super Admin.</div>;
+    }
+
+    const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    return (
+        <div className="p-6 max-w-7xl mx-auto space-y-8">
+            {/* ── Impersonation Banner ── */}
+            {isImpersonating && (
+                <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-black py-2 px-4 flex items-center justify-center gap-4 shadow-lg animate-in slide-in-from-top-2">
+                    <UserCog className="h-4 w-4" />
+                    <span className="text-sm font-semibold">🎭 Modo Suporte Ativo — Visualizando como outra clínica</span>
+                    <Button size="sm" variant="outline" className="h-7 text-xs bg-white/20 border-black/20 hover:bg-white/40" onClick={stopImpersonating}>
+                        <X className="h-3 w-3 mr-1" /> Encerrar
+                    </Button>
+                </div>
+            )}
+
+            {viewMode === 'table' ? (
+                <>
+                    {/* ── Header ── */}
+                    <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${isImpersonating ? 'mt-10' : ''}`}>
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-green-600 bg-clip-text text-transparent">
+                                SaaS Control Center
+                            </h1>
+                            <p className="text-muted-foreground">Administração global da plataforma Sevenn 360.</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="icon" className="relative" onClick={openLogs} title="Atividades Recentes">
+                                <Bell className="h-4 w-4" />
+                                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary animate-pulse" />
+                            </Button>
+                            <Button variant="brand" className="gap-2 shadow-lg shadow-primary/20" onClick={() => setOnboardOpen(true)}>
+                                <Plus className="h-4 w-4" /> Nova Clínica
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* ── Stats Overview ── */}
+                    <div className="grid gap-4 md:grid-cols-5">
+                        <Card className="bg-primary/5 border-primary/10">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{clinics.length}</div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">Ativas</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-emerald-500">{metrics.ativas}</div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">Inativas</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-rose-500">{metrics.inativas}</div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-emerald-500/5 border-emerald-500/10">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                                    <DollarSign className="h-3 w-3" /> MRR (Receita Recorrente)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-emerald-600">{formatCurrency(metrics.mrr)}</div>
+                                <p className="text-[10px] text-muted-foreground mt-1">Soma das assinaturas ativas</p>
+                            </CardContent>
+                        </Card>
+                        <Card className={metrics.churnRate > 5 ? 'bg-rose-500/5 border-rose-500/10' : ''}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                                    <TrendingDown className="h-3 w-3" /> Churn (30d)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className={`text-2xl font-bold ${metrics.churnRate > 5 ? 'text-rose-500' : 'text-muted-foreground'}`}>
+                                    {metrics.churnRate.toFixed(1)}%
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-1">{metrics.churned} cancelada(s)/suspensa(s)</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* ── Clinics Table ── */}
+                    <Card className="border-none shadow-xl bg-card/50 backdrop-blur">
+                        <CardHeader className="border-b bg-muted/20">
+                            <div className="flex justify-between items-center">
+                                <CardTitle>Gestão de Contas</CardTitle>
+                                <div className="relative w-72">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input placeholder="Buscar por nome, dono ou ID..." className="pl-8 bg-background/50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {loading ? (
+                                <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
+                                            <tr>
+                                                <th className="px-4 py-4 font-medium italic">Clínica</th>
+                                                <th className="px-4 py-4 font-medium italic">Plano</th>
+                                                <th className="px-4 py-4 font-medium italic">Mensalidade</th>
+                                                <th className="px-4 py-4 font-medium italic">Owner</th>
+                                                <th className="px-4 py-4 font-medium italic">Status</th>
+                                                <th className="px-4 py-4 font-medium italic text-right">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {filteredClinics.map((clinic) => {
+                                                const cfg = STATUS_CONFIG[clinic.status] || STATUS_CONFIG.ativo;
+                                                const planDefault = PLAN_DEFAULTS[clinic.plan_tier] || 197;
+                                                return (
+                                                    <tr key={clinic.id} className="hover:bg-muted/10 transition-colors">
+                                                        {/* Clinic Name + Full ID */}
+                                                        <td className="px-4 py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="h-9 w-9 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                    <Building2 className="h-5 w-5 text-primary" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="font-bold text-foreground truncate">{clinic.name}</p>
+                                                                    <button
+                                                                        className="text-[10px] text-muted-foreground uppercase flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                                                                        onClick={() => { navigator.clipboard.writeText(clinic.id); toast.success("Clinic ID copiado!"); }}
+                                                                        title={`ID completo: ${clinic.id}`}
+                                                                    >
+                                                                        ID: {clinic.id.substring(0, 8)}...
+                                                                        <Copy className="h-2.5 w-2.5" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Plan Selector */}
+                                                        <td className="px-4 py-4">
+                                                            <Select value={clinic.plan_tier} onValueChange={(val: string) => handlePlanChange(clinic.id, clinic.name, val as PlanTier)}>
+                                                                <SelectTrigger className={`w-[100px] h-8 text-xs font-bold capitalize ${PLAN_COLORS[clinic.plan_tier]}`}>
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="start" className="text-xs font-medium">Start</SelectItem>
+                                                                    <SelectItem value="gold" className="text-xs font-medium text-amber-600">Gold</SelectItem>
+                                                                    <SelectItem value="black" className="text-xs font-medium">Black</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </td>
+
+                                                        {/* Subscription Value */}
+                                                        <td className="px-4 py-4">
+                                                            {editingValueId === clinic.id ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-xs text-muted-foreground">R$</span>
+                                                                    <Input
+                                                                        type="text"
+                                                                        value={tempValue}
+                                                                        onChange={(e) => setTempValue(e.target.value)}
+                                                                        className="h-7 w-24 text-xs"
+                                                                        placeholder={String(planDefault)}
+                                                                        autoFocus
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') saveSubscriptionValue(clinic.id);
+                                                                            if (e.key === 'Escape') setEditingValueId(null);
+                                                                        }}
+                                                                        onBlur={() => saveSubscriptionValue(clinic.id)}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    className="text-xs font-medium hover:text-primary transition-colors cursor-pointer"
+                                                                    onClick={() => startEditingValue(clinic)}
+                                                                    title="Clique para editar"
+                                                                >
+                                                                    {clinic.subscription_value != null
+                                                                        ? <span className="font-bold">{formatCurrency(clinic.subscription_value)}</span>
+                                                                        : <span className="text-muted-foreground italic">R$ {planDefault.toFixed(2)}</span>
+                                                                    }
+                                                                </button>
+                                                            )}
+                                                        </td>
+
+                                                        {/* Owner */}
+                                                        <td className="px-4 py-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                                                                    {(clinic.owner_name || '?').substring(0, 2).toUpperCase()}
+                                                                </div>
+                                                                <span className="truncate max-w-[120px]">{clinic.owner_name || '—'}</span>
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Status */}
+                                                        <td className="px-4 py-4">
+                                                            <Select value={clinic.status} onValueChange={(value: string) => { const ns = value as ClinicStatus; if (ns !== clinic.status) requestStatusChange(clinic.id, clinic.name, ns); }}>
+                                                                <SelectTrigger className={`w-[130px] h-8 text-xs font-semibold border-none ${cfg.badgeClass}`}>
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {(Object.entries(STATUS_CONFIG) as [ClinicStatus, typeof cfg][]).map(([key, val]) => (
+                                                                        <SelectItem key={key} value={key} className={`text-xs font-medium ${val.color}`}>
+                                                                            <span className={val.color}>{val.label}</span>
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </td>
+
+                                                        {/* Actions - ALWAYS VISIBLE */}
+                                                        <td className="px-4 py-4 text-right">
+                                                            <div className="flex justify-end gap-1">
+                                                                <Button
+                                                                    variant="ghost" size="icon"
+                                                                    className="h-8 w-8 text-blue-500 hover:bg-blue-500/10"
+                                                                    title="Entrar na conta (Impersonate)"
+                                                                    onClick={() => setImpersonateDialog({ open: true, clinic })}
+                                                                >
+                                                                    <UserCog className="h-4 w-4" />
+                                                                </Button>
+                                                                <ManageTagsDialog
+                                                                    clinicId={clinic.id}
+                                                                    trigger={
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-500 hover:bg-emerald-500/10" title="Gerenciar Etiquetas">
+                                                                            <Tag className="h-4 w-4" />
+                                                                        </Button>
+                                                                    }
+                                                                />
+                                                                <Button
+                                                                    variant="ghost" size="icon"
+                                                                    className="h-8 w-8 text-amber-500 hover:bg-amber-500/10"
+                                                                    title="Gerenciar Acesso / Senha"
+                                                                    onClick={() => { setPasswordDialog({ open: true, clinic }); setTempPassword(''); }}
+                                                                >
+                                                                    <KeyRound className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost" size="icon"
+                                                                    className="h-8 w-8 text-primary hover:bg-primary/10"
+                                                                    title="Ver Detalhes"
+                                                                    onClick={() => openDetails(clinic)}
+                                                                >
+                                                                    <Eye className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                    {filteredClinics.length === 0 && (
+                                        <div className="py-20 text-center text-muted-foreground">Nenhuma clínica encontrada.</div>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </>
+            ) : (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6 pb-12">
+                    {/* Top Breadcrumb */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className="hover:text-primary transition-colors flex items-center gap-1"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Gestão de Contas
+                            </button>
+                            <span>/</span>
+                            <span className="font-semibold text-foreground">{selectedClinic?.name}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline" size="sm"
+                                className="h-8 gap-2 text-blue-500 border-blue-200 hover:bg-blue-50"
+                                onClick={() => selectedClinic && setImpersonateDialog({ open: true, clinic: selectedClinic })}
+                            >
+                                <UserCog className="h-4 w-4" /> Impersonate
+                            </Button>
+                            <Button
+                                variant="outline" size="sm"
+                                className="h-8 gap-2 text-amber-500 border-amber-200 hover:bg-amber-50"
+                                onClick={() => {
+                                    if (selectedClinic) {
+                                        setPasswordDialog({ open: true, clinic: selectedClinic });
+                                        setTempPassword('');
+                                    }
+                                }}
+                            >
+                                <KeyRound className="h-4 w-4" /> Senha/Acesso
+                            </Button>
+                            <ManageTagsDialog
+                                clinicId={selectedClinic?.id || ''}
+                                trigger={
+                                    <Button variant="outline" size="sm" className="h-8 gap-2 text-emerald-500 border-emerald-200 hover:bg-emerald-50">
+                                        <Tag className="h-4 w-4" /> Etiquetas
+                                    </Button>
+                                }
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Section 1: Cadastro */}
+                        <Card className="lg:col-span-1 border-none shadow-lg">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Building2 className="h-5 w-5 text-primary" />
+                                    Dados Cadastrais
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Nome do Proprietário (Responsável)</Label>
+                                    <Input
+                                        value={draftClinic.owner_name}
+                                        onChange={e => setDraftClinic(prev => ({ ...prev, owner_name: e.target.value }))}
+                                        placeholder="Nome completo"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Email da Clínica</Label>
+                                    <Input
+                                        value={draftClinic.email}
+                                        onChange={e => setDraftClinic(prev => ({ ...prev, email: e.target.value }))}
+                                        placeholder="email@clinica.com"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Telefone / WhatsApp</Label>
+                                    <Input
+                                        value={draftClinic.phone}
+                                        onChange={e => setDraftClinic(prev => ({ ...prev, phone: e.target.value }))}
+                                        placeholder="(00) 00000-0000"
+                                    />
+                                </div>
+                                <Button
+                                    className="w-full mt-2"
+                                    onClick={handleSaveCadastro}
+                                    disabled={loading}
+                                >
+                                    {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                                    Salvar Cadastro
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* Section 2: Usuários */}
+                        <Card className="lg:col-span-2 border-none shadow-lg overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between py-4 bg-muted/20 border-b">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Users className="h-5 w-5 text-primary" />
+                                    Gestão de Usuários
+                                </CardTitle>
+                                <Badge variant="secondary">{clinicProfiles.length} usuários</Badge>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-xs text-muted-foreground uppercase bg-muted/10">
+                                            <tr>
+                                                <th className="px-4 py-3 font-medium">Usuário</th>
+                                                <th className="px-4 py-3 font-medium">Contato</th>
+                                                <th className="px-4 py-3 font-medium">Cargo</th>
+                                                <th className="px-4 py-3 font-medium">Visto por último</th>
+                                                <th className="px-4 py-3 font-medium text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border">
+                                            {profilesLoading ? (
+                                                <tr><td colSpan={5} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></td></tr>
+                                            ) : clinicProfiles.length === 0 ? (
+                                                <tr><td colSpan={5} className="py-20 text-center text-muted-foreground italic">Nenhum usuário vinculado.</td></tr>
+                                            ) : (
+                                                clinicProfiles.map(p => (
+                                                    <tr key={p.id} className="hover:bg-muted/5 transition-colors">
+                                                        <td className="px-4 py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                                                                    {(p.full_name || '?').substring(0, 2).toUpperCase()}
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-semibold">{p.full_name}</span>
+                                                                    <span className="text-[10px] text-muted-foreground font-mono">ID: {p.id.substring(0, 8)}</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <div className="flex flex-col text-[11px]">
+                                                                <span className="text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> {p.email || '—'}</span>
+                                                                <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {p.phone || '—'}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <Badge variant="outline" className={`text-[10px] capitalize ${p.role === 'owner' ? 'border-amber-500 text-amber-600 bg-amber-500/5' : ''}`}>
+                                                                {p.role}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-xs text-muted-foreground italic">
+                                                            {p.last_seen_at ? formatDistanceToNow(new Date(p.last_seen_at), { addSuffix: true, locale: ptBR }) : 'Nunca acessou'}
+                                                        </td>
+                                                        <td className="px-4 py-4 text-center">
+                                                            <Switch
+                                                                checked={p.is_active}
+                                                                onCheckedChange={(val) => toggleUserActive(p.id, val)}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Section 3: Integrações */}
+                        <Card className="lg:col-span-3 border-none shadow-lg">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Search className="h-5 w-5 text-primary" />
+                                    Liberação de Módulos
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-center justify-between p-6 border rounded-2xl bg-primary/5 border-primary/10">
+                                    <div className="space-y-1">
+                                        <p className="font-bold text-lg">Módulo de Integrações Premium</p>
+                                        <p className="text-sm text-muted-foreground max-w-2xl text-balance">
+                                            Libera o acesso ao painel de configurações para controle de WhatsApp (Padrão e Business),
+                                            Integrações com LLM (IA para atendimento) e Sincronização de Agenda Inteligente.
+                                        </p>
+                                        <div className="flex gap-2 mt-4">
+                                            <Badge variant="outline" className="text-[10px] bg-white">WhatsApp API</Badge>
+                                            <Badge variant="outline" className="text-[10px] bg-white">IA Clinic 360</Badge>
+                                            <Badge variant="outline" className="text-[10px] bg-white">Smart Agenda</Badge>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Switch
+                                            checked={(selectedClinic?.integrations_access?.length || 0) > 0}
+                                            onCheckedChange={(val) => {
+                                                if (val) setIntegrationsDialog(true);
+                                                else handleToggleIntegrations(false);
+                                            }}
+                                            className="data-[state=checked]:bg-emerald-500"
+                                        />
+                                        <span className={`text-[10px] font-bold uppercase ${(selectedClinic?.integrations_access?.length || 0) > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                                            {(selectedClinic?.integrations_access?.length || 0) > 0 ? 'Liberado' : 'Bloqueado'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            )}
+
+            {/* ════════════════════════ DIALOGS ════════════════════════ */}
+
+            {/* ── Status Change Confirmation ── */}
+            <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar Alteração de Status</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Você está prestes a alterar o status da clínica <strong>"{confirmDialog.clinicName}"</strong> para{' '}
+                            <strong className={STATUS_CONFIG[confirmDialog.newStatus]?.color}>{STATUS_CONFIG[confirmDialog.newStatus]?.label}</strong>.
+                            <br /><br />Deseja continuar?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={executeStatusChange}>Confirmar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* ── Impersonate Confirmation ── */}
+            <AlertDialog open={impersonateDialog.open} onOpenChange={(open) => setImpersonateDialog(prev => ({ ...prev, open }))}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <UserCog className="h-5 w-5 text-blue-500" />
+                            Entrar na Conta da Clínica
+                        </AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-3">
+                                <p>Você irá visualizar o sistema como a clínica selecionada. Nenhum dado será alterado.</p>
+                                {impersonateDialog.clinic && (
+                                    <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                                        <p className="text-sm font-semibold text-foreground">{impersonateDialog.clinic.name}</p>
+                                        <p className="text-xs text-muted-foreground">Owner: {impersonateDialog.clinic.owner_name || '—'}</p>
+                                        <div className="flex items-center gap-1 mt-2">
+                                            <code className="text-[10px] bg-background px-2 py-1 rounded border font-mono text-foreground">
+                                                {impersonateDialog.clinic.id}
+                                            </code>
+                                            <Button
+                                                variant="ghost" size="icon" className="h-6 w-6"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(impersonateDialog.clinic!.id);
+                                                    toast.success("ID copiado!");
+                                                }}
+                                            >
+                                                <Copy className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => impersonateDialog.clinic && handleImpersonate(impersonateDialog.clinic)} className="bg-blue-600 hover:bg-blue-700">
+                            Entrar como {impersonateDialog.clinic?.name}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* ── Integrations Confirmation ── */}
+            <AlertDialog open={integrationsDialog} onOpenChange={setIntegrationsDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <Tag className="h-5 w-5 text-primary" />
+                            Confirmar Ativação de Integrações
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Ao ativar este módulo, a clínica terá acesso a recursos de WhatsApp Padrão, IA e Gestão de Agenda.
+                            Certifique-se de que os termos comerciais foram acordados antes de liberar o acesso.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                handleToggleIntegrations(true);
+                                setIntegrationsDialog(false);
+                            }}
+                            className="bg-primary hover:bg-primary/90"
+                        >
+                            Confirmar Ativação
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* ── Activity Logs Modal ── */}
+            <Dialog open={logsOpen} onOpenChange={setLogsOpen}>
+                <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Bell className="h-5 w-5 text-primary" />
+                            Atividades Recentes
+                        </DialogTitle>
+                        <DialogDescription>Últimos registros de ações no sistema.</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto space-y-2 py-2">
+                        {logsLoading ? (
+                            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                        ) : logs.length === 0 ? (
+                            <p className="text-center text-muted-foreground py-12">Nenhum registro encontrado.</p>
+                        ) : (
+                            logs.map(log => (
+                                <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors border border-transparent hover:border-border/50">
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <Building2 className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm text-foreground leading-snug">{log.details || log.action}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{log.clinic_name}</Badge>
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Onboarding Modal ── */}
+            <Dialog open={onboardOpen} onOpenChange={setOnboardOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Plus className="h-5 w-5 text-primary" />
+                            Nova Clínica &amp; Onboarding
+                        </DialogTitle>
+                        <DialogDescription>Crie uma nova conta e os pipelines padrão serão gerados automaticamente (21 etapas).</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="clinic-name">Nome da Clínica *</Label>
+                            <Input id="clinic-name" placeholder="Ex: Clínica Harmonia" value={newClinic.name} onChange={(e) => setNewClinic(prev => ({ ...prev, name: e.target.value }))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="clinic-owner">Responsável (Nome)</Label>
+                            <Input id="clinic-owner" placeholder="Nome do médico/proprietário" value={newClinic.owner_name} onChange={(e) => setNewClinic(prev => ({ ...prev, owner_name: e.target.value }))} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                                <Label htmlFor="owner-email">E-mail do Responsável</Label>
+                                <Input id="owner-email" type="email" placeholder="medico@clinica.com" value={newClinic.owner_email} onChange={(e) => setNewClinic(prev => ({ ...prev, owner_email: e.target.value }))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="owner-whatsapp">WhatsApp</Label>
+                                <Input id="owner-whatsapp" type="tel" placeholder="(48) 99999-0000" value={newClinic.owner_whatsapp} onChange={(e) => setNewClinic(prev => ({ ...prev, owner_whatsapp: e.target.value }))} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                                <Label>Plano Inicial</Label>
+                                <Select value={newClinic.plan_tier} onValueChange={(val: string) => setNewClinic(prev => ({ ...prev, plan_tier: val as PlanTier }))}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="start">Start (R$ 197)</SelectItem>
+                                        <SelectItem value="gold">Gold (R$ 397)</SelectItem>
+                                        <SelectItem value="black">Black (R$ 897)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="sub-value">Valor Negociado</Label>
+                                <div className="flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground">R$</span>
+                                    <Input
+                                        id="sub-value"
+                                        type="text"
+                                        placeholder={String(PLAN_DEFAULTS[newClinic.plan_tier])}
+                                        value={newClinic.subscription_value}
+                                        onChange={(e) => setNewClinic(prev => ({ ...prev, subscription_value: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setOnboardOpen(false)}>Cancelar</Button>
+                        <Button variant="brand" onClick={handleOnboarding} disabled={onboarding} className="gap-2">
+                            {onboarding && <Loader2 className="h-4 w-4 animate-spin" />}
+                            Criar Clínica
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Password Management Modal ── */}
+            <Dialog open={passwordDialog.open} onOpenChange={(open) => { setPasswordDialog(prev => ({ ...prev, open })); if (!open) setTempPassword(''); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <KeyRound className="h-5 w-5 text-amber-500" />
+                            Gerenciar Acesso
+                        </DialogTitle>
+                        <DialogDescription>
+                            Ferramentas de suporte para recuperação de senha da clínica <strong>{passwordDialog.clinic?.name}</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {passwordDialog.clinic && (
+                        <div className="space-y-6 py-2">
+                            {/* Email info */}
+                            <div className="bg-muted/30 rounded-lg p-3 flex items-center gap-3">
+                                <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <div>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">E-mail vinculado</p>
+                                    <p className="text-sm font-medium text-foreground">
+                                        {passwordDialog.clinic.owner_email || passwordDialog.clinic.email || <span className="italic text-muted-foreground">Nenhum e-mail cadastrado</span>}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Option A: Send Reset Link */}
+                            <div className="space-y-3">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                        <Send className="h-3.5 w-3.5 text-blue-500" />
+                                        Opção A – Enviar Link de Recuperação
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Envia o e-mail oficial do Supabase Auth com link para o cliente redefinir a própria senha.
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-2 border-blue-200 text-blue-600 hover:bg-blue-50"
+                                    onClick={() => handleSendResetEmail(passwordDialog.clinic!)}
+                                    disabled={passwordLoading || !(passwordDialog.clinic.owner_email || passwordDialog.clinic.email)}
+                                >
+                                    {passwordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    Enviar E-mail de Recuperação
+                                </Button>
+                            </div>
+
+                            <div className="h-px bg-border" />
+
+                            {/* Option B: Force Reset */}
+                            <div className="space-y-3">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                        <Lock className="h-3.5 w-3.5 text-amber-500" />
+                                        Opção B – Forçar Redefinição (Admin)
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Define uma nova senha imediatamente. Requer Edge Function com Service Role.
+                                    </p>
+                                </div>
+
+                                {/* Warning */}
+                                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                                    <p className="text-xs text-amber-800 leading-relaxed">
+                                        <strong>Cuidado:</strong> Isso mudará a senha do cliente imediatamente.
+                                        Como não há Edge Function configurada, um link de redefinição será enviado por e-mail.
+                                    </p>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <Input
+                                        type="password"
+                                        placeholder="Nova senha temporária (min. 6 caracteres)"
+                                        value={tempPassword}
+                                        onChange={(e) => setTempPassword(e.target.value)}
+                                        className="flex-1"
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleForcePassword(passwordDialog.clinic!); }}
+                                    />
+                                    <Button
+                                        variant="default"
+                                        className="gap-2 bg-amber-600 hover:bg-amber-700"
+                                        onClick={() => handleForcePassword(passwordDialog.clinic!)}
+                                        disabled={passwordLoading || !tempPassword}
+                                    >
+                                        {passwordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                                        Definir
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}

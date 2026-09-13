@@ -1,0 +1,347 @@
+{
+  "name": "[COMUNIDADE][ELEVEN_LABS][V1]",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8c49a9be-f027-4ca6-8a8c-856fa46ee664",
+              "name": "TIMEOUT",
+              "value": 4,
+              "type": "number"
+            },
+            {
+              "id": "2925f61f-175c-4f67-b38f-581d23cd5684",
+              "name": "FROM-ME-WINDOW",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "4c777567-176a-4a87-98cf-5e883a37270d",
+              "name": "TIME-PER-CHAR",
+              "value": 35,
+              "type": "number"
+            },
+            {
+              "id": "c5882c8f-ad04-407a-ab13-4ff196dda4d5",
+              "name": "ELEVENLABS-API-KEY",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "7af991cc-39c0-4665-b25e-996b762b0b32",
+              "name": "ELEVENLABS-VOICE-ID",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        32
+      ],
+      "id": "7fbd2ad7-1e20-4e5d-993c-cf36693d9641",
+      "name": "Elevenlabs Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $('AI Agent').first().json.output ?? '';\n\nconst mensagem = message\n  .replace(/\\\\n/g, ' ')  // troca \\n por espaço\n  .replace(/\\s+/g, ' ')  // colapsa espaços\n  .trim();\n\nreturn { mensagem };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        32
+      ],
+      "id": "7761dd2b-3729-4508-9230-bc29f54b054b",
+      "name": "Code",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.elevenlabs.io/v1/text-to-speech/{{ $('Elevenlabs Config').first().json['ELEVENLABS-VOICE-ID'] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "={{ $('Elevenlabs Config').first().json['ELEVENLABS-API-KEY'] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{$json.mensagem}}"
+            },
+            {
+              "name": "model_id",
+              "value": "eleven_turbo_v2_5"
+            },
+            {
+              "name": "language_code",
+              "value": "pt"
+            },
+            {
+              "name": "voice_settings[stability]",
+              "value": "0.9"
+            },
+            {
+              "name": "voice_settings[similarity_boost]",
+              "value": "0.5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        32
+      ],
+      "id": "e4c0444a-ab1e-44a2-a00d-12bb6dd8b184",
+      "name": "CREATE AUDIO1",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tools.kommetrik.com.br/audio/convert/ogg",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        864,
+        32
+      ],
+      "id": "db52e8d5-6d46-4939-a6b1-1cbb3efb2cae",
+      "name": "Converte arquivo",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ia.kommetrik.com.br/api/executions/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer "
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $('Webhook').first().json.body[\"account[_links][self]\"] }}"
+            },
+            {
+              "name": "kommo_account_id",
+              "value": "={{ $('Webhook').first().json.body['account[id]'] }}"
+            },
+            {
+              "name": "chat_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][chat_id]'] }}"
+            },
+            {
+              "name": "entity_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][entity_id]'] }}"
+            },
+            {
+              "name": "element_type",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][element_type]'] }}"
+            },
+            {
+              "name": "user_name",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][name]'] }}"
+            },
+            {
+              "name": "author_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][author][id]'] }}"
+            },
+            {
+              "name": "talk_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][talk_id]'] }}"
+            },
+            {
+              "name": "contact_id",
+              "value": "={{ $('Webhook').first().json.body['message[add][0][contact_id]'] }}"
+            },
+            {
+              "name": "token_kommo",
+              "value": "={{ $('CONFIGURAÇÃO IA').first().json.kommo_token }}"
+            },
+            {
+              "name": "file_url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "is_voice",
+              "value": "=true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1104,
+        32
+      ],
+      "id": "87baa60c-ee23-4c65-b0c1-0c7a0105c959",
+      "name": "Envia mensagem na Kommo - Áudio Voice",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  output: $('Vendedor IA1').first().json.output\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        48
+      ],
+      "id": "3c61c3a1-1ca6-4c26-a12a-e85b1e566208",
+      "name": "Text GPT Output"
+    },
+    {
+      "parameters": {
+        "content": "## Envio de Áudio",
+        "height": 384,
+        "width": 1520
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        176,
+        -96
+      ],
+      "id": "c8d02107-ebfd-4027-aa99-40bec34ad4e8",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Elevenlabs Config": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "CREATE AUDIO1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text GPT Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREATE AUDIO1": {
+      "main": [
+        [
+          {
+            "node": "Converte arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text GPT Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converte arquivo": {
+      "main": [
+        [
+          {
+            "node": "Envia mensagem na Kommo - Áudio Voice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text GPT Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envia mensagem na Kommo - Áudio Voice": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Text GPT Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dc318f33-0ee4-4106-bc81-6f607f759633",
+  "meta": {
+    "instanceId": "25a4178f6bcb038f9103a76a89aa1e086d5129dc651a1255f5dbc5f514b931ad"
+  },
+  "id": "0wJS1tN7hn6EFszT",
+  "tags": [
+    {
+      "createdAt": "2025-07-12T19:04:59.708Z",
+      "updatedAt": "2025-07-12T19:04:59.708Z",
+      "id": "8jkMHCqDt1tGreZO",
+      "name": "kommetrik comunidade"
+    }
+  ]
+}

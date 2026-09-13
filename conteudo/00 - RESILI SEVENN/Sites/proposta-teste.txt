@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+
+<meta name="robots" content="noindex, nofollow">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resili Sevenn - Agência de Marketing Digital</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- RESET BÁSICO E VARIÁVEIS DE COR --- */
+        :root {
+            --background-dark: #0a0a10;
+            --background-section: #1a1a2e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --accent-gradient: linear-gradient(90deg, #4f46e5, #c13584);
+            --border-color: #33334e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* --- ESTILOS GERAIS --- */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        h1, h2, h3 {
+            font-weight: 700;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 2.2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px auto;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            border-radius: 50px;
+            background: var(--accent-gradient);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        section {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* --- CABEÇALHO --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            position: absolute;
+            width: 100%;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        nav a {
+            color: var(--text-primary);
+            text-decoration: none;
+            margin-left: 25px;
+            font-weight: 600;
+        }
+        
+        /* --- SEÇÃO HERO --- */
+        .hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 100vh;
+            padding-top: 100px;
+        }
+
+        .hero-content {
+            flex-basis: 55%;
+        }
+
+        .hero-content .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .hero-content p {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .hero-image {
+            flex-basis: 40%;
+            text-align: center;
+        }
+
+        .hero-image img {
+            max-width: 100%;
+            border-radius: 20px;
+            border: 3px solid var(--border-color);
+        }
+        
+        /* --- SEÇÃO RESULTADOS --- */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            text-align: center;
+        }
+        
+        .result-item {
+            background-color: var(--background-section);
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .result-item h3 {
+            font-size: 2.5rem;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-item p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* --- SEÇÃO SERVIÇOS --- */
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .service-card {
+            background-color: var(--background-section);
+            padding: 35px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+        
+        .service-card .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .service-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* --- SEÇÃO CTA --- */
+        .cta {
+            text-align: center;
+            background: var(--background-section);
+            border-radius: 15px;
+        }
+        
+        .cta h2 {
+            margin-bottom: 20px;
+        }
+
+        /* --- SEÇÃO CASES --- */
+        .cases-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+
+        .case-card {
+            background: var(--background-section);
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .case-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+        
+        .case-card p {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        /* --- SEÇÃO QUEM SOMOS --- */
+        .about-content {
+            display: flex;
+            align-items: center;
+            gap: 50px;
+        }
+        
+        .about-text {
+            flex-basis: 60%;
+        }
+        
+        .about-item {
+            margin-bottom: 20px;
+        }
+        
+        .about-item h3 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        
+        .about-image {
+            flex-basis: 40%;
+            text-align: center;
+        }
+        
+        .about-image img {
+            max-width: 100%;
+            border-radius: 50%;
+            width: 250px;
+            height: 250px;
+            object-fit: cover;
+            border: 3px solid var(--border-color);
+        }
+
+        /* --- SEÇÃO FAQ --- */
+        .faq details {
+            background: var(--background-section);
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .faq summary {
+            padding: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.1rem;
+            list-style: none;
+        }
+        
+        .faq summary::-webkit-details-marker {
+            display: none;
+        }
+        
+        .faq p {
+            padding: 0 20px 20px;
+            color: var(--text-secondary);
+        }
+
+        /* --- RODAPÉ --- */
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        footer .logo {
+            font-size: 1.8rem;
+        }
+        
+        footer p {
+            margin: 15px 0;
+            color: var(--text-secondary);
+        }
+        
+        .social-links a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 1.5rem;
+            margin: 0 10px;
+        }
+
+        /* --- RESPONSIVIDADE --- */
+        @media (max-width: 768px) {
+            h1 { font-size: 2.2rem; }
+            h2 { font-size: 1.8rem; }
+            
+            .hero {
+                flex-direction: column;
+                text-align: center;
+                padding: 120px 20px 60px 20px;
+            }
+            
+            .hero-content {
+                order: 2;
+            }
+            
+            .hero-image {
+                order: 1;
+                margin-bottom: 40px;
+            }
+            
+            .about-content {
+                flex-direction: column;
+            }
+            
+            header {
+                padding: 20px;
+            }
+            
+            nav {
+                display: none; /* Simplificando para o exemplo */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="#" class="logo">RESILI SEVENN</a>
+        <nav>
+            <a href="#services">Serviços</a>
+            <a href="#about">Quem Somos</a>
+            <a href="#cases">Cases</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="container hero">
+            <div class="hero-content">
+                <h1>Tráfego pago que vira resultado</h1>
+                <p class="subtitle">Sua empresa vendendo todos os dias com anúncios online, posicionamento de valor e automação inteligente.</p>
+                <p>Criamos máquinas de vendas digitais completas para empresas e negócios que querem escalar sem depender de indicações.</p>
+                <a href="#" class="btn">Agende sua Consultoria</a>
+            </div>
+            <div class="hero-image">
+                <img src="https://via.placeholder.com/400x400.png?text=Fundador" alt="Fundador da Agência Resili Sevenn">
+            </div>
+        </section>
+
+        <section id="results" class="container">
+            <h2>Resultados que Falam por Si</h2>
+            <p class="section-subtitle">Somos uma agência que entrega o que promete, com foco total em performance e crescimento.</p>
+            <div class="results-grid">
+                <div class="result-item">
+                    <h3>+R$ 550 mil</h3>
+                    <p>Gerenciado em anúncios</p>
+                </div>
+                <div class="result-item">
+                    <h3>+1.200</h3>
+                    <p>Oportunidades Geradas</p>
+                </div>
+                <div class="result-item">
+                    <h3>+25</h3>
+                    <p>Clientes Satisfeitos</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="services" class="container">
+            <h2>Serviços Completos de Marketing Digital</h2>
+            <p class="section-subtitle">Soluções integradas para construir uma presença digital forte e lucrativa.</p>
+            <div class="services-grid">
+                <div class="service-card">
+                    <div class="icon">📈</div>
+                    <h3>Gestão de Tráfego Pago</h3>
+                    <p>Anúncios no Google, Meta (Instagram/Facebook), TikTok e LinkedIn.</p>
+                </div>
+                <div class="service-card">
+                    <div class="icon">🤖</div>
+                    <h3>CRM & Automação</h3>
+                    <p>Organize seus leads e automatize o processo de vendas.</p>
+                </div>
+                <div class="service-card">
+                    <div class="icon">💬</div>
+                    <h3>Atendimento Automatizado</h3>
+                    <p>Qualifique e atenda clientes 24/7 com chatbots inteligentes.</p>
+                </div>
+                <div class="service-card">
+                    <div class="icon">📱</div>
+                    <h3>Social Media</h3>
+                    <p>Criação de conteúdo e gestão de redes sociais que engajam.</p>
+                </div>
+                <div class="service-card">
+                    <div class="icon">🌐</div>
+                    <h3>Criação de Sites</h3>
+                    <p>Desenvolvimento de landing pages e sites focados em conversão.</p>
+                </div>
+                 <div class="service-card">
+                    <div class="icon">✍️</div>
+                    <h3>Criação de Conteúdo</h3>
+                    <p>Produção de vídeos, artes e textos que conectam com seu público.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="container">
+            <div class="cta">
+                 <h2>Quer criar uma máquina de vendas e se destacar dos concorrentes?</h2>
+                 <a href="#" class="btn">Fale com um Especialista Agora</a>
+            </div>
+        </section>
+        
+        <section id="cases" class="container">
+            <h2>Cases de Sucesso que Comprovam Nossos Resultados</h2>
+            <p class="section-subtitle">Veja como transformamos desafios em oportunidades de crescimento para nossos clientes.</p>
+            <div class="cases-grid">
+                <div class="case-card">
+                    <h3>Clínica Odontológica</h3>
+                    <p>+180 orçamentos/mês</p>
+                </div>
+                <div class="case-card">
+                    <h3>Studio de Tatuagem</h3>
+                    <p>8x de Retorno sobre Investimento</p>
+                </div>
+                <div class="case-card">
+                    <h3>Loja de Roupas</h3>
+                    <p>+60% de crescimento no faturamento</p>
+                </div>
+                <div class="case-card">
+                    <h3>Clínica Estética</h3>
+                    <p>Expansão de marca e novos pacientes</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="container">
+            <div class="about-content">
+                <div class="about-text">
+                    <h2>Quem Somos</h2>
+                    <div class="about-item">
+                        <h3>Missão</h3>
+                        <p>Impulsionar o crescimento de negócios através de estratégias digitais inteligentes e personalizadas, gerando resultados reais e mensuráveis.</p>
+                    </div>
+                     <div class="about-item">
+                        <h3>Visão</h3>
+                        <p>Ser a agência de marketing digital referência em performance e inovação no Brasil, transformando a maneira como as empresas se conectam com seus clientes.</p>
+                    </div>
+                     <div class="about-item">
+                        <h3>Valores</h3>
+                        <p>Transparência, Comprometimento com o resultado, Inovação, Parceria e Ética.</p>
+                    </div>
+                </div>
+                <div class="about-image">
+                    <img src="https://via.placeholder.com/250x250.png?text=Foto" alt="Fundador">
+                    <h3>Matheus Dutra, Fundador</h3>
+                    <p>Especialista em Vendas Online</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="faq" class="container">
+            <h2>Perguntas Frequentes</h2>
+            <p class="section-subtitle">Suas dúvidas mais comuns, respondidas de forma clara e direta.</p>
+            <div class="faq-list">
+                <details>
+                    <summary>O que a Resili Sevenn faz exatamente?</summary>
+                    <p>Somos uma agência de marketing digital completa. Criamos e gerenciamos estratégias de anúncios online, automação de marketing, criação de sites e gestão de redes sociais para aumentar as vendas dos nossos clientes.</p>
+                </details>
+                <details>
+                    <summary>Atendem apenas negócios locais?</summary>
+                    <p>Não, atendemos empresas de todos os portes e segmentos, tanto negócios locais quanto e-commerces e empresas de nível nacional e internacional.</p>
+                </details>
+                <details>
+                    <summary>Qual o prazo médio para ver resultados?</summary>
+                    <p>Embora varie a cada projeto, a maioria dos nossos clientes começa a ver os primeiros resultados significativos de leads e vendas entre o primeiro e o terceiro mês de campanha.</p>
+                </details>
+                <details>
+                    <summary>Posso contratar apenas a gestão de tráfego?</summary>
+                    <p>Sim. Oferecemos tanto soluções completas quanto serviços avulsos. Você pode contratar apenas o serviço que faz mais sentido para o seu momento atual.</p>
+                </details>
+                <details>
+                    <summary>Como funciona o suporte?</summary>
+                    <p>Oferecemos suporte dedicado via WhatsApp e reuniões periódicas para alinhamento de estratégia e apresentação de resultados, garantindo total transparência.</p>
+                </details>
+            </div>
+        </section>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <a href="#" class="logo">RESILI SEVENN</a>
+            <p>Nosso compromisso é com o seu resultado.</p>
+            <div class="social-links">
+                <a href="#" title="Instagram">I</a>
+                <a href="#" title="Facebook">F</a>
+                <a href="#" title="LinkedIn">L</a>
+            </div>
+            <p>&copy; 2024 Resili Sevenn. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

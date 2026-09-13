@@ -1,0 +1,115 @@
+animated hero tittle.tsx 
+
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+
+interface AnimatedHeroTitleProps {
+  phrases: string[]
+  fixedSubtitle: string
+}
+
+export default function AnimatedHeroTitle({ phrases, fixedSubtitle }: AnimatedHeroTitleProps) {
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0)
+  const [displayWords, setDisplayWords] = useState<string[]>([])
+  const [wordStates, setWordStates] = useState<("entering" | "visible" | "exiting" | "hidden")[]>([])
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+
+  // Check for reduced motion preference
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setPrefersReducedMotion(mediaQuery.matches)
+
+    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches)
+    mediaQuery.addEventListener("change", handleChange)
+    return () => mediaQuery.removeEventListener("change", handleChange)
+  }, [])
+
+  const animatePhrase = useCallback(async () => {
+    const currentPhrase = phrases[currentPhraseIndex]
+    const words = currentPhrase.split(" ")
+
+    // Step 1: Exit current phrase if exists (fade out all words simultaneously)
+    if (displayWords.length > 0) {
+      setWordStates((prev) => prev.map(() => "exiting"))
+      await new Promise((resolve) => setTimeout(resolve, 350)) // 0.35s exit duration
+    }
+
+    // Step 2: Mount new phrase (set words but hidden)
+    setDisplayWords(words)
+    setWordStates(words.map(() => "hidden"))
+
+    // Small delay to ensure DOM update
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    // Step 3: Animate entry word-by-word with stagger
+    for (let i = 0; i < words.length; i++) {
+      setWordStates((prev) => prev.map((state, index) => (index === i ? "entering" : index < i ? "visible" : "hidden")))
+
+      // Wait for this word's entry animation + stagger delay
+      await new Promise((resolve) => setTimeout(resolve, 80)) // 0.08s stagger
+    }
+
+    // Mark all words as fully visible
+    setWordStates(words.map(() => "visible"))
+
+    // Wait for last word to complete entry animation
+    await new Promise((resolve) => setTimeout(resolve, 450)) // Complete entry duration
+
+    // Step 4: Hold complete phrase for 2.5s
+    await new Promise((resolve) => setTimeout(resolve, 2500))
+
+    // Step 5: Move to next phrase (this will trigger the cycle again)
+    setCurrentPhraseIndex((prev) => (prev + 1) % phrases.length)
+  }, [currentPhraseIndex, phrases, displayWords.length])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      // Show only the first phrase without animation
+      const words = phrases[0].split(" ")
+      setDisplayWords(words)
+      setWordStates(words.map(() => "visible"))
+      return
+    }
+
+    // Start animation cycle
+    const timer = setTimeout(animatePhrase, 100)
+    return () => clearTimeout(timer)
+  }, [animatePhrase, prefersReducedMotion])
+
+  const getWordClassName = (state: "entering" | "visible" | "exiting" | "hidden") => {
+    if (prefersReducedMotion) return "opacity-100"
+
+    switch (state) {
+      case "hidden":
+        return "opacity-0"
+      case "entering":
+        return "opacity-0 animate-fadeIn"
+      case "visible":
+        return "opacity-100"
+      case "exiting":
+        return "opacity-100 animate-fadeOut"
+      default:
+        return "opacity-0"
+    }
+  }
+
+  return (
+    <div className="text-center py-3">
+      <div className="min-h-[3.5rem] md:min-h-[5rem] mb-4">
+        <h1 className="text-3xl md:text-6xl font-bold tracking-tight text-white">
+          {displayWords.map((word, index) => (
+            <span
+              key={`${currentPhraseIndex}-${index}`}
+              className={`inline-block mr-2 ${getWordClassName(wordStates[index] || "hidden")}`}
+            >
+              {word}
+            </span>
+          ))}
+        </h1>
+      </div>
+
+      <p className="mt-3 text-base md:text-2xl text-muted-foreground max-w-4xl mx-auto font-bold">{fixedSubtitle}</p>
+    </div>
+  )
+}

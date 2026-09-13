@@ -1,0 +1,2293 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import type { DashboardPayload } from "@/lib/dashboard-types"
+import Image from "next/image"
+
+import {
+  X,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Download,
+  Printer,
+  Search,
+  Menu,
+  PanelLeftClose,
+  PanelLeft,
+  ChevronsUpDown,
+  KeyRound,
+  LogOut,
+  Check,
+  ChevronRight,
+  Info,
+  Filter,
+  Calendar,
+  User,
+  LayoutDashboard,
+  ListChecks
+} from "lucide-react"
+
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+  ComposedChart,
+  Line,
+  CartesianGrid,
+} from "recharts"
+
+import { CashFlowFluid } from "@/components/cash-flow-fluid"
+import { CashFlowInsights } from "@/components/cash-flow-insights"
+import { CashFlowTimeline } from "@/components/cash-flow-timeline"
+
+import NewTransactionModal from "@/components/NewTransactionModal"
+import TransactionsTable from "@/components/TransactionsTable"
+
+// ==========================================
+// 1. Interfaces e Utilitários Globais
+// ==========================================
+
+interface ExtendedDashboardPayload extends DashboardPayload {
+  user?: {
+    name: string
+    email: string
+  }
+  procedures?: string[]
+}
+
+type PeriodValue = "este-mes" | "mes-passado" | "ultimos-7" | "ultimos-14" | "todo-historico" | "personalizado"
+type FilterTypeValue = "paciente" | "procedimento" | "pagamento"
+
+type SalesRow = {
+  date: string
+  patient: string
+  procedure: string
+  value: number
+  payment: string
+  professional: string 
+  commissionPercent: number
+  materialCost: number
+}
+
+type TopPatient = {
+  name: string
+  value: number
+}
+
+type CostSlice = {
+  name: string
+  value: number
+  percentage: number
+  color: string
+}
+
+type ProcedureProfit = {
+  procedure: string
+  profit: number
+}
+
+// Helper para cores das Formas de Pagamento
+function getPaymentBadgeColor(payment: string) {
+  const p = payment.toLowerCase().trim()
+  if (p.includes("pix")) return "bg-emerald-100 text-emerald-700"
+  if (p.includes("dinheiro")) return "bg-emerald-600 text-white" // Novo: Verde Escuro
+  if (p.includes("débito") || p.includes("debito")) return "bg-blue-100 text-blue-700"
+  if (p.includes("crédito") || p.includes("credito")) return "bg-orange-100 text-orange-700"
+  return "bg-slate-100 text-slate-700" // Padrão
+}
+
+function formatCurrencyBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n))
+}
+
+// Helper para converter data YYYY-MM-DD para DD/MM/YYYY
+function formatDateBR(isoDate: string) {
+  if (!isoDate) return ""
+  const [y, m, d] = isoDate.split("-")
+  return `${d}/${m}/${y}`
+}
+
+// Helper para obter nome do mês
+function getMonthName(date: Date) {
+  return date.toLocaleString('pt-BR', { month: 'long' });
+}
+
+function CustomAreaTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const value = payload?.[0]?.value ?? 0
+  return (
+    <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200">
+      <p className="text-xs text-slate-500 font-medium mb-2">Dia {label}</p>
+      <div className="flex items-center justify-between gap-6">
+        <span className="text-xs text-slate-600">Receita:</span>
+        <span className="text-sm font-bold text-slate-900">{formatCurrencyBRL(value)}</span>
+      </div>
+    </div>
+  )
+}
+
+function CustomBarTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const value = payload?.[0]?.value ?? 0
+  return (
+    <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200">
+      <p className="text-xs text-slate-500 font-medium mb-2">{label}</p>
+      <div className="flex items-center justify-between gap-6">
+        <span className="text-xs text-slate-600">Lucro:</span>
+        <span className="text-sm font-bold text-slate-900">{formatCurrencyBRL(value)}</span>
+      </div>
+    </div>
+  )
+}
+
+function CustomYAxisTick(props: any) {
+  const { x, y, payload } = props
+  const value = payload?.value ?? ""
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={-8} y={0} dy={4} textAnchor="end" className="fill-slate-500 text-xs">
+        {value}
+      </text>
+    </g>
+  )
+}
+
+
+// Função auxiliar para somar meses a uma data
+function addMonths(date: Date, months: number) {
+  const d = new Date(date)
+  d.setMonth(d.getMonth() + months)
+  return d
+}
+
+// ==========================================
+// 2. Componente Principal
+// ==========================================
+
+export default function DashboardPage() {
+
+  // Controla qual tela estamos vendo: 'dashboard' ou 'transactions'
+  const [currentView, setCurrentView] = useState<'dashboard' | 'transactions'>('dashboard')
+
+  // MODAL PARA EDIÇÃO:
+  const [isNewTransactionModalOpen, setIsNewTransactionModalOpen] = useState(false)
+ 
+  const [mobileTopPatientsOpen, setMobileTopPatientsOpen] = useState("")
+
+  // Controle da visão do gráfico de Evolução (Diário vs Mensal)
+  const [evolutionView, setEvolutionView] = useState<"daily" | "monthly">("daily")
+
+  // Controle da visão do gráfico (Margem vs Faturamento)
+  const [metricMode, setMetricMode] = useState<"profit" | "revenue">("profit")
+
+  // --- Estados Principais ---
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState<PeriodValue>("este-mes")
+  const [showCustomDates, setShowCustomDates] = useState(false)
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+
+  
+  const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
+  const [selectedProcedures, setSelectedProcedures] = useState<string[]>([])
+
+  // Tabela / extrato
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterType, setFilterType] = useState<FilterTypeValue>("paciente")
+  const [dateFilter, setDateFilter] = useState("")
+  
+  // Estado para controlar o Accordion (Abrir/Fechar)
+  const [accordionValue, setAccordionValue] = useState("")
+
+  // Menu do usuário e Senha
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  
+  // Feedback Senha
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+
+  // ===== Data from API =====
+  const [apiData, setApiData] = useState<ExtendedDashboardPayload | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  // ===== ESTADOS DINÂMICOS =====
+  const [userName, setUserName] = useState("Carregando...")
+  const [dynamicProcedures, setDynamicProcedures] = useState<string[]>([])
+  const [dynamicProfessionals, setDynamicProfessionals] = useState<string[]>([])
+
+  const kpis = apiData?.kpis ?? {
+    metaFaturamento: 0,
+    faturamentoBruto: 0,
+    lucroLiquido: 0,
+    margemLiquida: 0,
+    ticketMedio: 0,
+  }
+  
+  // Estado para detectar mobile (para ajustar o gráfico de barras)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
+  // ==========================================
+  // 3. Data Fetching
+  // ==========================================
+  useEffect(() => {
+    const controller = new AbortController()
+  
+    async function load() {
+      try {
+        if (selectedMonth === "personalizado") {
+           if (!startDate || !endDate) return
+        }
+
+        setLoading(true)
+        setLoadError(null)
+  
+        const qs = new URLSearchParams()
+        
+        // CORREÇÃO 1: Usamos 'selectedMonth' (o nome que você usa) em vez de 'selectedPeriod'
+        qs.set("period", selectedMonth)
+
+        // CORREÇÃO 2: Usamos 'startDate' e 'endDate' diretamente
+        if (selectedMonth === "personalizado" && startDate && endDate) {
+          // Garante que seja string YYYY-MM-DD, independente se é Objeto Date ou String
+          const s = new Date(startDate as any).toISOString().split("T")[0]
+          const e = new Date(endDate as any).toISOString().split("T")[0]
+          
+          qs.set("startDate", s)
+          qs.set("endDate", e)
+        }
+
+        // Adiciona Profissionais
+        selectedProfessionals.forEach(prof => qs.append("profissional", prof))
+
+        // CORREÇÃO 3: Lógica nova de Multi-seleção para Procedimentos
+        // Removemos qualquer referência à variável antiga 'selectedProcedure'
+        if (selectedProcedures.length === 0) {
+           qs.set("procedimento", "todos")
+        } else {
+           selectedProcedures.forEach(proc => qs.append("procedimento", proc))
+        }
+
+        // Chamada para a API
+        const res = await fetch(`/api/dashboard?${qs.toString()}`, {
+          method: "GET",
+          signal: controller.signal,
+          headers: { "Accept": "application/json" },
+        })
+
+        if (res.status === 429) {
+           throw new Error("Muitas requisições. Aguarde um momento.")
+        }
+  
+        if (!res.ok) {
+          // SE O ERRO FOR 401 (Não Autenticado), MANDA PRO LOGIN
+          if (res.status === 401) {
+             window.location.href = "/login"
+             return // Para a execução aqui
+          }
+
+          const body = await res.json().catch(() => null)
+          throw new Error(body?.error ?? `Erro ao carregar dashboard (${res.status})`)
+        }
+  
+        const json: ExtendedDashboardPayload = await res.json()
+        setApiData(json)
+
+        if (json.user?.name) {
+           setUserName(json.user.name)
+        }
+
+        if (json.procedures && json.procedures.length > 0) {
+            if (dynamicProcedures.length === 0 || selectedProcedures.length === 0) {
+                setDynamicProcedures(json.procedures)
+            }
+        } else if (json.extrato && dynamicProcedures.length === 0) {
+             const extracted = Array.from(new Set(json.extrato.map((i: any) => i.procedimento).filter(Boolean))) as string[]
+             setDynamicProcedures(extracted.sort())
+        }
+
+        if (dynamicProfessionals.length === 0 && json.extrato) {
+             const extractedProfs = Array.from(new Set(json.extrato.map((i: any) => i.profissional).filter(Boolean))) as string[]
+             setDynamicProfessionals(extractedProfs.sort())
+        }
+
+      } catch (e: any) {
+        if (e?.name === "AbortError") return
+        setLoadError(e?.message ?? "Erro desconhecido")
+      } finally {
+        setLoading(false)
+      }
+    }
+  
+    load()
+    return () => controller.abort()
+  }, [selectedMonth, selectedProfessionals, selectedProcedures, startDate, endDate])
+
+  // ==========================================
+  // 4. Handlers (Funções de Ação)
+  // ==========================================
+
+  const removeProfessional = (prof: string) => {
+    setSelectedProfessionals((prev) => prev.filter((p) => p !== prof))
+  }
+
+  const handlePeriodChange = (value: PeriodValue) => {
+    setSelectedMonth(value)
+    setShowCustomDates(value === "personalizado")
+  }
+
+  const handleClearFilters = () => {
+    setSearchQuery("")
+    setDateFilter("")
+  }
+
+  const handleChangePassword = async () => {
+    try {
+      setPasswordSaving(true)
+      setPasswordError(null)
+      setPasswordSuccess(null)
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+  
+      const json = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(json?.error ?? "Erro ao alterar senha.")
+      setPasswordSuccess("Senha alterada com sucesso.")
+      setCurrentPassword("")
+      setNewPassword("")
+      setShowPasswordDialog(false)
+    } catch (e: any) {
+      setPasswordError(e?.message ?? "Erro ao alterar senha.")
+    } finally {
+      setPasswordSaving(false)
+    }
+  }
+
+  const handleDownloadCSV = () => {
+    const vendasRows = apiData?.extrato ?? []
+    
+    // 1. Calcular datas para o nome do arquivo
+    let fileStartStr = ""
+    let fileEndStr = ""
+    let fileMonthStr = ""
+
+    const today = new Date()
+    let dStart = new Date()
+    let dEnd = new Date()
+
+    if (selectedMonth === "personalizado" && startDate && endDate) {
+        const [y1, m1, d1] = startDate.split('-')
+        const [y2, m2, d2] = endDate.split('-')
+        fileStartStr = d1
+        fileEndStr = d2
+        fileMonthStr = getMonthName(new Date(parseInt(y2), parseInt(m2)-1, parseInt(d2)))
+    } else {
+        if (selectedMonth === "este-mes") {
+            dStart = new Date(today.getFullYear(), today.getMonth(), 1)
+            dEnd = today
+        } else if (selectedMonth === "mes-passado") {
+             dStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+            dEnd = new Date(today.getFullYear(), today.getMonth(), 0)
+        } else if (selectedMonth === "ultimos-7") {
+            dStart = new Date()
+            dStart.setDate(today.getDate() - 7)
+            dEnd = today
+        } else if (selectedMonth === "ultimos-14") {
+            dStart = new Date()
+            dStart.setDate(today.getDate() - 14)
+            dEnd = today
+        }
+        
+        fileStartStr = String(dStart.getDate()).padStart(2, '0')
+        fileEndStr = String(dEnd.getDate()).padStart(2, '0')
+        fileMonthStr = getMonthName(dEnd)
+    }
+
+    const fileName = `relatório-vendas-${fileStartStr} a ${fileEndStr}_${fileMonthStr}.csv`.toLowerCase().replace(/\s+/g, '-').replace(/_/g, '_')
+
+    // 2. Montar CSV
+    const SEPARATOR = ";"
+    const BOM = "\uFEFF"
+
+    const header = ["Data", "Paciente", "Procedimento", "Profissional", "Valor", "Forma de Pagamento"]
+    
+    const csvContent = [
+      header.join(SEPARATOR),
+      ...vendasRows.map((row) =>
+        [
+          row.dataISO ? formatDateBR(row.dataISO) : "-", 
+          row.paciente,
+          row.procedimento,
+          row.profissional ?? "",
+          row.valorVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 }), 
+          row.formaPagamento ?? "",
+        ]
+          .map((v) => {
+            const cleanValue = String(v ?? "").replaceAll('"', '""')
+            return `"${cleanValue}"`
+          })
+          .join(SEPARATOR)
+      ),
+    ].join("\n")
+  
+    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      window.location.href = "/login"
+    } catch {
+      window.location.href = "/login"
+    }
+  }
+
+  // ======================
+  // 5. Cálculos Memoizados (Data Prep)
+  // ======================
+
+  // --- DADOS DO GRÁFICO DE EVOLUÇÃO (NORMALIZADO) ---
+  const evolutionChartData = useMemo(() => {
+    // 1. MODO DIÁRIO (Usa vendasDiarias que respeita o filtro)
+    if (evolutionView === "daily") {
+      const fromApi = apiData?.vendasDiarias
+      if (Array.isArray(fromApi) && fromApi.length > 0) {
+        return fromApi.map((item) => ({
+          // Eixo X: O dia (número)
+          xLabel: item.label.split("/")[0], 
+          // Valor Y
+          revenue: item.value,
+          // Tooltip: Texto completo
+          tooltipTitle: `Dia ${item.label}`
+        }))
+      }
+      return []
+    } 
+    
+    // 2. MODO MENSAL (Usa o novo campo vendasMensais do Backend)
+    else {
+      // BACKEND: Aqui esperamos apiData.vendasMensais
+      // Enquanto você não implementa, use um array vazio ou mockado para não quebrar
+      const fromApi = (apiData as any)?.vendasMensais ?? []
+      
+      return fromApi.map((item: any) => ({
+        // Eixo X: O nome do mês (Jan, Fev...)
+        xLabel: item.label,
+        // Valor Y
+        revenue: item.value,
+        // Tooltip: Texto completo
+        tooltipTitle: `Mês de ${item.label}`
+      }))
+    }
+  }, [apiData, evolutionView])
+
+  // 👇 ADICIONE ESTE BLOCO DE VOLTA (Necessário para os KPIs/Tendência) 👇
+  const dailyRevenueData = useMemo(() => {
+    const fromApi = apiData?.vendasDiarias
+    if (Array.isArray(fromApi) && fromApi.length > 0) {
+      return fromApi.map((item) => ({
+        day: Number(item.label.split("/")[0]),
+        revenue: item.value,
+      }))
+    }
+    return []
+  }, [apiData])
+  // 👆 FIM DO BLOCO ADICIONADO 👆
+
+  const calculateTrend = (data: typeof dailyRevenueData) => {
+    if (!data || data.length < 2) return 0
+    const half = Math.floor(data.length / 2)
+    const firstHalfAvg = data.slice(0, half).reduce((a, b) => a + b.revenue, 0) / half
+    const secondHalfAvg = data.slice(half).reduce((a, b) => a + b.revenue, 0) / (data.length - half)
+    
+    if (firstHalfAvg === 0) return secondHalfAvg > 0 ? 100 : 0
+    return Math.round(((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100)
+  }
+
+  const revenueTrend = useMemo(() => calculateTrend(dailyRevenueData), [dailyRevenueData])
+  const goalRevenue = apiData?.kpis?.metaFaturamento ?? 100000
+  const currentRevenue = apiData?.kpis?.faturamentoBruto ?? 0
+  const revenuePercentage = goalRevenue > 0 ? clamp((currentRevenue / goalRevenue) * 100, 0, 100) : 0
+
+  // --- CÁLCULO DINÂMICO DE CUSTOS (COM MARKETING CONDICIONAL) ---
+  const { chartData: costData, commissionsByProf } = useMemo(() => {
+    // Objeto vazio para retorno padrão
+    const emptyResult = { chartData: [] as CostSlice[], commissionsByProf: [] as { name: string; value: number }[] }
+    
+    if (!apiData?.extrato) return emptyResult
+
+    // 1. Valores Básicos
+    const totalRevenue = apiData.kpis.faturamentoBruto || 0
+    
+    // 2. Lógica Inteligente de Marketing
+    // Se houver filtros de Profissional OU Procedimento, ignoramos o custo de marketing nesta visão
+    const hasActiveFilters = selectedProfessionals.length > 0 || selectedProcedures.length > 0
+    const rawMarketing = apiData.kpis.marketingTotal || 0
+    const totalMarketing = hasActiveFilters ? 0 : rawMarketing
+
+    // 3. Loop para calcular Materiais e Comissões (Mantendo sua lógica original)
+    let sumMaterials = 0
+    let sumCommissions = 0
+    const commMap: Record<string, number> = {}
+
+    apiData.extrato.forEach((item) => {
+      // Materiais
+      sumMaterials += item.custoMaterial ?? 0
+
+      // Comissões
+      const rawRate = item.taxaComissao ?? 0
+      let commissionValue = 0
+      if (rawRate > 0) {
+        if (rawRate <= 1.0) commissionValue = item.valorVenda * rawRate
+        else commissionValue = (item.valorVenda * rawRate) / 100
+      }
+      sumCommissions += commissionValue
+
+      // Agrupamento por Profissional (para o gráfico de barras lateral, se houver)
+      const pName = item.profissional || "Outros"
+      commMap[pName] = (commMap[pName] || 0) + commissionValue
+    })
+
+    // 4. Custo Operacional (Taxas Cartão e outros custos fixos calculados por diferença ou campo específico)
+    // Nota: Como não vi a variável 'taxasCartao' explicita no kpi, mantemos sua lógica de "OperationalAndTaxes" se existir,
+    // ou calculamos baseado na diferença se necessário. 
+    // Vendo seu código antigo, parece que você usava 'sumOperationalAndTaxes'. 
+    // Vamos assumir que Taxas Cartão vem do Extrato se não tiver no KPI, ou usar um cálculo de resíduo.
+    // Para simplificar e manter compatível com seu print, vou recalcular taxas baseado no KPI se possível ou manter 0 se não tiver dados.
+    // *Adaptando ao seu print*: Você usava 'sumOperationalAndTaxes' que não vi definida antes. 
+    // Vou usar uma lógica segura: Custo Total Real - (Materiais + Comissões + Marketing).
+    
+    const totalNetProfit = apiData.kpis.lucroLiquido || 0
+    const totalCostsReal = totalRevenue - totalNetProfit
+    
+    // O que sobra dos custos tirando materiais, comissões e marketing, assumimos que são Taxas/Impostos/Fixos
+    let otherCosts = totalCostsReal - (sumMaterials + sumCommissions + (apiData.kpis.marketingTotal || 0)) // Usa o marketing CHEIO aqui para achar o custo fixo real
+    if (otherCosts < 0) otherCosts = 0
+
+    // 5. Montagem do Gráfico
+    const chart = [
+      {
+        name: "Materiais",
+        value: sumMaterials,
+        color: "#8b5cf6", // Roxo
+        percentage: 0
+      },
+      {
+        name: "Marketing",
+        value: totalMarketing, // <--- AQUI ENTRA O VALOR ZERADO SE TIVER FILTRO
+        color: "#ec4899", // Rosa (Pink)
+        percentage: 0
+      },
+      {
+        name: "Comissões",
+        value: sumCommissions,
+        color: "#3b82f6", // Azul
+        percentage: 0
+      },
+      {
+        name: "Taxas Cartão",
+        value: otherCosts,
+        color: "#f59e0b", // Laranja/Amber (Ou use outra cor se preferir)
+        percentage: 0
+      }
+    ]
+    .filter(i => i.value > 0.01) // Remove fatias zeradas
+    .map(i => ({
+      ...i,
+      percentage: totalRevenue > 0 ? Math.round((i.value / totalRevenue) * 100) : 0
+    }))
+
+    // 6. Lista de Profissionais (Ordenada)
+    const commList = Object.entries(commMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+
+    return { chartData: chart, commissionsByProf: commList }
+
+  }, [apiData, selectedProfessionals, selectedProcedures]) // <--- IMPORTANTE: Adicionamos as dependências aqui!
+
+  // --- PROJEÇÃO DE FLUXO DE CAIXA (FUTURE CASH FLOW) ---
+  const futureCashFlow = useMemo(() => {
+    if (!apiData?.extrato) return []
+
+    // 1. Criar o mapa dos próximos 12 meses (inicializado com 0)
+    const today = new Date()
+    const futureMap = new Map<string, number>()
+    const monthOrder: string[] = [] // Para garantir a ordem cronológica
+    
+    // Gera as chaves para os próximos 12 meses (ex: "fev/2024")
+    for (let i = 1; i <= 12; i++) {
+      const futureDate = addMonths(today, i)
+      const key = futureDate.toLocaleDateString("pt-BR", { month: "short", year: "numeric" }) // "fev. de 2024"
+      // Simplificando a chave para visualização
+      const label = key.replace(" de ", "/") 
+      
+      futureMap.set(label, 0)
+      monthOrder.push(label)
+    }
+
+    // 2. Processar cada venda para encontrar parcelas
+    apiData.extrato.forEach((venda) => {
+      const dataVenda = new Date(venda.dataISO)
+      
+      // Pix, Débito e Dinheiro são "Caixa Atual", não "Projeção Futura".
+      // Nós IGNORAMOS essas vendas neste gráfico, pois o dinheiro já entrou.
+      const metodo = (venda.formaPagamento || "").toLowerCase()
+      if (metodo.includes("pix") || metodo.includes("débito") || metodo.includes("dinheiro")) {
+          return // Pula para a próxima venda, não projeta nada.
+      }
+
+      // Se chegou aqui, é Crédito (ou Boleto, etc).
+      // Se tiver parcelas na planilha, usa. Se não, assume 1 (Crédito à vista).
+      let parcelas = venda.qtdParcelas || 1
+      
+      // Garante que é no mínimo 1
+      if (parcelas < 1) parcelas = 1
+
+      // 3. Distribuir o valor
+      const valorParcela = venda.valorVenda / parcelas
+
+      for (let i = 0; i < parcelas; i++) {
+        // REGRA DE CRÉDITO: D+30 (Mês seguinte)
+        // Parcela 1 (i=0) -> Cai daqui a 1 mês
+        const dataParcela = addMonths(dataVenda, i + 1)
+        
+        if (dataParcela > today) {
+            const monthLabel = dataParcela.toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(" de ", "/")
+            
+            if (futureMap.has(monthLabel)) {
+                futureMap.set(monthLabel, (futureMap.get(monthLabel) || 0) + valorParcela)
+            }
+        }
+      }
+    })
+
+    // 4. Converter Map em Array ordenado para o Gráfico
+    return monthOrder.map(monthLabel => ({
+      month: monthLabel.split("/")[0], // Pega só o "fev." para o eixo X ficar limpo
+      fullDate: monthLabel,
+      amount: futureMap.get(monthLabel) || 0
+    }))
+
+  }, [apiData])
+
+
+  // --- CÁLCULOS DO NOVO PAINEL UNIFICADO (LIMPO) ---
+  const projectionsData = useMemo(() => {
+    const data = futureCashFlow || []
+    const totalProjected = data.reduce((acc, item) => acc + item.amount, 0)
+    const avgMonthly = data.length > 0 ? totalProjected / data.length : 0
+    
+    // Pico
+    const peakMonth = data.reduce((max, item) => (item.amount > max.amount ? item : max), data[0] || { month: "-", amount: 0 })
+    
+    // Trimestres
+    const quarters = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 }
+    data.forEach(item => {
+      const m = item.month.toLowerCase()
+      if (["jan", "fev", "mar"].some(x => m.includes(x))) quarters.Q1 += item.amount
+      else if (["abr", "mai", "jun"].some(x => m.includes(x))) quarters.Q2 += item.amount
+      else if (["jul", "ago", "set"].some(x => m.includes(x))) quarters.Q3 += item.amount
+      else quarters.Q4 += item.amount
+    })
+
+    // Retorno simplificado (sem trend)
+    return { totalProjected, avgMonthly, peakMonth, quarters }
+  }, [futureCashFlow])
+
+
+  const monthlyData = useMemo(() => { 
+    if (!apiData?.extrato) return []
+    const groups: Record<string, number> = {}
+    apiData.extrato.forEach(item => {
+        if (!item.dataISO) return
+        const dateObj = new Date(item.dataISO)
+        const userTimezoneOffset = dateObj.getTimezoneOffset() * 60000;
+        const correctDate = new Date(dateObj.getTime() + userTimezoneOffset);
+        const monthName = correctDate.toLocaleDateString("pt-BR", { month: "short" })
+        const key = `${monthName}`
+        groups[key] = (groups[key] || 0) + item.valorVenda
+    })
+    return Object.entries(groups).map(([month, amount]) => ({
+        month: month.charAt(0).toUpperCase() + month.slice(1), 
+        amount
+    }))
+  }, [apiData])
+
+  const procedureProfitability = useMemo(() => {
+    // 1. Mapa de Faturamento (Calculado via Extrato para não depender do Backend agora)
+    const revenueMap = new Map<string, number>()
+    
+    if (apiData?.extrato) {
+      apiData.extrato.forEach((venda) => {
+        const proc = venda.procedimento
+        const val = venda.valorVenda
+        // Soma o valor bruto de cada venda por procedimento
+        revenueMap.set(proc, (revenueMap.get(proc) || 0) + val)
+      })
+    }
+
+    // 2. Montagem dos Dados
+    const rawData = (apiData?.lucratividadePorProcedimento ?? []).map(item => ({
+      procedure: item.procedimento,
+      profit: item.lucro,
+      // LÓGICA HÍBRIDA: 
+      // Tenta pegar do mapa que calculamos acima. 
+      // Se não achar, tenta pegar do backend (item.faturamento). 
+      // Se não tiver nenhum, usa 0.
+      revenue: revenueMap.get(item.procedimento) ?? (item as any).faturamento ?? 0, 
+    }))
+
+    // 3. Ordenação Dinâmica (Profit vs Revenue)
+    return rawData.sort((a, b) => {
+      const valA = metricMode === "profit" ? a.profit : a.revenue
+      const valB = metricMode === "profit" ? b.profit : b.revenue
+      return valB - valA // Ordem Decrescente (Maior para o menor)
+    }).slice(0, 10) // Top 10
+  }, [apiData, metricMode])
+
+  const topPatients: TopPatient[] = useMemo(() => {
+    return (apiData?.topPacientes ?? []).map(item => ({
+      name: item.paciente,
+      value: item.total,
+    }))
+  }, [apiData])
+
+  const salesRows: SalesRow[] = useMemo(() => {
+    return (apiData?.extrato ?? []).map(item => ({
+      date: item.dataISO,
+      patient: item.paciente,
+      procedure: item.procedimento,
+      value: item.valorVenda,
+      payment: item.formaPagamento ?? "",
+      professional: item.profissional ?? "",
+      commissionPercent: item.taxaComissao ?? 0,
+      materialCost: item.custoMaterial ?? 0,
+    }))
+  }, [apiData])
+
+  const filteredSalesRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    let searchDateNormalized = ""
+    if (dateFilter) {
+        searchDateNormalized = dateFilter.trim()
+    }
+
+    return salesRows.filter((row: SalesRow) => {
+      if (searchDateNormalized) {
+         const rowDateBR = formatDateBR(row.date)
+         if (!rowDateBR.includes(searchDateNormalized)) return false
+      }
+  
+      if (!q) return true
+      if (filterType === "paciente") return row.patient.toLowerCase().includes(q)
+        if (filterType === "pagamento") return row.payment.toLowerCase().includes(q) // Nova lógica
+        return row.procedure.toLowerCase().includes(q)
+    })
+  }, [salesRows, searchQuery, filterType, dateFilter])
+
+  // ======================
+  // 6. Sidebar Content (DENTRO do componente)
+  // ======================
+  const SidebarContent = ({ 
+    onOpenNewSale, 
+    currentView, 
+    onChangeView 
+  }: { 
+    onOpenNewSale?: () => void,
+    currentView: 'dashboard' | 'transactions',
+    onChangeView: (view: 'dashboard' | 'transactions') => void
+  }) => {
+    return (
+      <div className="flex flex-col h-full text-white w-full">
+        
+        {/* --- CABEÇALHO DA SIDEBAR --- */}
+        <div className={`flex items-center gap-3 mb-8 ${sidebarCollapsed ? "justify-center" : ""}`}>
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 bg-white/10 rounded-lg p-1">
+            <Image 
+              src="/logo-resili-fundo-transparente.png" 
+              alt="Logo" 
+              width={40} 
+              height={40} 
+              className="object-contain" 
+            />
+          </div>
+
+          {!sidebarCollapsed && (
+            <div className="overflow-hidden">
+              <h1 className="text-lg font-bold text-white truncate">Resili Sevenn</h1>
+              <p className="text-sm text-slate-300 truncate">Dashboard Financeiro</p>
+            </div>
+          )}
+        </div>
+
+        {/* --- NOVO MENU DE NAVEGAÇÃO --- */}
+        <div className="mb-6 space-y-1">
+            <p className={`px-4 text-xs font-semibold text-emerald-400/80 uppercase tracking-wider mb-2 ${sidebarCollapsed ? "text-center" : ""}`}>
+              Menu
+            </p>
+            
+            {/* Botão 1: Visão Geral (Dashboard) */}
+            <button
+              onClick={() => onChangeView('dashboard')}
+              className={`w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 border-l-4 
+              ${currentView === 'dashboard' 
+                ? "bg-emerald-800/50 border-emerald-400 text-white shadow-lg" // Ativo
+                : "border-transparent text-emerald-100 hover:bg-emerald-800/30 hover:text-white" // Inativo
+              }
+              ${sidebarCollapsed ? "justify-center px-0" : ""}
+              `}
+            >
+              <div className="min-w-5"><LayoutDashboard className="w-5 h-5" /></div>
+              {!sidebarCollapsed && <span className="font-medium">Visão Geral</span>}
+            </button>
+
+            {/* Botão 2: Lançamentos (Tabela) */}
+            <button
+              onClick={() => onChangeView('transactions')}
+              className={`w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 border-l-4 
+              ${currentView === 'transactions' 
+                ? "bg-emerald-800/50 border-emerald-400 text-white shadow-lg" 
+                : "border-transparent text-emerald-100 hover:bg-emerald-800/30 hover:text-white"
+              }
+              ${sidebarCollapsed ? "justify-center px-0" : ""}
+              `}
+            >
+              <div className="min-w-5"><ListChecks className="w-5 h-5" /></div>
+              {!sidebarCollapsed && <span className="font-medium">Lançamentos</span>}
+            </button>
+        </div>
+          
+          {/* Adicione um separador visual */}
+          <div className="mx-4 my-4 border-t border-emerald-800/50"></div>
+
+
+
+        {/* --- BOTÃO DE RECOLHER --- */}
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            className={`transition-all duration-300 text-slate-100 hover:bg-white/10 hover:text-white ${
+              sidebarCollapsed ? "justify-center w-12 h-12 rounded-xl bg-white/5 mx-auto flex" : "w-full justify-start gap-2"
+            }`}
+            onClick={() => setSidebarCollapsed((p) => !p)}
+            title={sidebarCollapsed ? "Expandir Menu" : "Recolher Menu"}
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            {!sidebarCollapsed && <span>Recolher Menu</span>}
+          </Button>
+        </div>
+
+        {/* --- ÁREA DE FILTROS (SÓ APARECE SE EXPANDIDO) --- */}
+        {/* ✅ AQUI ESTÁ A CORREÇÃO: Escondemos tudo se estiver recolhido */}
+        {!sidebarCollapsed && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-left-2 duration-300">
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Filtros Rápidos</h3>
+
+              <div className="space-y-4">
+                {/* Filtro de Período */}
+                <div>
+                  <label className="text-sm font-medium text-slate-200 mb-2 block">Período</label>
+                  <Select value={selectedMonth} onValueChange={(v: any) => handlePeriodChange(v)}>
+                    <SelectTrigger className="w-[180px] bg-white border-slate-200 text-slate-900 font-bold shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-slate-500" /> {/* Ícone de Calendário */}
+                        <SelectValue placeholder="Período" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="este-mes">Este Mês</SelectItem>
+                      <SelectItem value="mes-passado">Mês Passado</SelectItem>
+                      <SelectItem value="ultimos-7">Últimos 7 Dias</SelectItem>
+                      <SelectItem value="ultimos-14">Últimos 14 Dias</SelectItem>
+                      <SelectItem value="todo-historico">Todo Histórico</SelectItem>
+                      <SelectItem value="personalizado">Personalizado</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {showCustomDates && (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-slate-300 mb-1 block">Início</label>
+                        <Input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="bg-white border-slate-200 text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-300 mb-1 block">Fim</label>
+                        <Input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="bg-white border-slate-200 text-slate-900"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Filtro de Profissional */}
+                <div>
+                  <label className="text-sm font-medium text-slate-200 mb-2 block">Profissional</label>
+                  <Select
+                    value={selectedProfessionals.length === 0 ? "todos" : "selecione"} 
+                    onValueChange={(value) => {
+                      if (value === "todos") {
+                        setSelectedProfessionals([])
+                        return
+                      }
+                      if (value !== "selecione" && !selectedProfessionals.includes(value)) {
+                        setSelectedProfessionals((prev) => [...prev, value])
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full bg-white border-slate-200 text-slate-900 font-bold shadow-sm">
+                      <div className="flex items-center gap-2">
+                         <User className="w-4 h-4 text-slate-500" /> {/* Ícone de Usuário */}
+                         <SelectValue placeholder="Todos Profissionais">
+                           {selectedProfessionals.length > 0 ? "Adicionar +" : "Todos Profissionais"}
+                         </SelectValue>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos" className="text-[#59A52C] font-medium">
+                          <span className="flex items-center gap-2">
+                             {selectedProfessionals.length === 0 && <Check className="w-3 h-3"/>}
+                             Todos os Profissionais
+                          </span>
+                      </SelectItem>
+                      {dynamicProfessionals.map((prof, idx) => (
+                        <SelectItem key={`${prof}-${idx}`} value={prof}>{prof}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {selectedProfessionals.map((prof) => (
+                      <div
+                        key={prof}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#59A52C] text-white rounded-full text-xs font-medium border border-white/20"
+                      >
+                        <span>{prof}</span>
+                        <button
+                          onClick={() => removeProfessional(prof)}
+                          className="hover:bg-white/20 rounded-full p-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* --- FILTRO DE PROCEDIMENTOS (MULTI-SELEÇÃO) --- */}
+                <div className="flex flex-col gap-2 min-w-[200px]">
+                  <p className="text-sm font-medium text-slate-200 mb-2 block">Procedimento</p>
+                  {/* 1. O Dropdown de Seleção */}
+                  <Select
+                    // Valor controlado: Sempre vazio visualmente para permitir selecionar mais um
+                    value="" 
+                    onValueChange={(value) => {
+                      if (value === "todos") {
+                        setSelectedProcedures([]) // Limpa tudo
+                      } else {
+                        // Se já estiver selecionado, não faz nada. Se não, adiciona.
+                        if (!selectedProcedures.includes(value)) {
+                          setSelectedProcedures(prev => [...prev, value])
+                        }
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full bg-white border-slate-200 text-slate-900 font-bold shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-slate-500" />
+                        <SelectValue placeholder="Todos Procedimentos">
+                          {/* Lógica do Texto do Botão */}
+                          {selectedProcedures.length > 0 
+                            ? "Adicionar +" 
+                            : "Todos Procedimentos"
+                          }
+                        </SelectValue>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {/* Opção para limpar/selecionar todos */}
+                      <SelectItem value="todos" className="font-bold text-slate-600">
+                        Todos Procedimentos
+                      </SelectItem>
+                      
+                      {/* Lista de Procedimentos vindos da API */}
+                      {apiData?.procedures?.map((proc: string) => (
+                        <SelectItem 
+                          key={proc} 
+                          value={proc}
+                          // Desabilita visualmente se já estiver selecionado para evitar duplicata
+                          disabled={selectedProcedures.includes(proc)}
+                          className={selectedProcedures.includes(proc) ? "opacity-50 cursor-not-allowed" : ""}
+                        >
+                          {proc}
+                        </SelectItem>
+                      )) || (
+                        <div className="p-2 text-xs text-slate-500">Carregando...</div>
+                      )}
+                    </SelectContent>
+                  </Select>
+
+                  {/* 2. Área das Pílulas (Tags) Selecionadas */}
+                  {selectedProcedures.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      {selectedProcedures.map((proc) => (
+                        <span 
+                          key={proc} 
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#59A52C] text-white shadow-sm animate-in fade-in zoom-in duration-200"
+                        >
+                          {proc}
+                          <button
+                            onClick={() => {
+                              // Remove este item da lista
+                              setSelectedProcedures(prev => prev.filter(p => p !== proc))
+                            }}
+                            className="hover:bg-green-700 rounded-full p-0.5 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- RODAPÉ DA SIDEBAR (CONTA) --- */}
+        <div className="mt-auto pt-6 border-t border-white/10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                  sidebarCollapsed ? "justify-center" : ""
+                }`}
+                title="Minha Conta"
+              >
+                <div className="w-10 h-10 bg-[#6fca3a] rounded-full flex items-center justify-center flex-shrink-0 border-2 border-[#013100]">
+                  <span className="text-white font-bold text-sm">
+                      {userName !== "Carregando..." ? userName.slice(0, 2).toUpperCase() : "..."}
+                  </span>
+                </div>
+
+                {!sidebarCollapsed && (
+                  <>
+                    <div className="flex-1 text-left overflow-hidden">
+                      <p className="text-sm font-semibold text-white truncate" title={userName}>{userName}</p>
+                      <p className="text-xs text-slate-300">Minha Conta</p>
+                    </div>
+                    <ChevronsUpDown className="w-4 h-4 text-slate-300" />
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="start" side="top" className="w-56 bg-white text-slate-900 shadow-xl border-slate-200">
+              <DropdownMenuItem
+                onClick={() => {
+                  setPasswordError(null)
+                  setPasswordSuccess(null)
+                  setCurrentPassword("")
+                  setNewPassword("")
+                  setShowPasswordDialog(true)
+                }}
+                className="flex items-center gap-2 cursor-pointer hover:bg-slate-100"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span>Alterar Senha</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setShowLogoutConfirm(true)}
+                className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600 hover:bg-slate-100"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Encerrar Sessão</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    )
+  }
+
+  // =======================
+  // 7. UX Guards e Render
+  // =======================
+  // TELA DE CARREGAMENTO (LOADING) - ESTILO CLEAN (VERDE E BRANCO)
+  if (loading || !apiData) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white">
+        
+        {/* O Anel Giratório (Spinner) */}
+        <div className="relative flex items-center justify-center">
+          {/* Círculo de fundo (Cinza bem clarinho para dar base) */}
+          <div className="absolute h-12 w-12 rounded-full border-4 border-slate-100"></div>
+          
+          {/* Círculo giratório (Verde Esmeralda) */}
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-transparent border-t-emerald-500"></div>
+        </div>
+
+        {/* Texto pulsando em Verde Escuro */}
+        <span className="mt-4 text-xs font-bold text-emerald-600 animate-pulse uppercase tracking-widest">
+          Carregando Dados - Aguarde...
+        </span>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 px-4 text-center">
+        <div className="text-red-600 font-medium">Falha ao carregar o dashboard</div>
+        <div className="text-sm text-slate-600">{loadError}</div>
+        <button
+          className="rounded-md border px-3 py-2 text-sm hover:bg-slate-50"
+          onClick={() => window.location.reload()}
+        >
+          Tentar novamente
+        </button>
+      </div>
+    )
+  }
+
+  if (!apiData) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-slate-500">
+        Sem dados para exibir.
+      </div>
+    )
+  }
+
+  // Helper para renderizar a lista de pacientes (usado tanto no mobile quanto desktop)
+  const renderPatientsList = (list: TopPatient[]) => {
+    if (list.length === 0) {
+      return <p className="text-sm text-slate-400 text-center py-4">Nenhum paciente no período.</p>
+    }
+    return list.map((p, idx) => (
+      <div key={p.name} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#59A52C] flex items-center justify-center flex-shrink-0">
+             <span className="text-white font-bold text-xs">{idx + 1}</span>
+          </div>
+          <p className="text-sm font-medium text-slate-900 truncate max-w-[150px] lg:max-w-xs">
+             {p.name}
+          </p>
+        </div>
+        <p className="text-sm font-bold text-[#2f6e12] whitespace-nowrap">
+          {formatCurrencyBRL(p.value)}
+        </p>
+      </div>
+    ))
+  }
+
+  // --- COMPONENTE PERSONALIZADO PARA O EIXO Y (CORRIGIDO) ---
+  const CustomYAxisTick = ({ x, y, payload }: any) => {
+    const text = payload.value
+    
+    // Configuração Padrão (Desktop)
+    let line1 = text
+    let line2 = null
+    let dy = 4 
+
+    // Lógica Mobile: Quebra de linha inteligente
+    if (isMobile && text.length > 15) {
+       const limit = 18 
+       const sub = text.substring(0, limit)
+       const lastSpaceIndex = sub.lastIndexOf(" ")
+
+       if (lastSpaceIndex > -1) {
+          line1 = text.substring(0, lastSpaceIndex)
+          line2 = text.substring(lastSpaceIndex + 1)
+          if (line2.length > 16) line2 = line2.substring(0, 15) + "..."
+          dy = 0 
+       } else {
+          line1 = text.substring(0, 15) + "..."
+       }
+    }
+
+    // Truncate simples no Desktop
+    if (!isMobile && text.length > 25) {
+       line1 = text.substring(0, 24) + "..."
+    }
+
+    return (
+      // CORREÇÃO AQUI: Forçamos X ser 0 no translate para garantir alinhamento à esquerda
+      // E usamos x={10} no text para dar um respiro da borda
+      <g transform={`translate(0,${y})`}>
+        <text x={isMobile ? 10 : 0} y={0} dy={dy} textAnchor="start" className="fill-slate-500 text-[11px] lg:text-sm font-bold">
+          <tspan x={isMobile ? 10 : 0} dy={line2 ? "-0.4em" : "0.3em"}>{line1}</tspan>
+          {line2 && <tspan x={isMobile ? 10 : 0} dy="1.2em">{line2}</tspan>}
+        </text>
+      </g>
+    )
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* --- CSS PARA IMPRESSÃO CORRIGIDO E DEFINITIVO --- */}
+      <style jsx global>{`
+        @media print {
+          /* 1. Reset total e Visibilidade */
+          body * {
+            visibility: hidden;
+          }
+          
+          /* 2. Destrava a rolagem para imprimir até o fim */
+          html, body, #root, .flex, .h-screen, .overflow-hidden, .overflow-y-auto {
+            height: auto !important;
+            overflow: visible !important;
+            position: static !important;
+            display: block !important;
+          }
+
+          /* 3. Área Principal visível */
+          #main-content, #main-content * {
+            visibility: visible;
+          }
+
+          /* 4. Posicionamento no topo */
+          #main-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+
+          /* 5. REMOVE O VERDE (Ajuste Crítico) */
+          /* Pega qualquer elemento que tenha a classe de cor verde (mesmo com opacidade) e remove o fundo */
+          [class*="bg-[#59A52C]"] {
+            background-color: transparent !important;
+            border: 1px solid #e2e8f0 !important; /* Troca o fundo por uma borda suave cinza */
+          }
+
+          /* 6. Esconde Sidebar, Header, Botões flutuantes */
+          aside, header, button, .no-print, [role="dialog"], .fixed {
+            display: none !important;
+          }
+
+          /* 7. Ajuste de Cards e Gráficos */
+          .card, .recharts-responsive-container {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            box-shadow: none !important;
+            border: 1px solid #ddd !important;
+            margin-bottom: 20px !important;
+          }
+
+          /* 8. Cores de Texto e Gráficos */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Força texto preto para leitura nítida */
+          p, h1, h2, h3, span, div, text {
+            color: #000 !important;
+            fill: #000 !important; /* Para textos SVG de gráficos */
+          }
+        }
+      `}</style>
+
+      {/* Sidebar Desktop - COM GRADIENTE E LUZ (Igual Login) */}
+      <aside
+        className={`hidden lg:flex flex-col relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-950 to-emerald-950 border-r border-emerald-900 shadow-xl transition-all duration-300 h-full ${
+          sidebarCollapsed ? "w-20 p-2 items-center" : "w-80 p-6"
+        }`}
+      >
+        {/* 1. O Efeito de Luz (Glow) */}
+        {/* Adicionei 'pointer-events-none' para não atrapalhar os cliques no menu */}
+        <div className="absolute -left-[30%] -top-[10%] h-[300px] w-[300px] rounded-full bg-emerald-600/20 blur-[80px] pointer-events-none"></div>
+
+        {/* 2. O Conteúdo do Menu */}
+        {/* Adicionei 'relative z-10' para garantir que o texto fique SOBRE a luz */}
+        <div className="relative z-10 flex flex-col h-full w-full overflow-y-auto">
+          <SidebarContent />
+        </div>
+      </aside>
+
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+           <h3 className="text-lg font-semibold text-slate-900">Encerrar sessão</h3>
+             <p className="mt-2 text-sm text-slate-600">
+              Tem certeza que deseja sair do painel?
+            </p>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                className="bg-red-600 hover:bg-red-700"
+                onClick={async () => {
+                  setShowLogoutConfirm(false)
+                  await handleLogout()
+                }}
+              >
+                Sair
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Container - Adicionei ID para o CSS de print focar nele */}
+      <main id="main-content" className="flex-1 flex flex-col h-full overflow-hidden">
+        <header className="bg-white border-b border-slate-200 px-4 lg:px-8 py-4 shadow-sm flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Mobile Sidebar */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="lg:hidden">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-80 p-6 bg-[#013100] border-none text-white">
+                  <SidebarContent 
+                    onOpenNewSale={() => setIsNewTransactionModalOpen(true)}
+                    currentView={currentView}
+                    onChangeView={setCurrentView}
+                  />
+                </SheetContent>
+              </Sheet>
+
+              <div className="flex items-center gap-2">
+                {/* Logo Mobile: Removido bg-[#59A52C] e ajustado nome do arquivo */}
+                <div className="w-8 h-8 flex items-center justify-center lg:hidden">
+                   <Image 
+                     src="/logo-resili-fundo-transparente.png" 
+                     alt="Logo" 
+                     width={32} 
+                     height={32} 
+                     className="object-contain" 
+                   />
+                </div>
+                <div>
+                  <h1 className="text-lg lg:text-xl font-bold text-[#59A52C]">{userName}</h1>
+                  <p className="text-sm text-slate-600 hidden sm:block">Visão Estratégica</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button className="gap-2 bg-[#59A52C] hover:bg-[#4a8c24] text-white">
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="end">
+                  <div className="space-y-1">
+                    <Button variant="ghost" className="w-full justify-start gap-2 hover:bg-slate-100" onClick={handleDownloadCSV}>
+                      <Download className="w-4 h-4" />
+                      Baixar CSV
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start gap-2 hover:bg-slate-100" onClick={() => window.print()}>
+                      <Printer className="w-4 h-4" />
+                      Imprimir Relatório
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </header>
+
+            {/* Page Content (only this scrolls) */}
+            <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+              <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
+              
+                    {loading && (
+                      <Card className="p-4 border-slate-200 bg-white">
+                        <p className="text-sm text-slate-600">Carregando dados do dashboard...</p>
+                      </Card>
+                    )}
+
+                    {!loading && loadError && (
+                      <Card className="p-4 border-red-200 bg-red-50">
+                        <p className="text-sm text-red-700">{loadError}</p>
+                      </Card>
+                    )}
+                    
+                    {/* Títulos Contextuais */}
+                    <div className="lg:hidden">
+                      <h2 className="text-sm font-medium text-slate-900 mb-1">
+                        {currentView === 'dashboard' ? 'Visão Estratégica' : 'Gestão de Lançamentos'}
+                      </h2>
+                      <p className="text-xl font-medium text-black">
+                        {currentView === 'dashboard' ? `Painel Financeiro - ${userName}` : 'Tabela de Transações'}
+                      </p>
+                    </div>
+                    <div className="hidden lg:block">
+                      <p className="text-black font-bold text-lg">
+                        {currentView === 'dashboard' ? `Painel Financeiro - Clínica ${userName}` : 'Gestão Financeira e Lançamentos'}
+                      </p>
+                    </div>
+
+                    {/* ======================================================== */}
+                    {/* === INÍCIO DA LÓGICA DE TROCA (DASHBOARD vs TABELA) === */}
+                    {/* ======================================================== */}
+                              
+                    {currentView === 'dashboard' ? (
+                                
+                          /* -------------------------------------------------- */
+                          /* OPÇÃO 1: DASHBOARD COMPLETO (Seu Código Original)  */
+                          /* -------------------------------------------------- */
+                          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+
+                                {/* Meta de Faturamento */}
+                                <Card className="p-6 lg:p-8 shadow-lg rounded-xl bg-white border-slate-200">
+                                  <div className="space-y-4">
+                                    <div className="flex items-end justify-between">
+                                      <div>
+                                        <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-1">Meta de Faturamento</h2>
+                                        <p className="text-2xl lg:text-3xl font-bold text-[#59A52C]">
+                                          {formatCurrencyBRL(currentRevenue)}{" "}
+                                          <span className="text-slate-400 text-lg lg:text-xl font-normal">
+                                              / {formatCurrencyBRL(goalRevenue)}
+                                          </span>
+                                        </p>
+                                      </div>
+
+                                      {/* Percentual de Conclusão */}
+                                      <div className="text-right">
+                                        <p className="text-xl lg:text-2xl font-bold text-slate-900">{revenuePercentage.toFixed(1)}%</p>
+                                        <p className="text-sm text-slate-500">concluído</p>
+                                      </div>
+                                  </div>
+                                    
+                                    {/* Barra de Progresso */}
+                                    <div className="relative h-4 bg-slate-200 rounded-full overflow-hidden">
+                                      <div
+                                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#59A52C] to-[#7BC94B] rounded-full transition-all"
+                                        style={{ width: `${revenuePercentage}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </Card>
+
+                                {/* Cards principais (DINÂMICOS) */}
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
+                                  
+                                  {/* Card 1: Faturamento Bruto */}
+                                  <Card className="p-3 lg:p-6 shadow-lg rounded-xl border border-slate-200 border-l-4 border-l-[#6fca3a] bg-gradient-to-r from-[#6fca3a]/10 to-white">
+                                    <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Faturamento Bruto</p>
+                                    <p className="text-lg lg:text-3xl font-bold text-[#59A52C] mb-1 lg:mb-2">{formatCurrencyBRL(kpis.faturamentoBruto)}</p>
+                                    <div className="flex w-full items-center  gap-1 bg-green-100 text-green-700 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-medium">
+                                      {revenueTrend >= 0 ? <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" /> : <TrendingDown className="w-2.5 lg:w-3 h-2.5 lg:h-3" />}
+                                      <span>{revenueTrend > 0 ? "+" : ""}{revenueTrend}%</span>
+                                    </div>
+                                  </Card>
+
+                                  {/* Card 2: Lucro Líquido */}
+                                  <Card className="p-3 lg:p-6 shadow-lg rounded-xl border border-slate-200 border-l-4 border-l-[#6fca3a] bg-gradient-to-r from-[#6fca3a]/10 to-white">
+                                    <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Lucro Líquido</p>
+                                    <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">{formatCurrencyBRL(kpis.lucroLiquido)}</p>
+                                    <div className="flex w-full items-center  gap-1 bg-green-100 text-green-700 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-medium">
+                                      {revenueTrend >= 0 ? <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" /> : <TrendingDown className="w-2.5 lg:w-3 h-2.5 lg:h-3" />}
+                                      <span>{revenueTrend > 0 ? "+" : ""}{revenueTrend}%</span>
+                                    </div>
+                                  </Card>
+
+                                  {/* Card 3: Margem Líquida */}
+                                  <Card className="p-3 lg:p-6 shadow-lg rounded-xl border border-slate-200 border-l-4 border-l-[#6fca3a] bg-gradient-to-r from-[#6fca3a]/10 to-white">
+                                    <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Margem Líquida</p>
+                                    <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">{(kpis.margemLiquida * 100).toFixed(1)}%</p>
+                                    <div className="flex w-full items-center  gap-1 bg-slate-100 text-slate-600 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-medium">
+                                      <span>Estável</span>
+                                    </div>
+                                  </Card>
+
+                                  {/* Card 4: Ticket Médio */}
+                                  <Card className="p-3 lg:p-6 shadow-lg rounded-xl border border-slate-200 border-l-4 border-l-[#6fca3a] bg-gradient-to-r from-[#6fca3a]/10 to-white">
+                                    <p className="text-xs lg:text-sm text-slate-700 font-medium mb-1 lg:mb-2">Ticket Médio</p>
+                                    <p className="text-lg lg:text-3xl font-bold text-slate-900 mb-1 lg:mb-2">{formatCurrencyBRL(kpis.ticketMedio)}</p>
+                                    <div className="flex w-full items-center  gap-1 bg-green-100 text-green-700 py-1 lg:py-1.5 rounded-full text-[10px] lg:text-xs font-medium">
+                                      <TrendingUp className="w-2.5 lg:w-3 h-2.5 lg:h-3" />
+                                      <span>~</span>
+                                    </div>
+                                  </Card>
+                                </div>
+
+
+                                {/* Evolução de Vendas (Com Toggle Diário/Mensal) */}
+                                <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+                                  <div className="flex flex-col lg:flex-row lg:items-start justify-between mb-6 gap-4">
+                                    
+                                    {/* Título e Descrição */}
+                                    <div>
+                                      <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
+                                        Evolução de Vendas
+                                      </h2>
+                                      <p className="text-slate-500 text-sm">
+                                        {evolutionView === "daily" 
+                                          ? "Acompanhe a receita diária do período selecionado." 
+                                          : "Histórico de faturamento dos últimos 12 meses."}
+                                      </p>
+                                    </div>
+
+                                    {/* --- BOTÃO DE ALTERNÂNCIA (TOGGLE - LUCRATIVIDADE PROCEDIMENTO) --- */}
+                                    <div className="flex self-start lg:self-center bg-slate-100 p-1 rounded-lg shadow-inner border border-slate-200">
+                                        <button
+                                          onClick={() => setEvolutionView("daily")}
+                                          className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-all duration-300 ${
+                                            evolutionView === "daily"
+                                              ? "bg-[#59A52C] text-white shadow-sm border border-[#4a8c24]" 
+                                              : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                                          }`}
+                                        >
+                                          Diário
+                                        </button>
+                                        <button
+                                          onClick={() => setEvolutionView("monthly")}
+                                          className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-all duration-300 ${
+                                            evolutionView === "monthly"
+                                              ? "bg-[#59A52C] text-white shadow-sm border border-[#4a8c24]" 
+                                              : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                                          }`}
+                                        >
+                                          Mensal
+                                        </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="h-72 w-full">
+                                    {evolutionChartData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={evolutionChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                                            <defs>
+                                              <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#59A52C" stopOpacity={0.35} />
+                                                <stop offset="95%" stopColor="#59A52C" stopOpacity={0.02} />
+                                            </linearGradient>
+                                            </defs>
+                                            
+                                            {/* Eixo X Dinâmico (EIXO X INTELIGENTE (Mobile vs Desktop)) */}
+                                            <XAxis 
+                                              dataKey="xLabel" 
+                                              // Fonte menor no mobile (10px) para caber melhor
+                                              tick={{ fontSize: isMobile ? 10 : 12, fill: "#64748b" }} 
+                                              axisLine={false} 
+                                              tickLine={false} 
+                                              
+                                              // LÓGICA DE INTERVALO:
+                                              // Se for Mobile: "preserveStartEnd" (O gráfico decide quais esconder para não encavalar)
+                                              // Se for Desktop + Mensal: 0 (Força mostrar todos os 12 meses)
+                                              interval={isMobile ? "preserveStartEnd" : (evolutionView === "monthly" ? 0 : "preserveStartEnd")}
+                                              
+                                              // LÓGICA DE TEXTO:
+                                              // Se for Mobile + Mensal: Mostra só "Jan" (remove o /26) para economizar espaço
+                                              tickFormatter={(value) => {
+                                                if (isMobile && evolutionView === "monthly") {
+                                                  return value.split("/")[0] // Pega só a parte antes da barra
+                                                }
+                                                return value
+                                              }}
+                                            />
+                                            
+                                            <YAxis
+                                              tick={{ fontSize: 12, fill: "#64748b" }}
+                                              axisLine={false}
+                                              tickLine={false}
+                                              tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
+                                            />
+                                            
+                                            {/* Tooltip Adaptado */}
+                                            <Tooltip 
+                                              content={({ active, payload, label }: any) => {
+                                                if (!active || !payload?.length) return null
+                                                // Pega o título customizado que criamos no useMemo (tooltipTitle)
+                                                const customTitle = payload[0].payload.tooltipTitle
+                                                const value = payload[0].value
+                                                return (
+                                                  <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200">
+                                                    <p className="text-xs text-slate-500 font-medium mb-2">{customTitle}</p>
+                                                    <div className="flex items-center justify-between gap-6">
+                                                      <span className="text-xs text-slate-600">Receita:</span>
+                                                      <span className="text-sm font-bold text-slate-900">{formatCurrencyBRL(value)}</span>
+                                                    </div>
+                                                  </div>
+                                                )
+                                              }} 
+                                            />
+                                            
+                                            {/* Mantido visual exato: Area Monotone com Stroke Verde */}
+                                            <Area
+                                              type="monotone"
+                                              dataKey="revenue"
+                                              stroke="#59A52C"
+                                              strokeWidth={3} // Aumentei levemente para ficar mais bonito
+                                              fill="url(#revenueFill)"
+                                              animationDuration={1000} // Animação suave na troca
+                                            />
+                                        </AreaChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+                                            <TrendingUp className="w-8 h-8 opacity-20" />
+                                            <p className="text-sm">
+                                              {evolutionView === "monthly" ? "Aguardando histórico mensal..." : "Nenhuma venda neste período."}
+                                            </p>
+                                        </div>
+                                    )}
+                                  </div>
+                                </Card>
+
+                                {/* Lucratividade (Margem) vs Faturamento por Procedimento (FULL WIDTH + SMART WRAP MOBILE) */}
+                                <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+                                    <div className="flex flex-col mb-6">
+                                      
+                                      {/* Cabeçalho com Título e Tooltip */}
+                                      <div className="flex items-start justify-between">
+                                        <div>
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <h2 className="text-xl lg:text-2xl font-bold text-slate-900">
+                                              {metricMode === "profit" ? "Lucratividade por Procedimento" : "Faturamento por Procedimento"}
+                                            </h2>
+                                            
+                                            <Popover>
+                                              <PopoverTrigger asChild>
+                                                <button className="outline-none" title="Clique para entender o cálculo">
+                                                  <Info className="w-4 h-4 text-slate-400 hover:text-[#59A52C] transition-colors cursor-pointer" />
+                                                </button>
+                                              </PopoverTrigger>
+                                              <PopoverContent side="top" align="start" className="w-72 p-4 bg-white border-slate-200 shadow-xl rounded-xl">
+                                                <h4 className="font-bold text-slate-900 text-sm mb-2">Entenda a Diferença</h4>
+                                                <div className="space-y-3">
+                                                  <div>
+                                                    <p className="text-xs font-bold text-[#59A52C]">Margem (Lucro):</p>
+                                                    <p className="text-xs text-slate-600">O que sobra no bolso após pagar custos diretos (Comissão, Material, Taxas).</p>
+                                                  </div>
+                                                  <div>
+                                                    <p className="text-xs font-bold text-blue-600">Faturamento (Volume):</p>
+                                                    <p className="text-xs text-slate-600">O valor total vendido (Bruto), sem descontar nada.</p>
+                                                  </div>
+                                                </div>
+                                              </PopoverContent>
+                                            </Popover>
+                                          </div>
+
+                                          <p className="text-slate-500 text-sm">
+                                            {metricMode === "profit" 
+                                              ? "Resultado após descontar custos diretos (Comissões, Materiais e Taxas)"
+                                              : "Volume total de vendas bruto (sem descontos)"}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* --- BOTÃO DE ALTERNÂNCIA (TOGGLE - LUCRO X FATURAMENTO) --- */}
+                                      <div className="flex justify-center mt-6">
+                                        <div className="inline-flex bg-slate-100 p-1 rounded-lg shadow-inner border border-slate-200">
+                                          
+                                          {/* Lado Esquerdo: LUCRO */}
+                                          <button
+                                            onClick={() => setMetricMode("profit")}
+                                            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-300 ${
+                                              metricMode === "profit"
+                                                ? "bg-[#59A52C] text-white shadow-sm border border-[#4a8c24]" // Selecionado (Verde)
+                                                : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50" // Não Selecionado (Cinza)
+                                            }`}
+                                          >
+                                            Lucro Líquido
+                                          </button>
+
+                                          {/* Lado Direito: FATURAMENTO */}
+                                          <button
+                                            onClick={() => setMetricMode("revenue")}
+                                            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-300 ${
+                                              metricMode === "revenue"
+                                                ? "bg-[#59A52C] text-white shadow-sm border border-[#4a8c24]" // Selecionado (Verde)
+                                                : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50" // Não Selecionado (Cinza)
+                                            }`}
+                                          >
+                                            Faturamento Bruto
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Área do Gráfico */}
+                                    <div className="h-80 w-full">
+                                      <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                          layout="vertical"
+                                          data={procedureProfitability}
+                                          // Mantendo a margem inferior maior para o Eixo X
+                                          margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+                                        >
+                                          <XAxis
+                                            type="number"
+                                            tick={{ fontSize: isMobile ? 10 : 11, fill: "#94a3b8" }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tickFormatter={(value) => {
+                                              if (value === 0) return "R$ 0";
+                                              return `R$ ${(value / 1000).toFixed(0)}k`; 
+                                            }}
+                                          />
+                                          
+                                          <YAxis
+                                            type="category"
+                                            dataKey="procedure"
+                                            tick={<CustomYAxisTick />}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            width={isMobile ? 110 : 150} 
+                                          />
+                                          
+                                          {/* Tooltip Personalizado que se adapta à métrica */}
+                                          <Tooltip 
+                                            cursor={{fill: 'transparent'}} 
+                                            content={({ active, payload, label }: any) => {
+                                              if (!active || !payload?.length) return null
+                                              const value = payload[0].value
+                                              return (
+                                                <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-slate-200 z-50">
+                                                  <p className="text-xs text-slate-500 font-medium mb-2">{label}</p>
+                                                  <div className="flex items-center justify-between gap-4">
+                                                    <span className="text-xs text-slate-600">
+                                                      {metricMode === "profit" ? "Margem:" : "Faturamento:"}
+                                                    </span>
+                                                    <span className={`text-sm font-bold ${metricMode === "profit" ? "text-[#59A52C]" : "text-blue-600"}`}>
+                                                      {formatCurrencyBRL(value)}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )
+                                            }} 
+                                          />
+                                          
+                                          {/* BARRA DINÂMICA: 
+                                              Se for profit -> dataKey="profit" e cor Verde
+                                              Se for revenue -> dataKey="revenue" e cor Azul (para diferenciar visualmente)
+                                          */}
+                                          <Bar 
+                                            dataKey={metricMode === "profit" ? "profit" : "revenue"}
+                                            fill={metricMode === "profit" ? "#59A52C" : "#3b82f6"} 
+                                            radius={[4, 4, 4, 4]} 
+                                            barSize={isMobile ? 24 : 18} 
+                                            background={{ fill: '#f1f5f9', radius: 4 }} 
+                                          />
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                </Card>
+
+                                {/* NOVO: Painel Unificado de Planejamento Financeiro & Projeções */}
+                                <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200 col-span-full">
+                                  {/* Cabeçalho */}
+                                  <div className="mb-8">
+                                    <h2 className="text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                                      <TrendingUp className="w-6 h-6 text-[#59A52C]" />
+                                      Planejamento Financeiro & Projeções
+                                    </h2>
+                                    <p className="text-slate-500 text-sm mt-1">
+                                      Análise dos recebíveis (Crédito) projetado para os próximos meses.
+                                    </p>
+                                  </div>
+
+                                  {/* 1. KPIs de Topo (Layout Reorganizado: 2 no Mobile, 3 no Desktop) */}
+                                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                                    
+                                    {/* Total já Garantido - Ocupa 2 espaços no Mobile para destaque */}
+                                    <div className="col-span-2 lg:col-span-1 p-4 rounded-xl bg-[#59A52C]/10 border border-[#59A52C]/20 flex flex-col justify-center">
+                                      <p className="text-xs text-[#59A52C] font-bold uppercase tracking-wide mb-1">Total já Garantido (12 meses)</p>
+                                      <p className="text-2xl lg:text-3xl font-bold text-[#59A52C]">
+                                        {formatCurrencyBRL(projectionsData.totalProjected)}
+                                      </p>
+                                    </div>
+
+                                    {/* Pico de Recebimento */}
+                                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wide mb-1">Pico de Recebimento</p>
+                                      <div className="flex items-end gap-2">
+                                        <p className="text-xl font-bold text-slate-900 capitalize">{projectionsData.peakMonth.month}</p>
+                                        <p className="text-sm text-slate-600 mb-1">
+                                          ({projectionsData.peakMonth.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })})
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Média Mensal */}
+                                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wide mb-1">Média Mensal</p>
+                                      <p className="text-xl font-bold text-slate-900">
+                                        {formatCurrencyBRL(projectionsData.avgMonthly)}
+                                      </p>
+                                    </div>
+                                    
+                                    {/* NOTA: O bloco de "Tendência Natural de Queda" foi removido daqui completamente para corrigir o erro */}
+                                  </div>
+
+                                  {/* 2. Área Gráfica Principal */}
+                                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    
+                                    {/* Coluna Esquerda: Gráfico de Barras */}
+                                    <div className="lg:col-span-2 flex flex-col h-full">
+                                      <h3 className="text-sm font-semibold text-slate-700 mb-4">Cronograma de Entradas - Valores Garantidos</h3>
+                                      <div className="h-[320px] w-full flex-1">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                          <BarChart data={futureCashFlow} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                            <defs>
+                                              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#59A52C" stopOpacity={1} />
+                                                <stop offset="100%" stopColor="#86efac" stopOpacity={0.6} />
+                                              </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis dataKey="month" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                                            <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                                            <Tooltip 
+                                              cursor={{ fill: 'transparent' }}
+                                              content={({ active, payload }: any) => {
+                                                if (active && payload && payload.length) {
+                                                  return (
+                                                    <div className="bg-white px-3 py-2 rounded-lg shadow-xl border border-slate-100 text-xs">
+                                                      <p className="font-bold mb-1">{payload[0].payload.month}</p>
+                                                      <p className="text-[#59A52C]">Garantido: {formatCurrencyBRL(payload[0].value)}</p>
+                                                    </div>
+                                                  )
+                                                }
+                                                return null
+                                              }} 
+                                            />
+                                            <Bar dataKey="amount" fill="url(#barGradient)" radius={[4, 4, 0, 0]} barSize={40} />
+                                          </BarChart>
+                                        </ResponsiveContainer>
+                                      </div>
+                                      
+                                      {/* Legenda */}
+                                      <div className="flex items-center gap-6 mt-4 justify-center lg:justify-start">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-3 h-3 bg-[#59A52C] rounded-sm"></div>
+                                          <span className="text-xs text-slate-600">Recebíveis de Crédito (Já vendido)</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Coluna Direita: Curva de Recebimento + Tabela Trimestral */}
+                                    <div className="flex flex-col h-full border-t lg:border-t-0 lg:border-l border-slate-100 pt-6 lg:pt-0 lg:pl-8">
+                                      <h3 className="text-sm font-semibold text-slate-700 mb-4">Curva de Recebimento (Garantido)</h3>
+                                      
+                                      {/* Mini Gráfico de Área */}
+                                      <div className="h-[120px] w-full mb-6">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                          <AreaChart data={futureCashFlow}>
+                                            <defs>
+                                              <linearGradient id="miniGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#59A52C" stopOpacity={0.4} />
+                                                <stop offset="100%" stopColor="#59A52C" stopOpacity={0} />
+                                              </linearGradient>
+                                            </defs>
+                                            <Area type="monotone" dataKey="amount" stroke="#59A52C" strokeWidth={2} fill="url(#miniGradient)" />
+                                          </AreaChart>
+                                        </ResponsiveContainer>
+                                      </div>
+
+                                      {/* Tabela de Trimestres */}
+                                      <div className="flex-1 space-y-3">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Por Trimestre</h4>
+                                        {[
+                                          { l: "Q1 (Jan-Mar)", v: projectionsData.quarters.Q1 },
+                                          { l: "Q2 (Abr-Jun)", v: projectionsData.quarters.Q2 },
+                                          { l: "Q3 (Jul-Set)", v: projectionsData.quarters.Q3 },
+                                          { l: "Q4 (Out-Dez)", v: projectionsData.quarters.Q4 },
+                                        ].map((q, idx) => (
+                                          <div key={idx} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-slate-50">
+                                            <span className="text-slate-600">{q.l}</span>
+                                            <span className="font-bold text-slate-900">{formatCurrencyBRL(q.v)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                  </div>
+                                </Card>
+
+                                {/* Despesas e Custos + Top 5 Pacientes */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                  {/* Despesas e Custos (Card 1) */}
+                                  <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200">
+                                    <div className="flex items-start justify-between mb-6">
+                                      <div>
+                                        <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">Despesas e Custos</h2>
+                                        <p className="text-slate-500 text-sm">Composição do faturamento do período</p>
+                                      </div>
+                                    </div>
+
+                                    
+                                    {/* Gráfico de Distribuição de Custos */}
+                                    <div className="flex flex-col">
+                                                      
+                                      {/* CORREÇÃO MOBILE: Adicionei 'pt-6' para empurrar o gráfico para baixo no celular */}
+                                      <div className="h-[340px] w-full relative mb-8 pt-6 lg:pt-0">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                          <PieChart>
+                                            <Pie
+                                              data={costData}
+                                              cx="50%"
+                                              cy="50%" /* Mantemos 50% (centro) pois o padding da div (pt-6) já resolve o corte */
+                                              innerRadius={60}
+                                              outerRadius={90}
+                                              paddingAngle={2}
+                                              dataKey="value"
+                                              stroke="none"
+                                            >
+                                              {costData.map((entry: any, index: number) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                              ))}
+                                            </Pie>
+                                            <Legend 
+                                              verticalAlign="bottom" 
+                                              height={undefined} 
+                                              align="center"
+                                              wrapperStyle={{ paddingTop: "24px" }} /* Mais espaço para a legenda não grudar */
+                                              formatter={(value, entry: any) => (
+                                                <span className="text-xs text-slate-600 mx-2 inline-block mb-1">
+                                                  <span className="font-medium">{value}:</span> {entry.payload.percentage}% = <span className="font-bold text-slate-800">{formatCurrencyBRL(entry.payload.value)}</span>
+                                                </span>
+                                              )}
+                                            />
+                                            <Tooltip 
+                                              formatter={(value: any) => formatCurrencyBRL(Number(value))}
+                                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            />
+                                          </PieChart>
+                                        </ResponsiveContainer>
+
+                                        {costData.length === 0 && (
+                                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                              <span className="text-slate-400 text-sm">Sem dados de custo</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* --- BOX DE RESUMO DE CUSTOS (Fixo) --- */}
+                                    <div className="mt-2 mb-6 p-3 rounded-xl border border-amber-200 bg-amber-50 flex items-start gap-3">
+                                      <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                                      <div>
+                                        <p className="text-sm font-bold text-amber-900">Resumo de Custos</p>
+                                          <p className="text-xs text-amber-800 mt-1">
+                                          <span className="font-bold">
+                                            {/* Cálculo da % Total de Custos */}
+                                            {apiData?.kpis.faturamentoBruto ? Math.round((((apiData.kpis.faturamentoBruto - (apiData.kpis.lucroLiquido || 0)) / apiData.kpis.faturamentoBruto) * 100)) : 0}%
+                                          </span> do faturamento são custos operacionais e comissões.
+                                          </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Blocos de Custo Total vs Lucro Real (Mantidos no topo) */}
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                      <div className="p-3 rounded-xl border border-slate-100 bg-slate-50">
+                                          <p className="text-xs text-slate-500 mb-1">Custo Total</p>
+                                          <p className="text-sm font-bold text-slate-700">
+                                            {formatCurrencyBRL((apiData?.kpis.faturamentoBruto || 0) - (apiData?.kpis.lucroLiquido || 0))}
+                                          </p>
+                                      </div>
+                                      <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50">
+                                          <p className="text-xs text-emerald-600 mb-1">Lucro Real</p>
+                                          <p className="text-sm font-bold text-emerald-700">
+                                            {formatCurrencyBRL(apiData?.kpis.lucroLiquido || 0)}
+                                          </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Lista de Comissões por Profissional (Limpa, sem blocos repetidos embaixo) */}
+                                    {commissionsByProf.length > 0 && (
+                                      <div className="border-t border-slate-100 pt-4">
+                                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                                          Detalhamento de Comissões
+                                        </h3>
+                                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                          {commissionsByProf.map((prof, idx) => (
+                                            <div key={idx} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                                              <span className="text-sm text-slate-900 font-bold">{prof.name}</span>
+                                              <span className="text-sm font-bold text-[#2f6e12]">{formatCurrencyBRL(prof.value)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Card>
+
+                                  {/* Top 5 Pacientes (HÍBRIDO: Accordion no Mobile / Fixo no Desktop) */}
+                                  <Card className="shadow-lg rounded-2xl bg-white border-slate-200 overflow-hidden">
+                                    
+                                    {/* --- VERSÃO MOBILE (ACCORDION) --- */}
+                                    <div className="lg:hidden">
+                                      <Accordion 
+                                        type="single" 
+                                        collapsible 
+                                        value={mobileTopPatientsOpen} 
+                                        onValueChange={setMobileTopPatientsOpen}
+                                      >
+                                        <AccordionItem value="item-1" className="border-none">
+                                          {/* Trigger com seta verde [&>svg]:text-[#59A52C] */}
+                                          <AccordionTrigger className="px-6 py-6 hover:no-underline hover:bg-slate-50/50 transition-colors [&>svg]:text-[#59A52C]">
+                                            <div className="flex items-center justify-between w-full pr-2">
+                                              <div className="text-left">
+                                                <h2 className="text-xl font-bold text-slate-900 mb-1">Top 5 Pacientes</h2>
+                                                <p className="text-slate-500 text-sm">Maiores valores faturados</p>
+                                              </div>
+                                              
+                                              {/* Texto Verde Dinâmico */}
+                                              <span className="text-xs font-bold text-[#59A52C] mr-2">
+                                                {mobileTopPatientsOpen === "item-1" ? "Fechar Top 5" : "Abrir Top 5"}
+                                              </span>
+                                            </div>
+                                          </AccordionTrigger>
+
+                                          <AccordionContent className="px-6 pb-6 pt-2">
+                                            {/* Renderiza a lista aqui dentro no mobile */}
+                                            <div className="space-y-3">
+                                              {renderPatientsList(topPatients)}
+                                            </div>
+                                          </AccordionContent>
+                                        </AccordionItem>
+                                      </Accordion>
+                                    </div>
+
+                                    {/* --- VERSÃO DESKTOP (FIXA) --- */}
+                                    <div className="hidden lg:block p-8">
+                                      <div className="flex items-start justify-between mb-6">
+                                        <div>
+                                          <h2 className="text-2xl font-bold text-slate-900 mb-1">Top 5 Pacientes</h2>
+                                          <p className="text-slate-500 text-sm">Com maiores valores faturados no período selecionado</p>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-3">
+                                        {/* Renderiza a lista sempre visível no desktop */}
+                                        {renderPatientsList(topPatients)}
+                                      </div>
+                                    </div>
+
+                                  </Card>
+                                </div>
+
+                                {/* Extrato detalhado */}
+                                <Card className="p-6 lg:p-8 shadow-lg rounded-2xl bg-white border-slate-200">
+                                  <div className="flex items-start justify-between mb-6">
+                                    <div>
+                                      <h2 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
+                                        Extrato Detalhado de Vendas
+                                      </h2>
+                                      <p className="text-slate-500 text-sm">Pesquise rapidamente filtrando por "Paciente, Procedimento, Forma de Pagamento ou Data"</p>
+                                    </div>
+                                  </div>
+
+                                  <Accordion 
+                                    type="single" 
+                                    collapsible 
+                                    value={accordionValue}
+                                    onValueChange={setAccordionValue}
+                                  >
+                                    <AccordionItem value="item-1" className="border-none">
+                                      <AccordionTrigger className="px-4 py-3 rounded-xl bg-[#59A52C]/30 hover:bg-[#59A52C]/70 transition-colors no-underline">
+                                        <span className="text-sm font-semibold text-slate-900">
+                                          {accordionValue === "item-1" ? "Fechar Extrato" : "Abrir Extrato"}
+                                        </span>
+                                      </AccordionTrigger>
+
+                                      <AccordionContent className="pt-5">
+                                        {/* --- ÁREA DE FILTROS --- */}
+                                        <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
+                                          {/* Select atualizado com Pagamento */}
+                                          <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
+                                            <SelectTrigger className="w-full lg:w-56 bg-white border-slate-200">
+                                              <SelectValue placeholder="Tipo de filtro" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="paciente">Paciente</SelectItem>
+                                              <SelectItem value="procedimento">Procedimento</SelectItem>
+                                              <SelectItem value="pagamento">Forma de Pagamento</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+
+                                          <div className="relative flex-1">
+                                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                            <Input
+                                              value={searchQuery}
+                                              onChange={(e) => setSearchQuery(e.target.value)}
+                                              // Texto de ajuda atualizado
+                                              placeholder="Pesquise por Paciente, Procedimento, Pagamento..."
+                                              className="pl-9 bg-white border-slate-200"
+                                            />
+                                          </div>
+
+                                          <div className="flex items-center gap-2 w-full lg:w-auto">
+                                            <Input
+                                              value={dateFilter}
+                                              onChange={(e) => setDateFilter(e.target.value)}
+                                              placeholder="Data (ex: 20/01)"
+                                              className="bg-white border-slate-200"
+                                            />
+                                            <Button variant="outline" className="whitespace-nowrap" onClick={handleClearFilters}>
+                                              Limpar Filtros
+                                            </Button>
+                                          </div>
+                                        </div>
+
+                                        {/* --- TABELA / CARDS LIST --- */}
+                                        <div className="overflow-hidden border border-slate-200 rounded-xl">
+                                          {/* Cabeçalho (Só aparece no Desktop lg:grid) */}
+                                          <div className="hidden lg:grid grid-cols-5 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                            <span>Data</span>
+                                            <span>Paciente</span>
+                                            <span>Procedimento</span>
+                                            <span className="text-right">Valor</span>
+                                            <span className="text-right">Forma Pagto</span>
+                                          </div>
+
+                                          <div className="divide-y divide-slate-200 bg-white">
+                                            {filteredSalesRows.length === 0 && (
+                                              <div className="px-4 py-6 text-sm text-slate-500 text-center">Nenhum registro encontrado.</div>
+                                            )}
+
+                                            {filteredSalesRows.map((row: SalesRow, idx: number) => (
+                                              <div
+                                                key={`${row.date}-${row.patient}-${idx}`}
+                                                // MOBILE: Flex Column (Card) | DESKTOP: Grid (Tabela)
+                                                className="flex flex-col gap-2 p-4 lg:grid lg:grid-cols-5 lg:px-4 lg:py-3 lg:gap-0 hover:bg-slate-50/50 transition-colors text-sm text-slate-700"
+                                              >
+                                                {/* Grupo 1: Data e Valor (No mobile ficam no topo, um em cada ponta) */}
+                                                <div className="flex justify-between items-center lg:contents">
+                                                  <span className="text-xs text-slate-500 lg:text-sm lg:text-slate-700 flex items-center">
+                                                    {formatDateBR(row.date)}
+                                                  </span>
+                                                  {/* No mobile o valor sobe para o topo direito para destaque */}
+                                                  <span className="lg:hidden font-bold text-slate-900">
+                                                    {formatCurrencyBRL(row.value)}
+                                                  </span>
+                                                </div>
+
+                                                {/* Grupo 2: Paciente (Destaque mobile) */}
+                                                <div className="font-bold text-slate-900 lg:font-medium lg:flex lg:items-center">
+                                                  {row.patient}
+                                                </div>
+
+                                                {/* Grupo 3: Procedimento */}
+                                                <div className="text-slate-600 lg:text-slate-700 lg:flex lg:items-center">
+                                                  {row.procedure}
+                                                </div>
+
+                                                {/* Valor (Apenas Desktop - pois no mobile já mostramos no topo) */}
+                                                <div className="hidden lg:flex justify-end items-center font-semibold text-slate-900">
+                                                  {formatCurrencyBRL(row.value)}
+                                                </div>
+
+                                                {/* Forma de Pagamento com Cores Dinâmicas (Com Parcelas) */}
+                                                <div className="flex lg:justify-end items-center mt-1 lg:mt-0">
+                                                  <span 
+                                                    className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold border ${getPaymentBadgeColor(row.payment)} border-transparent/10`}
+                                                  >
+                                                    {row.payment}
+                                                    {/* LÓGICA: Se for Crédito E tiver mais de 1 parcela, mostra (Nx) */}
+                                                    {row.payment.toLowerCase().includes("crédito") && (row as any).qtdParcelas > 1 && (
+                                                      <span className="ml-1 opacity-90 font-bold">
+                                                        ({(row as any).qtdParcelas}x)
+                                                      </span>
+                                                    )}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </AccordionContent>
+                                    </AccordionItem>
+                                  </Accordion>
+                                </Card>           
+                            {/* Footer spacing */}
+                            <div className="h-6" />
+                          </div>
+                        </div>
+                      ) : ( 
+                    /* -------------------------------------------------- */
+                    /* OPÇÃO 2: GESTÃO DE LANÇAMENTOS (NOVA TABELA)       */
+                    /* -------------------------------------------------- */
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-300">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                          <ListChecks className="w-6 h-6 text-emerald-600" />
+                          Gestão Financeira
+                        </h2>
+                      </div>
+                      {/* Tabela de Lançamentos */}
+                      <div className="mt-4">
+                      <TransactionsTable />
+                      </div>
+                    </div>
+              </div>
+            </div>
+          {/* MODAL GLOBAL */}
+          <NewTransactionModal 
+            isOpen={isNewTransactionModalOpen} 
+            onClose={() => setIsNewTransactionModalOpen(false)} 
+          />
+      </main>
+    </div>
+  )
+}

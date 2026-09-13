@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sevenn Clinic 360 · Teste de Envio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#004350', // Cor solicitada
+                        primaryHover: '#00333d',
+                    },
+                    borderRadius: {
+                        'card': '1.0rem', // Raio solicitado
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Animação de Loading */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #004350;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-slate-800 flex flex-col items-center py-10 px-4">
+
+    <div class="w-full max-w-[640px] mb-6 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <button onclick="history.back()" class="text-gray-500 hover:text-primary transition font-medium flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                Voltar
+            </button>
+            <img src="../images/resili-sevenn-logo.png" onerror="this.style.display='none'; document.getElementById('txt-logo').style.display='block'" alt="Sevenn Clinic" class="h-8 object-contain">
+            <span id="txt-logo" style="display:none" class="font-bold text-xl text-primary">Sevenn Clinic 360</span>
+        </div>
+        <h1 class="text-lg font-semibold text-gray-700 hidden sm:block">Enviar template no WhatsApp</h1>
+    </div>
+
+    <div class="w-full max-w-[640px] bg-white rounded-card shadow-sm border border-gray-200 p-6 sm:p-8">
+        
+        <div class="mb-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-1">Detalhes da mensagem</h2>
+            <p class="text-sm text-gray-500">Preencha os campos abaixo para enviar uma mensagemdde teste via WhatsApp Cloud API.</p>
+        </div>
+
+        <form id="whatsappForm" class="space-y-5">
+            
+
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Template</label>
+                <select type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
+                    <option value="hello_world" selected>hello_world </option>
+                    </select>
+                <p class="mt-1 text-xs text-gray-500">ID do número remetente (Cloud API).</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number ID</label>
+                <select id="phone_number_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
+                    <option value="1009940085529808" selected>1009940085529808 </option>
+                    </select>
+                <p class="mt-1 text-xs text-gray-500">ID do número remetente (Cloud API).</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Telefone do destinatário (Brasil)</label>
+                <input type="tel" id="to_phone" placeholder="(00) 00000-0000" maxlength="15" required
+                    class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5">
+                <p class="mt-1 text-xs text-gray-500">Digite o WhatsApp com DDD. O código do país (55) será adicionado automaticamente.</p>
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full text-white bg-primary hover:bg-primaryHover focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-3 text-center transition-all flex justify-center items-center gap-2">
+                <div class="loader" id="btnLoader"></div>
+                <span id="btnText">Enviar mensagem</span>
+            </button>
+        </form>
+    </div>
+
+    <div id="resultCard" class="hidden w-full max-w-[640px] mt-6 bg-white rounded-card shadow-sm border border-gray-200 p-6 transition-all">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Detalhes do envio</h3>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Payload Enviado</label>
+                <pre id="payloadPreview" class="bg-gray-50 p-3 rounded-md text-xs text-gray-700 overflow-x-auto border border-gray-200 font-mono"></pre>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Resposta do Webhook</label>
+                <pre id="responsePreview" class="bg-gray-50 p-3 rounded-md text-xs text-green-700 overflow-x-auto border border-gray-200 font-mono"></pre>
+            </div>
+        </div>
+    </div>´
+
+    <footer class="w-full max-w-[640px] mt-12 text-center text-sm text-gray-500 pb-4">
+        <div class="border-t border-gray-200 mb-6 w-1/3 mx-auto"></div>
+        <p class="mb-3">© 2026 Resili Sevenn Marketing. Todos os direitos reservados.</p>
+        <div class="flex flex-wrap justify-center gap-2 text-xs sm:gap-4">
+            <a href="https://www.resilisevenn.com.br/politica-de-privacidade.html" target="_blank" class="hover:text-primary transition-colors hover:underline">Política de Privacidade</a>
+            <span class="text-gray-300 hidden sm:inline">|</span>
+            <a href="https://www.resilisevenn.com.br/termos-de-uso.html" target="_blank" class="hover:text-primary transition-colors hover:underline">Termos de Uso</a>
+            <span class="text-gray-300 hidden sm:inline">|</span>
+            <a href="https://www.resilisevenn.com.br/exclusao-de-dados.html" target="_blank" class="hover:text-primary transition-colors hover:underline">Exclusão de Dados</a>
+        </div>
+    </footer>
+
+    <div id="toast" class="fixed top-5 right-5 flex items-center w-full max-w-xs p-4 space-x-4 text-gray-500 bg-white rounded-lg shadow dark:text-gray-400 dark:bg-gray-800 transition-opacity opacity-0 pointer-events-none" role="alert">
+        <div id="toastIcon" class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-green-500 bg-green-100 rounded-lg dark:bg-green-800 dark:text-green-200">
+            <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"/>
+            </svg>
+        </div>
+        <div class="pl-3 text-sm font-normal" id="toastMessage">Mensagem enviada com sucesso.</div>
+    </div>
+
+    <script>
+        // --- CONFIGURAÇÃO ---
+        // URL DO WEBHOOK DO N8N
+        const WEBHOOK_URL = 'https://n8n-n8n.wtgf7u.easypanel.host/webhook/8dc9649f-1356-4216-bf05-745732d6a937'; 
+
+        // --- MÁSCARA DE TELEFONE ---
+        const phoneInput = document.getElementById('to_phone');
+        phoneInput.addEventListener('input', function (e) {
+            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
+            e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+        });
+
+        // --- ENVIO DO FORMULÁRIO ---
+        document.getElementById('whatsappForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // UI Loading
+            const btn = document.getElementById('submitBtn');
+            const loader = document.getElementById('btnLoader');
+            const btnText = document.getElementById('btnText');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            loader.style.display = 'block';
+            btnText.textContent = 'Enviando...';
+            
+            // Preparar Dados
+            const phoneId = document.getElementById('phone_number_id').value;
+            const rawPhone = phoneInput.value.replace(/\D/g, ''); // Remove máscara
+            const template = 'hello_world';
+            
+
+
+            // Payload Estruturado (Igual ao Cloud API)
+            const payload = {
+                token: "tokeninternoR7",
+                messaging_product: "whatsapp",
+                from_phone_number_id: phoneId,
+                to: "55" + rawPhone, // Adiciona DDI Brasil
+                type: "template",
+                template: {
+                    name: template,
+                    language: { code: "en_US" }
+                },
+                debug: {
+                    ui_origin: "sevenn-clinic-app-test",
+                    sent_at: new Date().toISOString()
+                }
+            };
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                // Mostrar Sucesso
+                showToast('success', '✅ Mensagem enviada com sucesso!');
+                
+                // Mostrar Card de Debug
+                document.getElementById('resultCard').classList.remove('hidden');
+                document.getElementById('payloadPreview').textContent = JSON.stringify(payload, null, 2);
+                document.getElementById('responsePreview').textContent = JSON.stringify(result, null, 2);
+                
+                // Scroll suave até o resultado
+                setTimeout(() => {
+                    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+
+            } catch (error) {
+                console.error(error);
+                showToast('error', '❌ Falha ao conectar com o Webhook.');
+            } finally {
+                // Reset UI
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                loader.style.display = 'none';
+                btnText.textContent = 'Enviar mensagem';
+            }
+        });
+
+        // --- FUNÇÃO TOAST ---
+        function showToast(type, message) {
+            const toast = document.getElementById('toast');
+            const msg = document.getElementById('toastMessage');
+            
+            msg.textContent = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

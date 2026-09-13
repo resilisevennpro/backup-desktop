@@ -1,0 +1,222 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+// Configuração de CORS para permitir que o seu Front-end (React) chame esta função
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+serve(async (req) => {
+    // Responde ao "Preflight" do navegador
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders })
+    }
+
+    try {
+        const body = await req.json()
+        console.log("[SEND-WHATSAPP] Payload keys:", Object.keys(body).join(', '));
+
+        const { clinic_id, chat_id, lead_id, number, text, mediaUrl, base64, fileName, mediatype, client_id, mimeType } = body;
+
+        if (!clinic_id || !number) {
+            throw new Error(`Faltam parâmetros vitais (clinic_id: ${!!clinic_id}, number: ${!!number}).`)
+        }
+
+        if (!text && !mediaUrl && !base64) {
+            throw new Error("A mensagem deve conter texto, uma URL de mídia ou base64.")
+        }
+
+        // Client com auth do usuário (queries RLS)
+        const supabaseClient = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+        )
+
+        // Admin com service_role (Storage sem RLS)
+        const supabaseAdmin = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        )
+
+        // 1. Buscar instância WhatsApp ativa da clínica
+        const { data: connection, error: connError } = await supabaseClient
+            .from('whatsapp_connections')
+            .select('instance_name')
+            .eq('clinic_id', clinic_id)
+            .eq('status', 'connected')
+            .limit(1)
+            .maybeSingle()
+
+        if (connError || !connection?.instance_name) {
+            throw new Error("Clínica não possui uma instância do WhatsApp conectada.")
+        }
+
+        const instanceName = connection.instance_name
+        const evolutionUrl = Deno.env.get('EVOLUTION_API_URL')
+        const evolutionKey = Deno.env.get('EVOLUTION_API_KEY')
+
+        if (!evolutionUrl || !evolutionKey) {
+            throw new Error("Servidor não configurado com as chaves da Evolution.")
+        }
+
+        let evolutionRes: any = null;
+        let evolutionReq: any = null;
+        let finalMediaUrl: string | null = mediaUrl || null;
+
+        if (base64) {
+            // ENVIO SUPER-RÁPIDO POR BASE64 DIRETO NO PAYLOAD PARALELO AO UPLOAD
+            const actualMimeType = mimeType || (mediatype === 'audio' ? 'audio/webm' : 'image/png');
+            const fileExt = fileName?.split('.').pop() || (mediatype === 'audio' ? 'webm' : 'png');
+            const safeFileName = fileName || `mensagem_${Date.now()}.${fileExt}`;
+            const evolutionEndpoint = `${evolutionUrl}/message/sendMedia/${instanceName}`;
+
+            const payload = {
+                number: number,
+                media: base64,
+                fileName: safeFileName,
+                mediatype: mediatype || "audio",
+                caption: text || "",
+                ptt: mediatype === 'audio'
+            };
+
+            const [evResult, uploadResult] = await Promise.all([
+                fetch(evolutionEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+                    body: JSON.stringify(payload)
+                }).then(async r => ({ ok: r.ok, status: r.status, data: await r.json() })),
+
+                (async () => {
+                    try {
+                        const binaryStr = atob(base64);
+                        const bytes = new Uint8Array(binaryStr.length);
+                        for (let i = 0; i < binaryStr.length; i++) {
+                            bytes[i] = binaryStr.charCodeAt(i);
+                        }
+                        const filePath = `${clinic_id}/${chat_id || 'unknown'}/sent/${safeFileName}`;
+                        const { error, data } = await supabaseAdmin.storage.from('lead-images').upload(filePath, bytes, {
+                            contentType: actualMimeType,
+                            upsert: true
+                        });
+                        if (!error) {
+                            const { data: signedData } = await supabaseAdmin.storage
+                                .from('lead-images')
+                                .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+                            return signedData?.signedUrl;
+                        } else {
+                            console.error("[SEND-WHATSAPP] Storage upload error:", error);
+                        }
+                    } catch (e) {
+                        console.error("[SEND-WHATSAPP] Erro no upload storage base64:", e);
+                    }
+                    return null;
+                })()
+            ]);
+
+            evolutionReq = { ok: evResult.ok };
+            evolutionRes = evResult.data;
+            if (uploadResult) finalMediaUrl = uploadResult;
+
+        } else if (mediaUrl) {
+            // URL LEGADA DE MÍDIA
+            let finalMediaBase64 = mediaUrl;
+            try {
+                const reqMedia = await fetch(mediaUrl);
+                if (reqMedia.ok) {
+                    const arrayBuffer = await reqMedia.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    const binString = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+                    finalMediaBase64 = btoa(binString);
+                }
+            } catch (err) {
+                console.error("[ERRO_SEND-WHATSAPP] Exceção no download da mídia:", err);
+            }
+
+            const evolutionEndpoint = `${evolutionUrl}/message/sendMedia/${instanceName}`;
+            const payload = {
+                number: number,
+                media: finalMediaBase64,
+                fileName: fileName || "arquivo",
+                mediatype: mediatype || "image", // image, video, audio, document
+                caption: text || "",
+                ptt: mediatype === 'audio'
+            };
+
+            evolutionReq = await fetch(evolutionEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+                body: JSON.stringify(payload)
+            });
+            evolutionRes = await evolutionReq.json();
+
+        } else {
+            // TEXTO SIMPLES
+            const evolutionEndpoint = `${evolutionUrl}/message/sendText/${instanceName}`;
+            const payload = { number: number, text: text };
+            evolutionReq = await fetch(evolutionEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
+                body: JSON.stringify(payload)
+            });
+            evolutionRes = await evolutionReq.json();
+        }
+
+        if (!evolutionReq?.ok) {
+            throw new Error(`Erro na Evolution: ${JSON.stringify(evolutionRes)}`)
+        }
+
+        const responseId = evolutionRes.key?.id || evolutionRes.message?.key?.id || evolutionRes.messageId || evolutionRes.id || evolutionRes[0]?.key?.id || null;
+
+        const messagePayload = {
+            clinic_id,
+            chat_id: chat_id || null,
+            lead_id: (lead_id && lead_id !== chat_id) ? lead_id : null,
+            content: text || (mediatype === 'audio' ? '🎤 Áudio' : '📎 Mídia'),
+            sender: 'staff',
+            direction: 'clinica',
+            channel: 'whatsapp',
+            status: 'sent',
+            external_id: responseId,
+            metadata: {
+                type: mediatype === 'audio' ? 'audio' : (finalMediaUrl || base64) ? 'media' : 'text',
+                url: finalMediaUrl || undefined,
+                fileName: fileName || undefined,
+                fileType: mediatype || undefined,
+                client_id: client_id || undefined
+            }
+        };
+
+        const { error: insertError } = await supabaseClient
+            .from('messages')
+            .insert(messagePayload);
+
+        if (insertError) {
+            console.error("[SEND-WHATSAPP] Erro primário ao salvar no banco:", insertError);
+            if (insertError.code === '23503') {
+                console.log("[SEND-WHATSAPP] Tentando fallback (Foreign Key Violation) removendo lead_id...");
+                messagePayload.lead_id = null;
+                const { error: fallbackError } = await supabaseClient
+                    .from('messages')
+                    .insert(messagePayload);
+                if (fallbackError) {
+                    console.error("[SEND-WHATSAPP] Erro crítico no fallback do banco:", fallbackError);
+                } else {
+                    console.log("[SEND-WHATSAPP] Mensagem salva via fallback com sucesso.");
+                }
+            }
+        }
+
+        return new Response(
+            JSON.stringify({ success: true, messageId: responseId }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        )
+
+    } catch (error: any) {
+        console.error('[SEND-WHATSAPP] Erro geral:', error.message);
+        return new Response(
+            JSON.stringify({ success: false, error: error.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        )
+    }
+})

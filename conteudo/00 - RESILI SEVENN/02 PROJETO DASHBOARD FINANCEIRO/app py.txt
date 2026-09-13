@@ -1,0 +1,280 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import random
+from datetime import datetime, timedelta
+
+# --- CONFIGURATION & SETUP ---
+st.set_page_config(
+    page_title="Resili Sevenn - Dashboard Financeiro",
+    page_icon="🌿",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- COLORS ---
+RESILI_GREEN = "#59A52C"
+COLOR_PROFIT = RESILI_GREEN
+COLOR_COST = "#D9534F" # Soft Red
+COLOR_TAX = "#777777"   # Grey
+COLOR_NEUTRAL = "#EAEAEA"
+
+# --- LOGIN SIMULATION ---
+def check_password():
+    """Returns `True` if the user had the correct password."""
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["username"] == "admin" and st.session_state["password"] == "resili123":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # don't store password
+            del st.session_state["username"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # First run, show input for user.
+        with st.sidebar:
+            st.title("🔐 Login")
+            st.text_input("Usuário", key="username")
+            st.text_input("Senha", type="password", key="password")
+            st.button("Entrar", on_click=password_entered)
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error.
+        with st.sidebar:
+            st.title("🔐 Login")
+            st.text_input("Usuário", key="username")
+            st.text_input("Senha", type="password", key="password")
+            st.button("Entrar", on_click=password_entered)
+            st.error("Usuário ou senha incorretos com 'admin' / 'resili123'")
+        return False
+    else:
+        # Password correct.
+        return True
+
+if not check_password():
+    st.stop()
+
+# --- MOCK DATA GENERATION ---
+@st.cache_data
+def generate_data():
+    patients = ["Camila Silva", "Lucas Souza", "Mariana Lima", "Roberto Alves", "Fernanda Costa", 
+                "Paulo Santos", "Juliana Rocha", "Bruno Dias", "Patricia Gomes", "Ricardo Melo"]
+    procedures = {
+        "Faceta": 2500.0, 
+        "Botox": 1200.0, 
+        "Invisalign": 15000.0, 
+        "Preenchimento": 1800.0,
+        "Limpeza": 250.0
+    }
+    professionals = ["Dra. Ana [Dona]", "Dr. Pedro [Parceiro]", "Dra. Sofia [Parceiro]"]
+    payment_methods = ["Crédito 12x", "Débito", "Pix"]
+    
+    data = []
+    today = datetime.now()
+    # Spread dates across current month
+    start_date = today.replace(day=1)
+    
+    for _ in range(30):
+        proc_name, base_price = random.choice(list(procedures.items()))
+        # Vary price slightly
+        final_price = base_price * random.uniform(0.9, 1.1)
+        
+        item = {
+            "Data": start_date + timedelta(days=random.randint(0, 28)),
+            "Paciente": random.choice(patients),
+            "Procedimento": proc_name,
+            "Profissional": random.choice(professionals),
+            "Valor_Venda": round(final_price, 2),
+            "Forma_Pagamento": random.choice(payment_methods),
+            "Custo_Material_Lab": round(final_price * random.uniform(0.1, 0.2), 2) # Est. 10-20% cost
+        }
+        data.append(item)
+    
+    df = pd.DataFrame(data)
+    return df
+
+RAW_DF = generate_data()
+
+# --- BUSINESS LOGIC ---
+def calculate_metrics(df):
+    df_calc = df.copy()
+    
+    # 1. Taxa Maquininha
+    def get_taxa(row):
+        if row["Forma_Pagamento"] == "Crédito 12x": return 0.12
+        if row["Forma_Pagamento"] == "Débito": return 0.01
+        return 0.0 # Pix
+    
+    df_calc["Taxa_Perc"] = df_calc.apply(get_taxa, axis=1)
+    df_calc["Taxa_Maquininha"] = df_calc["Valor_Venda"] * df_calc["Taxa_Perc"]
+    
+    # 2. Imposto (6%)
+    df_calc["Imposto"] = df_calc["Valor_Venda"] * 0.06
+    
+    # 3. Comissão
+    def get_commission(row):
+        if "[Dona]" in row["Profissional"]:
+            return 0.0
+        elif "[Parceiro]" in row["Profissional"]:
+            base = row["Valor_Venda"] - row["Custo_Material_Lab"] - row["Imposto"]
+            return base * 0.30
+        return 0.0
+        
+    df_calc["Comissão"] = df_calc.apply(get_commission, axis=1)
+    
+    # 4. Lucro Líquido Real
+    df_calc["LUCRO_LIQUIDO_REAL"] = df_calc["Valor_Venda"] - (
+        df_calc["Custo_Material_Lab"] + 
+        df_calc["Taxa_Maquininha"] + 
+        df_calc["Imposto"] + 
+        df_calc["Comissão"]
+    )
+    
+    # 5. Data Recebimento (Simplificado)
+    # Pix = Same date, Debit = Same date (approx), Credit 12x = Split in 12 months
+    # For chart purposes, we will treat 'Recebimento' as projected cash flow
+    # This logic will be handled in the chart preparation to avoid exploding rows here
+    
+    return df_calc
+
+DF_WORK = calculate_metrics(RAW_DF)
+
+# --- SIDEBAR INPUTS ---
+with st.sidebar:
+    st.title("⚙️ Configurações")
+    st.markdown("---")
+    marketing_invest = st.number_input("Investimento em Marketing (Mês)", value=2000.0, step=100.0)
+    revenue_target = st.number_input("Meta de Faturamento", value=100000.0, step=1000.0)
+    
+    st.markdown("### Filtros Rápidos")
+    prof_filter = st.multiselect("Profissional", DF_WORK["Profissional"].unique(), default=DF_WORK["Profissional"].unique())
+    
+    # Filter Data
+    DF_FILTERED = DF_WORK[DF_WORK["Profissional"].isin(prof_filter)]
+
+# --- HEADER & GAMIFICATION ---
+st.markdown(f"<h1 style='color:{RESILI_GREEN};'>🌿 Resili Sevenn <span style='font-size:0.6em; color:gray'>| Dashboard Financeiro</span></h1>", unsafe_allow_html=True)
+
+start_date_disp = DF_FILTERED["Data"].min().strftime("%d/%m")
+end_date_disp = DF_FILTERED["Data"].max().strftime("%d/%m")
+st.markdown(f"**Período:** {start_date_disp} a {end_date_disp}")
+
+total_revenue = DF_FILTERED["Valor_Venda"].sum()
+progress = min(total_revenue / revenue_target, 1.0)
+
+st.markdown(f"### 🎯 Meta de Faturamento: R$ {total_revenue:,.2f} / R$ {revenue_target:,.2f}")
+st.progress(progress)
+
+if progress > 0.8:
+    st.balloons()
+    st.success("🚀 Parabéns! Você está voando e já atingiu mais de 80% da meta!")
+
+# --- KPIS ---
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+
+total_profit = DF_FILTERED["LUCRO_LIQUIDO_REAL"].sum()
+margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
+avg_ticket = total_revenue / len(DF_FILTERED) if len(DF_FILTERED) > 0 else 0
+
+kpi1.metric("Faturamento Bruto", f"R$ {total_revenue:,.2f}")
+kpi2.metric("Lucro Líquido Real", f"R$ {total_profit:,.2f}")
+kpi3.metric("Margem Líquida", f"{margin:.1f}%")
+kpi4.metric("Ticket Médio", f"R$ {avg_ticket:,.2f}")
+
+st.markdown("---")
+
+# --- TABS FOR ANALYSIS ---
+tab1, tab2, tab3 = st.tabs(["📊 Visão Geral", "💰 Fluxo & Sócios", "📢 Marketing & Clientes"])
+
+with tab1:
+    # 1. O Sócio Oculto (Treemap/Sunburst)
+    st.subheader("O Sócio Oculto: Para onde vai o dinheiro?")
+    
+    # Aggregation for the chart
+    sums = DF_FILTERED[["LUCRO_LIQUIDO_REAL", "Imposto", "Taxa_Maquininha", "Custo_Material_Lab", "Comissão"]].sum()
+    df_dist = pd.DataFrame({
+        "Categoria": ["Lucro Real (Seu)", "Imposto (Gov)", "Taxa Maquininha (Banco)", "Custo Material", "Comissões (Parceiros)"],
+        "Valor": [sums["LUCRO_LIQUIDO_REAL"], sums["Imposto"], sums["Taxa_Maquininha"], sums["Custo_Material_Lab"], sums["Comissão"]],
+        "Color_Group": ["Lucro", "Custo", "Custo", "Custo", "Custo"]
+    })
+    
+    # Custom colors mapping
+    color_map = {
+        "Lucro": RESILI_GREEN,
+        "Custo": "#D3D3D3" # Light Grey for others
+    }
+    
+    # To force specific colors for categories we can be more granular
+    fig_pie = px.pie(df_dist, values="Valor", names="Categoria", 
+                     color="Categoria",
+                     color_discrete_map={
+                         "Lucro Real (Seu)": RESILI_GREEN,
+                         "Imposto (Gov)": "#BEBEBE",
+                         "Taxa Maquininha (Banco)": "#A9A9A9",
+                         "Custo Material": "#808080",
+                         "Comissões (Parceiros)": "#696969"
+                     },
+                     hole=0.4)
+    fig_pie.update_layout(template="plotly_white")
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+with tab2:
+    # 2. Fluxo de Caixa (Projection)
+    st.subheader("Fluxo de Recebimentos Futuros (Projeção)")
+    
+    # Logic to explode payments
+    projection_data = []
+    
+    for idx, row in DF_FILTERED.iterrows():
+        val_liq = row["LUCRO_LIQUIDO_REAL"] # Assuming we track net flow, or should be sales? Usually Cash Flow tracks total inflow. Let's use Sales - Tax/Fees deducted at source if relevant, but let's stick to simple SALES inflow for validation.
+        # However, "Lucro Liquido" is better for "Real Money in Pocket". Let's use Net Profit for "Safe Cash Flow".
+        # But usually Cash Flow is Revenue.
+        # Request says "Recebíveis Futuros".
+        # Let's use: Valor_Venda - Taxas - Impostos immediately deducted?
+        # Let's project 'Valor_Venda' adjusted for 'Taxa'.
+        
+        amount_to_receive = row["Valor_Venda"] - row["Taxa_Maquininha"] # Bank takes its cut upfront mostly
+        
+        if row["Forma_Pagamento"] == "Crédito 12x":
+            installment = amount_to_receive / 12
+            for i in range(12):
+                date_p = row["Data"] + timedelta(days=30*i)
+                projection_data.append({"Data_Recebimento": date_p, "Valor": installment})
+        else:
+            # Pix/Debit -> Immediate (or D+1)
+            projection_data.append({"Data_Recebimento": row["Data"], "Valor": amount_to_receive})
+            
+    df_flow = pd.DataFrame(projection_data)
+    df_flow["Mes_Ano"] = df_flow["Data_Recebimento"].apply(lambda x: x.strftime("%Y-%m"))
+    
+    df_flow_agg = df_flow.groupby("Mes_Ano", as_index=False)["Valor"].sum()
+    
+    fig_bar = px.bar(df_flow_agg, x="Mes_Ano", y="Valor", text_auto=".2s", 
+                     color_discrete_sequence=[RESILI_GREEN])
+    fig_bar.update_layout(xaxis_title="Mês de Recebimento", yaxis_title="Valor a Receber (R$)", template="plotly_white")
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+with tab3:
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Métricas de Marketing")
+        unique_patients = DF_FILTERED["Paciente"].nunique()
+        cac = marketing_invest / unique_patients if unique_patients > 0 else 0
+        roi = (total_profit - marketing_invest) / marketing_invest if marketing_invest > 0 else 0
+        
+        st.metric("CAC (Custo por Paciente)", f"R$ {cac:,.2f}")
+        st.metric("ROI de Marketing", f"{roi:.2f}x")
+        
+        st.info("Nota: ROI calcula quantas vezes o lucro cobriu o investimento.")
+        
+    with col2:
+        st.subheader("🏆 Top 5 Pacientes (LTV)")
+        df_patients = DF_FILTERED.groupby("Paciente")[["Valor_Venda"]].sum().sort_values("Valor_Venda", ascending=False).head(5)
+        st.table(df_patients.style.format("R$ {:,.2f}"))
+
+# --- FOOTER ---
+st.markdown("---")
+st.caption("Resili Sevenn System - MVP v1.0 | Desenvolvido com Streamlit & Python")
+

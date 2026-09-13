@@ -1,0 +1,370 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { Loader2, Save, Building2, ChevronDown, ChevronUp, Lock, Check, X } from "lucide-react";
+import { StageMigrationModal } from "./StageMigrationModal";
+
+interface Stage {
+    id: string;
+    clinic_id: string;
+    pipeline_id: string;
+    name: string;
+    color: string;
+    position: number;
+    is_system_stage: boolean;
+    is_active: boolean;
+    leads_count?: number;
+}
+
+export function ClinicSettingsTab() {
+    const { clinic, profile } = useAuth();
+    const [vipThreshold, setVipThreshold] = useState<string>("");
+    const [loading, setLoading] = useState(false);
+    const [stages, setStages] = useState<Stage[]>([]);
+    const [loadingStages, setLoadingStages] = useState(false);
+
+    // Accordion State
+    const [openPipes, setOpenPipes] = useState<Record<string, boolean>>({
+        'vendas_principal': true,
+        'gestao_pacientes': false,
+        'nutricao': false
+    });
+
+    // Editing State
+    const [editingStageId, setEditingStageId] = useState<string | null>(null);
+    const [tempName, setTempName] = useState("");
+    const [tempColor, setTempColor] = useState("");
+
+    // Migration Modal State
+    const [migrationModalOpen, setMigrationModalOpen] = useState(false);
+    const [stageToDisable, setStageToDisable] = useState<Stage | null>(null);
+
+    const isSuperAdmin = profile?.role === 'superadmin';
+    const isOwnerOrManager = profile?.role === 'owner' || profile?.role === 'manager' || isSuperAdmin;
+
+    useEffect(() => {
+        if (clinic?.vip_ltv_threshold) {
+            setVipThreshold(String(clinic.vip_ltv_threshold));
+        } else {
+            setVipThreshold("10000");
+        }
+    }, [clinic]);
+
+    useEffect(() => {
+        if (clinic?.id) {
+            fetchStages();
+        }
+    }, [clinic?.id]);
+
+    const fetchStages = async () => {
+        if (!clinic?.id) return;
+        setLoadingStages(true);
+        try {
+            // 1. Fetch all stages
+            const { data: stagesData, error: stagesError } = await supabase
+                .from('pipeline_stages')
+                .select('*')
+                .eq('clinic_id', clinic.id)
+                .order('position', { ascending: true });
+
+            if (stagesError) throw stagesError;
+
+            // 2. Fetch leads (lightweight) for accurate per-stage counting
+            const { data: leadsData, error: leadsError } = await supabase
+                .from('leads')
+                .select('id, pipeline_stage_id')
+                .eq('clinic_id', clinic.id);
+
+            if (leadsError) throw leadsError;
+
+            // 3. Calculate counts per pipeline_stage_id
+            const counts: Record<string, number> = {};
+            leadsData?.forEach((lead: any) => {
+                const stageId = lead.pipeline_stage_id;
+                if (stageId) {
+                    counts[stageId] = (counts[stageId] || 0) + 1;
+                }
+            });
+
+            // 4. Merge counts into stages
+            const mapped: Stage[] = (stagesData || []).map((s: any) => ({
+                ...s,
+                leads_count: counts[s.id] || 0
+            }));
+
+            setStages(mapped);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao carregar etapas do CRM.");
+        } finally {
+            setLoadingStages(false);
+        }
+    };
+
+    const handleSaveVip = async () => {
+        if (!clinic?.id || !isOwnerOrManager) return;
+        setLoading(true);
+        try {
+            const threshold = parseFloat(vipThreshold.replace(/\D/g, ''));
+            const { error } = await supabase
+                .from('clinics')
+                .update({ vip_ltv_threshold: threshold })
+                .eq('id', clinic.id);
+            if (error) throw error;
+            toast.success("Configurações atualizadas com sucesso!");
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao salvar configurações.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleAccordion = (pipeId: string) => {
+        setOpenPipes(prev => ({ ...prev, [pipeId]: !prev[pipeId] }));
+    };
+
+    const startEditing = (stage: Stage) => {
+        if (!isOwnerOrManager) return;
+        setEditingStageId(stage.id);
+        setTempName(stage.name);
+        setTempColor(stage.color || "#000000");
+    };
+
+    const saveStageEdit = async () => {
+        if (!editingStageId || !tempName.trim()) return;
+        try {
+            const { error } = await supabase
+                .from('pipeline_stages')
+                .update({ name: tempName, color: tempColor })
+                .eq('id', editingStageId);
+
+            if (error) throw error;
+
+            setStages(prev => prev.map(s => s.id === editingStageId ? { ...s, name: tempName, color: tempColor } : s));
+            setEditingStageId(null);
+            toast.success("Etapa atualizada!");
+        } catch (error) {
+            toast.error("Erro ao atualizar etapa.");
+        }
+    };
+
+    const handleToggleActive = async (stage: Stage) => {
+        if (!isOwnerOrManager) return;
+
+        const newActiveState = !stage.is_active;
+
+        // If trying to deactivate and has leads, show migration modal
+        if (!newActiveState && (stage.leads_count || 0) > 0) {
+            setStageToDisable(stage);
+            setMigrationModalOpen(true);
+            return;
+        }
+
+        // Otherwise just toggle
+        try {
+            const { error } = await supabase
+                .from('pipeline_stages')
+                .update({ is_active: newActiveState })
+                .eq('id', stage.id);
+            if (error) throw error;
+
+            setStages(prev => prev.map(s => s.id === stage.id ? { ...s, is_active: newActiveState } : s));
+            toast.success(newActiveState ? "Etapa ativada!" : "Etapa desativada!");
+        } catch (error) {
+            toast.error("Erro ao alterar status da etapa.");
+        }
+    };
+
+    const handleMigrationConfirm = async (targetStageId: string) => {
+        if (!stageToDisable) return;
+        try {
+            // 1. Move leads to target stage
+            const { error: moveError } = await supabase
+                .from('leads')
+                .update({ pipeline_stage_id: targetStageId })
+                .eq('pipeline_stage_id', stageToDisable.id);
+
+            if (moveError) throw moveError;
+
+            // 2. Disable the stage
+            const { error: disableError } = await supabase
+                .from('pipeline_stages')
+                .update({ is_active: false })
+                .eq('id', stageToDisable.id);
+
+            if (disableError) throw disableError;
+
+            toast.success(`Leads migrados e etapa "${stageToDisable.name}" desativada.`);
+            fetchStages(); // Refresh counts
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro na migração.");
+            throw error;
+        }
+    };
+
+    const PIPELINES = [
+        { id: 'vendas_principal', label: 'Vendas (Oportunidades)', color: 'bg-blue-50 border-blue-200' },
+        { id: 'gestao_pacientes', label: 'Gestão (Ciclo de Vida)', color: 'bg-emerald-50 border-emerald-200' },
+        { id: 'nutricao', label: 'Nutrição (Resgate)', color: 'bg-amber-50 border-amber-200' }
+    ];
+
+    return (
+        <div className="grid gap-6">
+            {/* ── Card 1: Definições da Clínica ── */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-emerald-600" />
+                        Definições da Clínica
+                    </CardTitle>
+                    <CardDescription>
+                        Ajuste os parâmetros globais da sua unidade.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid gap-2">
+                        <label htmlFor="vip-threshold" className="text-sm font-medium leading-none">
+                            Valor Mínimo para Paciente VIP (LTV Acumulado)
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-slate-500">R$</span>
+                            <Input
+                                id="vip-threshold"
+                                type="number"
+                                placeholder="10000"
+                                value={vipThreshold}
+                                onChange={(e) => setVipThreshold(e.target.value)}
+                                className="max-w-[200px]"
+                                disabled={!isOwnerOrManager}
+                            />
+                        </div>
+                        <p className="text-[12px] text-slate-500">
+                            Pacientes com LTV superior a este valor receberão automaticamente o status <span className="font-bold text-amber-600">VIP (Diamante)</span>.
+                        </p>
+                        {isOwnerOrManager && (
+                            <div className="flex justify-end pt-2">
+                                <Button onClick={handleSaveVip} disabled={loading} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                    {loading && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                                    <Save className="mr-2 h-3 w-3" />
+                                    Salvar Alterações
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* ── Card 2: Estrutura de Processos (CRM) ── */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg font-medium">Estrutura de Processos (CRM)</CardTitle>
+                    <CardDescription>Personalize as etapas e cores dos seus funis de venda e gestão.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {loadingStages ? (
+                        <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                    ) : (
+                        <div className="space-y-2">
+                            {PIPELINES.map(pipe => {
+                                const pipeStages = stages.filter(s => s.pipeline_id === pipe.id);
+                                const isOpen = openPipes[pipe.id];
+
+                                return (
+                                    <div key={pipe.id} className={`border rounded-lg overflow-hidden ${isOpen ? 'bg-white' : 'bg-slate-50/50'}`}>
+                                        <button
+                                            onClick={() => toggleAccordion(pipe.id)}
+                                            className={`w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-slate-50 ${pipe.color}`}
+                                        >
+                                            <span className="font-semibold text-slate-800">{pipe.label}</span>
+                                            {isOpen ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+                                        </button>
+
+                                        {isOpen && (
+                                            <div className="p-4 bg-white space-y-2 animate-in slide-in-from-top-2">
+                                                {pipeStages.length === 0 && <p className="text-sm text-muted-foreground italic">Nenhuma etapa cadastrada.</p>}
+                                                {pipeStages.map(stage => (
+                                                    <div key={stage.id} className="flex items-center gap-3 p-3 border rounded-md group hover:border-slate-300 transition-colors">
+                                                        <div className="flex-1">
+                                                            {editingStageId === stage.id ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="color"
+                                                                            value={tempColor}
+                                                                            onChange={e => setTempColor(e.target.value)}
+                                                                            className="h-8 w-8 p-0 border-0 rounded cursor-pointer overflow-hidden opacity-0 absolute inset-0 z-10"
+                                                                        />
+                                                                        <div
+                                                                            className="w-4 h-4 rounded-full border border-slate-200 shadow-sm"
+                                                                            style={{ backgroundColor: tempColor }}
+                                                                        />
+                                                                    </div>
+                                                                    <Input
+                                                                        value={tempName}
+                                                                        onChange={e => setTempName(e.target.value)}
+                                                                        className="h-8 max-w-[300px]"
+                                                                        autoFocus
+                                                                    />
+                                                                    <Button size="sm" variant="ghost" onClick={saveStageEdit}><Check className="h-4 w-4 text-green-600" /></Button>
+                                                                    <Button size="sm" variant="ghost" onClick={() => setEditingStageId(null)}><X className="h-4 w-4 text-red-500" /></Button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div
+                                                                            className="w-3 h-3 rounded-full flex-shrink-0"
+                                                                            style={{ backgroundColor: stage.color || '#cbd5e1' }}
+                                                                        />
+                                                                        <div
+                                                                            className={`font-medium select-none flex items-center gap-2 ${isOwnerOrManager ? 'cursor-pointer hover:underline text-slate-700' : 'text-slate-500'}`}
+                                                                            onClick={() => startEditing(stage)}
+                                                                        >
+                                                                            {stage.name}
+                                                                            {stage.is_system_stage && <Lock className="h-3 w-3 text-slate-400" />}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-4">
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            {stage.leads_count || 0} leads ativos
+                                                                        </span>
+                                                                        <Switch
+                                                                            checked={stage.is_active}
+                                                                            onCheckedChange={() => handleToggleActive(stage)}
+                                                                            disabled={!isOwnerOrManager}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <StageMigrationModal
+                isOpen={migrationModalOpen}
+                onClose={() => {
+                    setMigrationModalOpen(false);
+                    setStageToDisable(null);
+                }}
+                stageToDisable={stageToDisable}
+                availableStages={stages.filter(s => s.pipeline_id === stageToDisable?.pipeline_id && s.id !== stageToDisable?.id && s.is_active)}
+                onConfirm={handleMigrationConfirm}
+            />
+        </div>
+    );
+}

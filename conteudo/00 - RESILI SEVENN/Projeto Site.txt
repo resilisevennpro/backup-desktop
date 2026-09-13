@@ -1,0 +1,14 @@
+Projeto Site
+
+
+FERRAMENTAS
+https://www.youtube.com/watch?v=qFhHrDKQ7Vk 
+- Extrator de Contatos
+- Disparo de Mensagens
+- Land-book.com (sites para inspiração)
+- Cria modelo base 
+- Dispara mensagens para leads com modelo base do site publicado
+- Se lead fechar, conecta o site no GitHub 
+- Pega o link do site no GitHub, baixa no PC e depois coloca no próprio projeto do cliente 
+
+Opicional: Abrir pasta no Terminal e dar um Git clone

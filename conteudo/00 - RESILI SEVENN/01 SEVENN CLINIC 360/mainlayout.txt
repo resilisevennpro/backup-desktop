@@ -1,0 +1,100 @@
+import { useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import { Menu, Moon, Sun, Bell } from "lucide-react";
+import { Sidebar } from "@/components/Sidebar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export default function MainLayout() {
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isDark, setIsDark] = useState(false);
+    const location = useLocation();
+
+    const getTitle = () => {
+        const path = location.pathname;
+        if (path === '/crm') return "Gestão de Oportunidades";
+        if (path === '/calendar') return "Agenda Clínica";
+        if (path === '/chat') return "Atendimento IA";
+        if (path === '/finance') return "Gestão Financeira";
+        if (path === '/settings') return "Configurações";
+        if (path === '/dashboard') return "Dashboard";
+        if (path.startsWith('/crm/')) return "Ficha do Lead";
+        return "Visão Geral";
+    };
+
+    const toggleTheme = () => {
+        const root = window.document.documentElement;
+        if (isDark) {
+            root.classList.remove("dark");
+        } else {
+            root.classList.add("dark");
+        }
+        setIsDark(!isDark);
+    };
+
+    return (
+        <div className="flex h-screen overflow-hidden bg-background">
+            {/* Sidebar Overlay for Mobile */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 z-40 bg-black/50 md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
+            <Sidebar
+                sidebarOpen={sidebarOpen}
+                setSidebarOpen={setSidebarOpen}
+                isCollapsed={isCollapsed}
+                toggleCollapse={() => setIsCollapsed(!isCollapsed)}
+            />
+
+            <div className="flex flex-1 flex-col overflow-hidden">
+                {/* Top Header */}
+                <header className="flex h-16 items-center justify-between border-b px-6 shadow-sm bg-background/95 backdrop-blur z-10 transition-colors">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="md:hidden"
+                            onClick={() => setSidebarOpen(true)}
+                        >
+                            <Menu className="h-6 w-6" />
+                        </Button>
+                        <div className="flex flex-col">
+                            <h2 className="text-lg font-semibold md:text-xl text-foreground">
+                                {getTitle()}
+                            </h2>
+                            {location.pathname === '/calendar' && (
+                                <p className="text-xs text-muted-foreground hidden md:block -mt-1">
+                                    Organize consultas e procedimentos de forma inteligente e integrada.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                            <Bell className="h-5 w-5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+                            {isDark ? (
+                                <Sun className="h-5 w-5 text-yellow-400" />
+                            ) : (
+                                <Moon className="h-5 w-5 text-slate-700" />
+                            )}
+                        </Button>
+                    </div>
+                </header>
+
+                {/* Main Content Area */}
+                <main className={cn("flex-1 overflow-y-auto scroll-smooth",
+                    location.pathname.startsWith('/crm/') && location.pathname !== '/crm' ? "p-0" : "p-2 md:p-3"
+                )}>
+                    <Outlet />
+                </main>
+            </div>
+        </div>
+    );
+}

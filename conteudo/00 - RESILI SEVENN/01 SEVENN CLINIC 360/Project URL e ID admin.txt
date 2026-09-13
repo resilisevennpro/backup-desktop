@@ -1,0 +1,24 @@
+Project URL https://degdbpstlcrmpibtqwiy.supabase.co
+Anon Key
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlZ2RicHN0bGNybXBpYnRxd2l5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMjA1NzQsImV4cCI6MjA4NDY5NjU3NH0.tqywMZw_-ZvM6loFM8VOgfgFJrISsvIeD_LxvN64wvQ
+
+
+uiid Clínica 
+- b8380180-793d-4255-a32d-69e5683b2c9d
+
+uiid Usuário (Jackson.gabriellr@gmail.com)
+- 0e5e58f9-3301-46a1-8abb-7908e78e0f40
+
+
+INSERT INTO profiles (id, tenant_id, full_name, role) 
+VALUES (
+    'UUID_DO_NOVO_USUARIO',
+    'UUID_DO_TENANT',
+    'Maria Secretária',
+    'staff'
+);
+
+
+
+

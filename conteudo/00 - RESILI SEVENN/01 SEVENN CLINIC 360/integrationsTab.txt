@@ -1,0 +1,735 @@
+import { useState, useEffect } from "react";
+import {
+    QrCode,
+    MessageCircle,
+    Instagram,
+    Calendar,
+    Bot,
+    Sparkles,
+    BrainCircuit,
+    Settings,
+    PlusCircle,
+    CheckCircle2,
+    ChevronDown,
+    Smartphone,
+    Laptop,
+    RefreshCcw,
+    Loader2
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+
+// Tipagem para os nossos cards
+type IntegrationStatus = 'connected' | 'disconnected';
+
+interface IntegrationOption {
+    id: string;
+    provider: string;
+    name: string;
+    description: string;
+    icon: React.ElementType;
+    status: IntegrationStatus;
+    category: 'comunicacao' | 'agendamento' | 'llm';
+}
+
+export function IntegrationsTab() {
+    const { profile } = useAuth();
+    const [selectedIntegration, setSelectedIntegration] = useState<IntegrationOption | null>(null);
+    const [expandedCategories, setExpandedCategories] = useState<string[]>(['comunicacao', 'llm', 'agendamento']);
+
+    // --- Novos Estados para Conexão WhatsApp ---
+    const [step, setStep] = useState<'list' | 'name' | 'method' | 'qr' | 'phone_code'>('list');
+    const [connectionName, setConnectionName] = useState('');
+    const [currentIntegrationId, setCurrentIntegrationId] = useState<string | null>(null);
+    const [instanceName, setInstanceName] = useState<string | null>(null);
+    const [activeIntegrations, setActiveIntegrations] = useState<any[]>([]);
+    const [connectedWhatsapps, setConnectedWhatsapps] = useState<any[]>([]);
+    const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+    const [disconnectText, setDisconnectText] = useState('');
+
+    const [connectionMethod, setConnectionMethod] = useState<'qr' | 'phone_code' | null>(null);
+    const [selectedDevice, setSelectedDevice] = useState<'android' | 'ios' | null>(null);
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
+    const [pairingCode, setPairingCode] = useState<string | null>(null);
+    const [isLoadingConnection, setIsLoadingConnection] = useState(false);
+    const [connectionError, setConnectionError] = useState<string | null>(null);
+    const [qrCountdown, setQrCountdown] = useState<number>(0);
+    const [isSuccess, setIsSuccess] = useState(false);
+    const [isQrExpired, setIsQrExpired] = useState(false);
+
+    // Mover a lista para state para permitir atualização visual
+    const [integrationsList, setIntegrationsList] = useState<IntegrationOption[]>([
+        {
+            id: '1', provider: 'whatsapp_web', category: 'comunicacao',
+            name: 'WhatsApp Web Multi-Dispositivo',
+            description: 'Conecte múltiplos números de WhatsApp da sua recepção e especialistas.',
+            icon: QrCode, status: 'disconnected'
+        },
+        {
+            id: '2', provider: 'whatsapp_official', category: 'comunicacao',
+            name: 'WhatsApp Oficial (API)',
+            description: 'Conexão oficial da Meta com selo de verificação e estabilidade.',
+            icon: MessageCircle, status: 'connected'
+        },
+        {
+            id: '3', provider: 'instagram', category: 'comunicacao',
+            name: 'Instagram Direct',
+            description: 'Responda directs e comentários dos seus pacientes pelo CRM.',
+            icon: Instagram, status: 'disconnected'
+        },
+        {
+            id: '4', provider: 'google_calendar', category: 'agendamento',
+            name: 'Google Agenda',
+            description: 'Sincronize os agendamentos do CRM com a agenda do Google.',
+            icon: Calendar, status: 'disconnected'
+        },
+        {
+            id: '5', provider: 'openai', category: 'llm',
+            name: 'OpenAI (GPT)',
+            description: 'Conecte sua chave da OpenAI para usar os modelos GPT-4 e GPT-3.5.',
+            icon: Bot, status: 'disconnected'
+        },
+        {
+            id: '6', provider: 'anthropic', category: 'llm',
+            name: 'Anthropic (Claude)',
+            description: 'Utilize o modelo Claude para respostas mais naturais e humanizadas.',
+            icon: BrainCircuit, status: 'disconnected'
+        },
+        {
+            id: '7', provider: 'gemini', category: 'llm',
+            name: 'Google Gemini',
+            description: 'Integre a inteligência artificial nativa do ecossistema Google.',
+            icon: Sparkles, status: 'disconnected'
+        }
+    ]);
+
+    const fetchIntegrations = async () => {
+        if (!profile?.clinic_id) return;
+        try {
+            // Buscar integrações gerais (Google, OpenAI, etc)
+            const { data: generalData, error: generalError } = await supabase
+                .from('clinic_integrations')
+                .select('*')
+                .eq('clinic_id', profile.clinic_id);
+
+            // Buscar conexões de WhatsApp da nova tabela específica
+            const { data: whatsappData, error: whatsappError } = await supabase
+                .from('whatsapp_connections')
+                .select('*')
+                .eq('clinic_id', profile.clinic_id);
+
+            if (generalError) throw generalError;
+            if (whatsappError) throw whatsappError;
+
+            setConnectedWhatsapps(whatsappData || []);
+
+            setActiveIntegrations(generalData || []);
+
+            // Atualiza o status visual na lista principal de cards
+            setIntegrationsList(prev => prev.map(item => {
+                let hasActive = false;
+                if (item.provider === 'whatsapp_web') {
+                    hasActive = (whatsappData || []).some(w => w.status === 'connected');
+                } else {
+                    hasActive = (generalData || []).some(ai => ai.provider === item.provider && ai.status === 'connected');
+                }
+                return { ...item, status: hasActive ? 'connected' : 'disconnected' };
+            }));
+        } catch (err) {
+            console.error("Erro ao buscar integrações:", err);
+        }
+    };
+
+    useEffect(() => {
+        fetchIntegrations();
+    }, [profile?.clinic_id]);
+
+    const resetStates = () => {
+        setStep('list');
+        setConnectionName('');
+        setCurrentIntegrationId(null);
+        setInstanceName(null);
+        setConnectionMethod(null);
+        setSelectedDevice(null);
+        setPhoneNumber('');
+        setQrCodeImage(null);
+        setPairingCode(null);
+        setIsLoadingConnection(false);
+        setConnectionError(null);
+        setQrCountdown(0);
+        setIsSuccess(false);
+        setSelectedIntegration(null);
+        setDisconnectingId(null);
+        setDisconnectText('');
+        setIsQrExpired(false);
+    };
+
+    const handleConnectWhatsapp = async (methodOverride?: 'qr' | 'phone_code') => {
+        const method = methodOverride || connectionMethod;
+        if (!profile?.clinic_id || !method || !connectionName) {
+            toast.error("Preencha o nome da conexão e escolha um método.");
+            return;
+        }
+
+        setIsLoadingConnection(true);
+        setConnectionError(null);
+        setIsQrExpired(false);
+
+        try {
+            const { data, error } = await supabase.functions.invoke('whatsapp-connect', {
+                body: {
+                    clinic_id: profile.clinic_id,
+                    method: method,
+                    phone: phoneNumber,
+                    connection_name: connectionName
+                }
+            });
+
+            if (error) throw error;
+
+            if (data.integration_id) setCurrentIntegrationId(data.integration_id);
+            if (data.instanceName) setInstanceName(data.instanceName);
+
+            if (data.qrCode) {
+                setQrCodeImage(data.qrCode);
+                setQrCountdown(30);
+                setStep('qr');
+            }
+            if (data.pairingCode) {
+                setPairingCode(data.pairingCode);
+                setStep('phone_code');
+            }
+        } catch (err: any) {
+            console.error("Erro ao conectar WhatsApp:", err);
+            setConnectionError(err.message || "Erro ao gerar conexão.");
+            toast.error("Erro na conexão com o servidor.");
+        } finally {
+            setIsLoadingConnection(false);
+        }
+    };
+
+    const handleReloadQrCode = async () => {
+        if (!currentIntegrationId || !instanceName) return;
+
+        setIsLoadingConnection(true);
+        try {
+            // 1. Limpa a instância atual pendente
+            await supabase.functions.invoke('whatsapp-connect', {
+                body: {
+                    clinic_id: profile?.clinic_id,
+                    action: 'disconnect',
+                    integration_id: currentIntegrationId,
+                    instanceName: instanceName
+                }
+            });
+
+            // 2. Inicia um novo ciclo
+            setIsQrExpired(false);
+            await handleConnectWhatsapp('qr');
+        } catch (err) {
+            console.error("Erro ao recarregar QR:", err);
+            toast.error("Erro ao recarregar QR Code.");
+        } finally {
+            setIsLoadingConnection(false);
+        }
+    };
+
+    const handleDisconnectWhatsapp = async (integrationId: string, instName: string) => {
+        if (!profile?.clinic_id) return;
+
+        setIsLoadingConnection(true);
+        try {
+            const { error } = await supabase.functions.invoke('whatsapp-connect', {
+                body: {
+                    clinic_id: profile.clinic_id,
+                    action: 'disconnect',
+                    integration_id: integrationId,
+                    instanceName: instName
+                }
+            });
+
+            if (error) throw error;
+
+            await fetchIntegrations();
+            toast.success("WhatsApp desconectado com sucesso.");
+        } catch (err: any) {
+            console.error("Erro ao desconectar WhatsApp:", err);
+            toast.error("Erro ao desconectar WhatsApp.");
+        } finally {
+            setIsLoadingConnection(false);
+        }
+    };
+
+    // --- Radar (Polling) de conexão ---
+    useEffect(() => {
+        if ((!qrCodeImage && !pairingCode) || isSuccess || !currentIntegrationId || !instanceName) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const { data } = await supabase.functions.invoke('whatsapp-connect', {
+                    body: {
+                        clinic_id: profile?.clinic_id,
+                        action: 'status',
+                        integration_id: currentIntegrationId,
+                        instanceName: instanceName
+                    }
+                });
+
+                if (data?.connected) {
+                    clearInterval(interval);
+                    setIsSuccess(true);
+
+                    // Espera 3 segundos, atualiza a lista e volta para o step list
+                    setTimeout(async () => {
+                        await fetchIntegrations();
+                        setIsSuccess(false);
+                        setStep('list');
+                        // Limpa estados de conexão para permitir nova conexão se necessário
+                        setQrCodeImage(null);
+                        setPairingCode(null);
+                        setQrCountdown(0);
+                    }, 3000);
+                }
+            } catch (err) {
+                console.error("Erro no polling:", err);
+            }
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [qrCodeImage, pairingCode, isSuccess, currentIntegrationId, instanceName]);
+
+    // Contador e auto-reload do QR Code
+    useEffect(() => {
+        let timer: any;
+        if (qrCountdown > 0 && qrCodeImage && !isSuccess && !isQrExpired) {
+            timer = setTimeout(() => {
+                setQrCountdown(prev => prev - 1);
+            }, 1000);
+        } else if (qrCountdown === 0 && qrCodeImage && !isLoadingConnection && !isSuccess && !isQrExpired) {
+            setIsQrExpired(true);
+        }
+
+        return () => clearTimeout(timer);
+    }, [qrCountdown, qrCodeImage, isSuccess, isQrExpired, isLoadingConnection]);
+
+    // Dispara a função automaticamente no fluxo QR Code quando o dispositivo é escolhido
+    useEffect(() => {
+        if (connectionMethod === 'qr' && selectedDevice && !qrCodeImage && !isLoadingConnection) {
+            handleConnectWhatsapp('qr');
+        }
+    }, [connectionMethod, selectedDevice]);
+
+    const toggleCategory = (categoryId: string) => {
+        setExpandedCategories(prev =>
+            prev.includes(categoryId)
+                ? prev.filter(id => id !== categoryId)
+                : [...prev, categoryId]
+        );
+    };
+
+    const renderCategory = (title: string, categoryId: 'comunicacao' | 'agendamento' | 'llm') => {
+        const items = integrationsList.filter(i => i.category === categoryId);
+        if (items.length === 0) return null;
+
+        const isOpen = expandedCategories.includes(categoryId);
+
+        return (
+            <div className="border border-slate-200 rounded-xl bg-slate-50 shadow-sm overflow-hidden mb-6">
+                <button
+                    onClick={() => toggleCategory(categoryId)}
+                    className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-100/50 transition-colors"
+                >
+                    <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
+                    <ChevronDown className={cn("w-5 h-5 text-emerald-600 transition-transform duration-200", isOpen && "rotate-180")} />
+                </button>
+
+                {isOpen && (
+                    <div className="px-6 pb-6 pt-2 border-t border-slate-200 animate-in fade-in duration-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {items.map((item) => {
+                                const Icon = item.icon;
+                                const isConnected = item.status === 'connected';
+
+                                return (
+                                    <div key={item.id} className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className={`p-2 rounded-lg ${isConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
+                                                <Icon className="w-6 h-6" />
+                                            </div>
+                                            <Badge variant="outline" className={isConnected ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-zinc-50 text-zinc-500 border-zinc-200"}>
+                                                {isConnected ? (
+                                                    <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Conectado</span>
+                                                ) : 'Não configurado'}
+                                            </Badge>
+                                        </div>
+
+                                        <div className="flex-1">
+                                            <h4 className="font-semibold text-zinc-900 mb-1">{item.name}</h4>
+                                            <p className="text-sm text-zinc-500 leading-relaxed">
+                                                {item.description}
+                                            </p>
+                                        </div>
+
+                                        <div className="mt-6 pt-4 border-t border-zinc-100">
+                                            <Button
+                                                variant={isConnected ? "outline" : "default"}
+                                                className={isConnected ? "w-full text-zinc-700 bg-white hover:bg-zinc-50" : "w-full bg-slate-900 hover:bg-slate-800 text-white"}
+                                                onClick={() => setSelectedIntegration(item)}
+                                            >
+                                                {isConnected ? <Settings className="w-4 h-4 mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
+                                                {isConnected ? 'Gerenciar' : 'Conectar'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div className="p-6 max-w-6xl mx-auto">
+            {/* Cabeçalho da Página */}
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-zinc-900">Integrações</h1>
+                <p className="text-zinc-500 mt-1">
+                    Conecte sua clínica aos melhores canais, agendas e inteligências artificiais.
+                </p>
+            </div>
+
+            {/* Categorias */}
+            <div className="space-y-4">
+                {renderCategory('Canais de Comunicação', 'comunicacao')}
+                {renderCategory('Inteligência Artificial (LLM)', 'llm')}
+                {renderCategory('Agendamento', 'agendamento')}
+            </div>
+
+            {/* Modal de Configuração */}
+            <Dialog open={!!selectedIntegration} onOpenChange={(open) => !open && resetStates()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Configurar {selectedIntegration?.name}</DialogTitle>
+                        <DialogDescription>
+                            {step === 'list' && "Veja suas conexões ativas ou adicione uma nova."}
+                            {step === 'name' && "Dê um nome identicador para esta conexão."}
+                            {step === 'method' && "Como você deseja realizar a conexão?"}
+                            {(step === 'qr' || step === 'phone_code') && "Siga as instruções para finalizar a conexão."}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-4">
+                        {selectedIntegration?.provider === 'whatsapp_web' ? (
+                            <div className="space-y-6">
+                                {isSuccess ? (
+                                    <div className="flex flex-col items-center justify-center py-10 space-y-4 animate-in zoom-in-95 duration-500">
+                                        <div className="bg-emerald-100 p-4 rounded-full">
+                                            <CheckCircle2 className="w-16 h-16 text-emerald-600 animate-bounce" />
+                                        </div>
+                                        <div className="text-center">
+                                            <h3 className="text-xl font-bold text-zinc-900">Conectado com Sucesso!</h3>
+                                            <p className="text-sm text-zinc-500 mt-1">Este WhatsApp agora está ativo e disponível.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* ETAPA: LISTA DE CONEXÕES */}
+                                        {step === 'list' && (
+                                            <div className="space-y-4">
+                                                <div className="max-h-[300px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-zinc-200">
+                                                    {connectedWhatsapps.filter(i => i.status === 'connected').length > 0 ? (
+                                                        connectedWhatsapps
+                                                            .filter(i => i.status === 'connected')
+                                                            .map((conn) => (
+                                                                <div key={conn.id} className={cn(
+                                                                    "p-4 bg-white border rounded-xl shadow-sm transition-all overflow-hidden",
+                                                                    disconnectingId === conn.id ? "border-red-200 bg-red-50/30" : "border-zinc-200"
+                                                                )}>
+                                                                    {disconnectingId === conn.id ? (
+                                                                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                                                            <div className="flex items-start gap-3">
+                                                                                <div className="bg-red-100 p-2 rounded-lg text-red-600">
+                                                                                    <RefreshCcw className="w-5 h-5 animate-spin" />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-bold text-red-800">Confirmar Desconexão</p>
+                                                                                    <p className="text-[11px] text-red-600 leading-tight">Para confirmar a remoção de <b>{conn.connection_name}</b>, digite <b>DESCONECTAR</b> abaixo:</p>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <Input
+                                                                                className="h-9 border-red-200 focus-visible:ring-red-500 bg-white"
+                                                                                placeholder="Digite aqui..."
+                                                                                value={disconnectText}
+                                                                                onChange={(e) => setDisconnectText(e.target.value)}
+                                                                                autoFocus
+                                                                            />
+
+                                                                            <div className="flex gap-2">
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="flex-1 h-8 text-zinc-500"
+                                                                                    onClick={() => setDisconnectingId(null)}
+                                                                                >
+                                                                                    Cancelar
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="destructive"
+                                                                                    size="sm"
+                                                                                    className="flex-1 h-8"
+                                                                                    disabled={disconnectText.toUpperCase() !== 'DESCONECTAR' || isLoadingConnection}
+                                                                                    onClick={() => {
+                                                                                        handleDisconnectWhatsapp(conn.id, conn.instance_name);
+                                                                                        setDisconnectingId(null);
+                                                                                        setDisconnectText('');
+                                                                                    }}
+                                                                                >
+                                                                                    {isLoadingConnection ? <Loader2 className="w-3 h-3 animate-spin" /> : "Confirmar Exclusão"}
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex items-center justify-between">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="bg-emerald-50 p-2 rounded-lg">
+                                                                                    <Smartphone className="w-5 h-5 text-emerald-600" />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-bold text-zinc-900">{conn.connection_name || "Conexão s/ nome"}</p>
+                                                                                    <p className="text-xs text-zinc-500 font-mono">+{conn.phone_number || "Aguardando número..."}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-3"
+                                                                                onClick={() => {
+                                                                                    setDisconnectingId(conn.id);
+                                                                                    setDisconnectText('');
+                                                                                }}
+                                                                                disabled={isLoadingConnection}
+                                                                            >
+                                                                                {isLoadingConnection ? <Loader2 className="w-3 h-3 animate-spin" /> : "Desconectar"}
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))
+                                                    ) : (
+                                                        <div className="text-center py-8 text-zinc-400 border border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
+                                                            <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                            <p className="text-sm">Nenhuma conexão ativa.</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    className="w-full bg-slate-900 border-slate-900 hover:bg-slate-800"
+                                                    onClick={() => setStep('name')}
+                                                >
+                                                    <PlusCircle className="w-4 h-4 mr-2" />
+                                                    Adicionar Novo WhatsApp
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        {/* ETAPA: NOME DA CONEXÃO */}
+                                        {step === 'name' && (
+                                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="conn-name">Nome para esta conexão</Label>
+                                                    <Input
+                                                        id="conn-name"
+                                                        placeholder="Ex: Recepção, Consultório 01..."
+                                                        value={connectionName}
+                                                        onChange={(e) => setConnectionName(e.target.value)}
+                                                        autoFocus
+                                                    />
+                                                    <p className="text-[10px] text-zinc-500 italic">Este nome ajuda você a identificar qual aparelho está enviando mensagens.</p>
+                                                </div>
+                                                <div className="flex gap-2 pt-2">
+                                                    <Button variant="outline" className="flex-1" onClick={() => setStep('list')}>Voltar</Button>
+                                                    <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700" disabled={!connectionName.trim()} onClick={() => setStep('method')}>Avançar</Button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* ETAPA: MÉTODO DE CONEXÃO */}
+                                        {step === 'method' && (
+                                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-right-4">
+                                                <Button
+                                                    variant="outline"
+                                                    className="h-32 flex flex-col gap-3 border-zinc-200 hover:border-emerald-600 hover:bg-emerald-50 group"
+                                                    onClick={() => {
+                                                        setConnectionMethod('qr');
+                                                        setStep('qr');
+                                                    }}
+                                                >
+                                                    <Laptop className="w-8 h-8 text-zinc-400 group-hover:text-emerald-600" />
+                                                    <span className="text-xs font-semibold">Computador (QR Code)</span>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    className="h-32 flex flex-col gap-3 border-zinc-200 hover:border-emerald-600 hover:bg-emerald-50 group"
+                                                    onClick={() => {
+                                                        setConnectionMethod('phone_code');
+                                                        setStep('phone_code');
+                                                    }}
+                                                >
+                                                    <Smartphone className="w-8 h-8 text-zinc-400 group-hover:text-emerald-600" />
+                                                    <span className="text-xs font-semibold">Celular (Código)</span>
+                                                </Button>
+                                                <Button variant="link" size="sm" className="col-span-2 text-zinc-400 h-6" onClick={() => setStep('name')}>Voltar</Button>
+                                            </div>
+                                        )}
+
+                                        {/* ETAPA: QR CODE */}
+                                        {step === 'qr' && (
+                                            <div className="flex flex-col items-center text-center space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                                {selectedDevice === null ? (
+                                                    <>
+                                                        <p className="text-sm font-medium text-zinc-700">Qual o sistema do seu celular?</p>
+                                                        <div className="flex gap-3 w-full">
+                                                            <Button variant="outline" className="flex-1" onClick={() => setSelectedDevice('android')}>Android</Button>
+                                                            <Button variant="outline" className="flex-1" onClick={() => setSelectedDevice('ios')}>iPhone</Button>
+                                                        </div>
+                                                        <Button variant="link" size="sm" className="text-zinc-400" onClick={() => setStep('method')}>Voltar</Button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {isLoadingConnection ? (
+                                                            <div className="flex flex-col items-center py-10 space-y-3">
+                                                                <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+                                                                <p className="text-sm text-zinc-500">Gerando QR Code...</p>
+                                                            </div>
+                                                        ) : qrCodeImage ? (
+                                                            <>
+                                                                <div className="relative group">
+                                                                    <div className={cn(
+                                                                        "flex justify-center p-4 bg-white rounded-lg border border-slate-200 transition-all duration-300",
+                                                                        isQrExpired && "blur-sm opacity-20"
+                                                                    )}>
+                                                                        <img src={qrCodeImage.startsWith('data:') ? qrCodeImage : `data:image/png;base64,${qrCodeImage}`} alt="QR Code" className="w-56 h-56 object-contain" />
+                                                                    </div>
+
+                                                                    {isQrExpired && (
+                                                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/10 animate-in fade-in zoom-in-95">
+                                                                            <Button
+                                                                                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg group"
+                                                                                onClick={handleReloadQrCode}
+                                                                                disabled={isLoadingConnection}
+                                                                            >
+                                                                                {isLoadingConnection ? (
+                                                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                                ) : (
+                                                                                    <RefreshCcw className="w-4 h-4 mr-2 group-hover:rotate-180 transition-transform duration-500" />
+                                                                                )}
+                                                                                Recarregar QR Code
+                                                                            </Button>
+                                                                            <p className="text-[10px] text-zinc-500 mt-2">O código anterior expirou por segurança.</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {!isQrExpired && (
+                                                                    <div className="flex items-center gap-2 text-xs text-zinc-500 animate-in fade-in">
+                                                                        <RefreshCcw className="w-3 h-3 animate-spin" style={{ animationDuration: '3s' }} />
+                                                                        Atualizando em {qrCountdown}s
+                                                                    </div>
+                                                                )}
+                                                                <div className="space-y-2 text-left bg-zinc-50 p-4 rounded-lg border border-zinc-100 w-full">
+                                                                    <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider italic">Instruções:</p>
+                                                                    <ol className="text-[11px] text-zinc-600 space-y-1 list-decimal ml-4">
+                                                                        <li>Abra o WhatsApp</li>
+                                                                        <li>Vá em <b>{selectedDevice === 'ios' ? 'Configurações' : 'Aparelhos Conectados'}</b></li>
+                                                                        <li>Escaneie este código</li>
+                                                                    </ol>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="py-10 text-rose-500 text-sm text-center">
+                                                                <p>{connectionError || "Erro ao carregar QR Code."}</p>
+                                                                <Button variant="outline" size="sm" className="mt-4" onClick={() => handleConnectWhatsapp('qr')}>Tentar Novamente</Button>
+                                                            </div>
+                                                        )}
+                                                        <Button variant="link" size="sm" className="text-zinc-400" onClick={() => setSelectedDevice(null)}>Alterar Dispositivo</Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* ETAPA: CÓDIGO PAIRING */}
+                                        {step === 'phone_code' && (
+                                            <div className="flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                                {!pairingCode ? (
+                                                    <div className="space-y-4">
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="phone">Número do WhatsApp (DDI + DDD + NÚMERO)</Label>
+                                                            <Input
+                                                                id="phone"
+                                                                placeholder="5548999990000"
+                                                                value={phoneNumber}
+                                                                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                                                            />
+                                                        </div>
+                                                        <Button
+                                                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                            onClick={() => handleConnectWhatsapp('phone_code')}
+                                                            disabled={isLoadingConnection || phoneNumber.length < 10}
+                                                        >
+                                                            {isLoadingConnection ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
+                                                            Gerar Código no Celular
+                                                        </Button>
+                                                        <Button variant="link" size="sm" className="w-full text-zinc-400" onClick={() => setStep('method')}>Voltar</Button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center space-y-4">
+                                                        <div className="text-center p-8 bg-zinc-50 rounded-2xl border border-zinc-200 mt-4 w-full">
+                                                            <h3 className="text-5xl font-mono font-black tracking-[0.2em] text-emerald-800">{pairingCode}</h3>
+                                                            <p className="text-sm text-zinc-500 mt-4">Digite este código na notificação de pareamento recebida no seu celular.</p>
+                                                        </div>
+                                                        <div className="space-y-2 text-left bg-zinc-50 p-4 rounded-lg border border-zinc-100 w-full">
+                                                            <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider italic">Como fazer:</p>
+                                                            <ol className="text-[11px] text-zinc-600 space-y-1 list-decimal ml-4">
+                                                                <li>Clique na notificação do WhatsApp ou vá em Dispositivos Conectados</li>
+                                                                <li>Escolha "Conectar com número de telefone"</li>
+                                                                <li>Insira o código acima</li>
+                                                            </ol>
+                                                        </div>
+                                                        <Button variant="link" size="sm" className="text-zinc-400" onClick={() => setPairingCode(null)}>Alterar número</Button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="py-6 flex flex-col items-center justify-center text-zinc-500 bg-zinc-50 rounded-lg border border-dashed border-zinc-200">
+                                {selectedIntegration && (() => {
+                                    const Icon = selectedIntegration.icon;
+                                    return <Icon className="w-8 h-8 mb-2 opacity-50" />;
+                                })()}
+                                <p className="text-sm italic tracking-tight">Configurações para {selectedIntegration?.name} em breve...</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-end gap-2 mt-4">
+                        <Button variant="ghost" className="text-zinc-500" onClick={() => resetStates()}>Fechar</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}

@@ -1,0 +1,22 @@
+# Vídeos ficam no Google Drive, não no Git (arquivos grandes)
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Dependências de projeto — reconstroem com npm install, nunca precisam de backup
+node_modules/
+
+# Backup/restore de WordPress (plugins, temas de terceiros) — nunca precisa de backup
+wp-restore/
+wp-data/
+
+# Credenciais — nunca versionar
+.env
+.env.*
+*.pem
+*.key
+
+# Arquivos de sistema
+Thumbs.db
+desktop.ini

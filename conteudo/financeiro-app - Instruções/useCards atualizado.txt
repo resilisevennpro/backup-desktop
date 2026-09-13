@@ -1,0 +1,68 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+
+export interface CreditCard {
+  id: string
+  name: string
+  closing_day: number
+  due_day: number
+  color: string
+}
+
+export function useCards() {
+  const [cards, setCards] = useState<CreditCard[]>([])
+  const [loadingCards, setLoadingCards] = useState(true)
+
+  const fetchCards = async () => {
+    try {
+      const { data, error } = await supabase.from('credit_cards').select('*')
+      if (error) throw error
+      setCards(data || [])
+    } catch (error) {
+      console.error('Erro ao buscar cartões:', error)
+    } finally {
+      setLoadingCards(false)
+    }
+  }
+
+  const addCard = async (card: Omit<CreditCard, 'id'>) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const cardWithColor = { ...card, color: card.color || '#8b5cf6' }
+
+    const { error } = await supabase.from('credit_cards').insert([{ ...cardWithColor, user_id: user.id }])
+    if (error) throw error
+    await fetchCards()
+  }
+
+  // ✅ NOVA FUNÇÃO: Atualizar Cartão
+  const updateCard = async (id: string, updates: Partial<CreditCard>) => {
+    const { error } = await supabase
+      .from('credit_cards')
+      .update(updates)
+      .eq('id', id)
+
+    if (error) throw error
+    await fetchCards()
+  }
+
+  // ✅ CORREÇÃO: Confirmação antes de deletar
+  const deleteCard = async (id: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir este cartão? Todas as faturas futuras vinculadas a ele podem perder a referência.")) {
+      return
+    }
+
+    const { error } = await supabase.from('credit_cards').delete().eq('id', id)
+    if (error) throw error
+    await fetchCards()
+  }
+
+  useEffect(() => {
+    fetchCards()
+  }, [])
+
+  return { cards, loadingCards, addCard, updateCard, deleteCard }
+}

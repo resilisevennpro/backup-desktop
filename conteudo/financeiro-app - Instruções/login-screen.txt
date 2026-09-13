@@ -1,0 +1,262 @@
+'use client'
+
+import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
+// Importando ícones (adicionei o ArrowLeft para o botão voltar)
+import { Eye, EyeOff, CreditCard, ArrowLeft } from 'lucide-react'
+
+export function LoginScreen() {
+  const [isLoginMode, setIsLoginMode] = useState(true)
+  const [isForgotPassword, setIsForgotPassword] = useState(false) // Novo estado para tela de recuperação
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null) // Para feedback positivo
+
+  // Função para lidar com Login e Cadastro
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    if (!email || !password) {
+      setError("Por favor, preencha email e senha.")
+      setLoading(false)
+      return
+    }
+
+    try {
+      if (isLoginMode) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+        if (signInError) throw signInError
+      } else {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        })
+        if (signUpError) throw signUpError
+        
+        alert('Conta criada com sucesso! Verifique seu e-mail para confirmar antes de entrar.')
+        setIsLoginMode(true)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ocorreu um erro.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 👇 NOVA FUNÇÃO: Enviar email de recuperação
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    if (!email) {
+      setError("Digite seu e-mail para recuperar a senha.")
+      setLoading(false)
+      return
+    }
+
+    try {
+      // O Supabase envia um link que loga o usuário automaticamente
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      })
+
+      if (error) throw error
+
+      setSuccessMessage("Email de recuperação enviado! Verifique sua caixa de entrada (e spam).")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao enviar email.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black px-4 flex-col gap-2">
+      
+      {/* Logo */}
+      <div className="relative w-48 h-48 md:w-56 md:h-56 animate-in fade-in zoom-in duration-500">
+        <Image 
+          src="/logo-resili-sevenn.png" 
+          alt="Logo da Empresa"
+          fill
+          className="object-contain drop-shadow-2xl"
+          priority
+        />
+      </div>
+
+      <div className="w-full max-w-md space-y-6 rounded-2xl bg-white dark:bg-zinc-900 p-8 shadow-2xl border border-zinc-200 dark:border-zinc-800 transition-all -mt-8 relative z-20">
+        <div className="text-center space-y-2">
+          
+          <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-green-400 to-purple-500 flex items-center justify-center gap-2 pb-2">
+            Financeiro App
+            <CreditCard className="w-7 h-7 text-purple-500" />
+          </h1>
+
+          {/* Título Dinâmico */}
+          <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
+            {isForgotPassword 
+              ? 'Recuperar Senha' 
+              : (isLoginMode ? 'Bem-vindo de volta' : 'Crie sua conta')}
+          </h2>
+
+          <p className="text-white text-xs md:text-sm font-medium leading-relaxed px-4 py-2 italic">
+            Um sistema de organização financeira para facilitar a sua vida e dar clareza dos seus gastos e receitas!
+          </p>
+          
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 pt-1">
+            {isForgotPassword 
+              ? 'Digite seu e-mail para receber um link de acesso'
+              : (isLoginMode 
+                  ? 'Digite seus dados para entrar no sistema' 
+                  : 'Preencha os campos abaixo para começar')}
+          </p>
+        </div>
+
+        {/* --- FORMULÁRIO --- */}
+        <form className="mt-8 space-y-6" onSubmit={isForgotPassword ? handleResetPassword : handleAuth}>
+          
+          {/* Mensagens de Erro ou Sucesso */}
+          {error && (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-800 dark:text-red-200 text-center">{error}</p>
+            </div>
+          )}
+          {successMessage && (
+            <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
+              <p className="text-sm text-green-800 dark:text-green-200 text-center">{successMessage}</p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-black dark:text-zinc-50 placeholder-zinc-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
+                placeholder="seu@email.com"
+              />
+            </div>
+
+            {/* Oculta senha se estiver recuperando */}
+            {!isForgotPassword && (
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Senha
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 pl-3 pr-10 py-2.5 text-black dark:text-zinc-50 placeholder-zinc-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
+                    placeholder={isLoginMode ? "••••••••" : "Mínimo 6 caracteres"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Link "Esqueci minha senha" (Só aparece no Login e se não estiver já recuperando) */}
+          {isLoginMode && !isForgotPassword && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(true)
+                  setError(null)
+                  setSuccessMessage(null)
+                }}
+                className="text-xs font-medium text-zinc-500 hover:text-purple-500 transition-colors"
+              >
+                Esqueci minha senha
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4 mt-6">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-gradient-to-r from-green-400 to-purple-600 px-4 py-3 text-white hover:from-green-500 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold shadow-md hover:shadow-lg text-sm uppercase tracking-wide"
+            >
+              {loading 
+                ? 'Processando...' 
+                : (isForgotPassword 
+                    ? 'Enviar Link de Recuperação' 
+                    : (isLoginMode ? 'Acessar Sistema' : 'Criar Conta')
+                  )
+              }
+            </button>
+
+            {/* Botão de Voltar (se estiver recuperando senha) */}
+            {isForgotPassword && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false)
+                  setError(null)
+                  setSuccessMessage(null)
+                }}
+                className="flex items-center justify-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> Voltar para Login
+              </button>
+            )}
+
+            {/* Alternar Cadastro/Login (Só aparece se NÃO estiver recuperando) */}
+            {!isForgotPassword && (
+              <div className="flex items-center justify-center gap-1 text-sm mt-2">
+                <span className="text-zinc-500">
+                  {isLoginMode ? 'Não tem uma conta?' : 'Já tem uma conta?'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoginMode(!isLoginMode)
+                    setError(null)
+                    setEmail('')
+                    setPassword('')
+                  }}
+                  className="font-semibold text-green-500 hover:text-green-400 hover:underline transition-colors"
+                >
+                  {isLoginMode ? 'Cadastre-se' : 'Fazer Login'}
+                </button>
+              </div>
+            )}
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

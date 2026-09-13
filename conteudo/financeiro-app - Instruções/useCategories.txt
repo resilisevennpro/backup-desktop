@@ -1,0 +1,71 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { 
+  Briefcase, DollarSign, TrendingUp, Wallet, 
+  Home, UtensilsCrossed, Car, Heart, GraduationCap, Coffee, Gamepad2, ShoppingBag, 
+  Tag, Plus 
+} from 'lucide-react'
+
+// Categorias Padrão
+export const DEFAULT_INCOME = [
+  { value: 'salary', label: 'Salário', icon: Briefcase, color: '#10b981' },
+  { value: 'freelance', label: 'Freelance', icon: DollarSign, color: '#34d399' },
+  { value: 'investments', label: 'Investimentos', icon: TrendingUp, color: '#6ee7b7' },
+  { value: 'other', label: 'Outros', icon: Wallet, color: '#a7f3d0' },
+]
+
+export const DEFAULT_EXPENSE = [
+  { value: 'housing', label: 'Moradia', icon: Home, color: '#ef4444' },
+  { value: 'food', label: 'Alimentação', icon: UtensilsCrossed, color: '#f59e0b' },
+  { value: 'transport', label: 'Transporte', icon: Car, color: '#3b82f6' },
+  { value: 'health', label: 'Saúde', icon: Heart, color: '#ec4899' },
+  { value: 'education', label: 'Educação', icon: GraduationCap, color: '#8b5cf6' },
+  { value: 'leisure', label: 'Lazer', icon: Gamepad2, color: '#14b8a6' },
+  { value: 'shopping', label: 'Compras', icon: ShoppingBag, color: '#a855f7' },
+  // Removemos o 'custom' daqui para ele não ficar no meio
+]
+
+export function useCategories() {
+  const [customCategories, setCustomCategories] = useState<any[]>([])
+
+  const fetchCategories = async () => {
+    try {
+      const { data } = await supabase.from('categories').select('*')
+      if (data) setCustomCategories(data)
+    } catch (error) {
+      console.error('Erro categorias:', error)
+    }
+  }
+
+  const addCategory = async (label: string, type: 'income' | 'expense') => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const value = label.toLowerCase().trim().replace(/\s+/g, '_')
+    // Cor aleatória vibrante
+    const color = `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`
+
+    await supabase.from('categories').insert([{ user_id: user.id, label, value, type, color }])
+    await fetchCategories()
+  }
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  // Lógica de Ordem: Padrão -> Customizadas -> Item "Personalizado" (visual apenas no dropdown)
+  const incomeCategories = [
+    ...DEFAULT_INCOME, 
+    ...customCategories.filter(c => c.type === 'income').map(c => ({...c, icon: Tag}))
+  ]
+  
+  const expenseCategories = [
+    ...DEFAULT_EXPENSE, 
+    ...customCategories.filter(c => c.type === 'expense').map(c => ({...c, icon: Tag})),
+    // Adicionamos um item marcador para o 'Personalizado' se necessário, ou deixamos o botão '+' cuidar disso no front
+  ]
+
+  return { incomeCategories, expenseCategories, addCategory }
+}

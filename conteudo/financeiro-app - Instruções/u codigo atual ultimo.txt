@@ -1,0 +1,1997 @@
+'use client'
+
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { 
+  Plus, Trash2, TrendingUp, TrendingDown, Wallet, LogOut, Calendar,
+  Home, UtensilsCrossed, Car, Heart, GraduationCap, Coffee, Gamepad2,
+  ShoppingBag, Plane, Dog, Sparkles, Briefcase, DollarSign, TrendingUp as TrendingUpIcon,
+  Clock, CheckCircle2, ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, Search,
+  X, ChevronDown, Activity, Check, Info, Pencil, 
+  CreditCard, Settings
+} from 'lucide-react'
+import { useTransactions, Transaction } from '@/lib/hooks/useTransactions'
+import { useCards, CreditCard as CardData } from '@/lib/hooks/useCards'
+import { supabase } from '@/lib/supabase'
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, format, isWithinInterval, addMonths, addWeeks, addDays, addYears, subMonths, subWeeks, subDays, subYears } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { cn } from '@/lib/utils'
+import { useCategories } from '@/lib/hooks/useCategories'
+import { Tag } from 'lucide-react' // Adicione o Tag nos imports do lucide
+
+// Helper para corrigir o bug de data -1 dia (UTC fix)
+const stringToDate = (dateString: string) => {
+  if (!dateString) return new Date() // Proteção contra crash
+  const [year, month, day] = dateString.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0)
+}
+
+// Helper: Calcula a data de vencimento da fatura baseada na compra
+const getInvoiceDueDate = (purchaseDate: Date, closingDay: number, dueDay: number) => {
+  const pDate = new Date(purchaseDate)
+  // Define o ano/mês base
+  let targetYear = pDate.getFullYear()
+  let targetMonth = pDate.getMonth() // 0 = Jan
+
+  // Se comprou no dia do fechamento ou depois, joga pro mês seguinte
+  if (pDate.getDate() >= closingDay) {
+    targetMonth++
+  }
+
+  // Se o dia do vencimento for menor que o fechamento (ex: fecha 30, vence 05), 
+  // significa que vence no mês seguinte ao fechamento
+  if (dueDay < closingDay) {
+    targetMonth++
+  }
+
+  // Ajusta virada de ano
+  const dueDate = new Date(targetYear, targetMonth, dueDay, 12, 0, 0)
+  return dueDate
+}
+
+// Cores fixas por categoria
+const CATEGORY_COLORS: Record<string, string> = {
+  // Receitas
+  salary: '#10b981',
+  freelance: '#34d399',
+  investments: '#6ee7b7',
+  other: '#a7f3d0',
+  // Despesas
+  housing: '#ef4444',
+  food: '#f59e0b',
+  transport: '#3b82f6',
+  health: '#ec4899',
+  education: '#8b5cf6',
+  restaurants: '#f97316',
+  leisure: '#14b8a6',
+  shopping: '#a855f7',
+  travel: '#06b6d4',
+  pets: '#84cc16',
+  personal: '#f43f5e',
+}
+
+// Categorias de Receita
+const INCOME_CATEGORIES = [
+  { value: 'salary', label: 'Salário', icon: Briefcase, color: CATEGORY_COLORS.salary },
+  { value: 'freelance', label: 'Freelance/Extra', icon: DollarSign, color: CATEGORY_COLORS.freelance },
+  { value: 'investments', label: 'Investimentos', icon: TrendingUpIcon, color: CATEGORY_COLORS.investments },
+  { value: 'other', label: 'Outros', icon: Wallet, color: CATEGORY_COLORS.other },
+]
+
+
+
+// Categorias de Despesa
+const EXPENSE_CATEGORIES = [
+  { value: 'housing', label: 'Moradia', icon: Home, color: CATEGORY_COLORS.housing },
+  { value: 'food', label: 'Alimentação', icon: UtensilsCrossed, color: CATEGORY_COLORS.food },
+  { value: 'transport', label: 'Transporte', icon: Car, color: CATEGORY_COLORS.transport },
+  { value: 'health', label: 'Saúde', icon: Heart, color: CATEGORY_COLORS.health },
+  { value: 'education', label: 'Educação', icon: GraduationCap, color: CATEGORY_COLORS.education },
+  { value: 'restaurants', label: 'Restaurantes/iFood', icon: Coffee, color: CATEGORY_COLORS.restaurants },
+  { value: 'leisure', label: 'Lazer', icon: Gamepad2, color: CATEGORY_COLORS.leisure },
+  { value: 'shopping', label: 'Compras', icon: ShoppingBag, color: CATEGORY_COLORS.shopping },
+  { value: 'travel', label: 'Viagem', icon: Plane, color: CATEGORY_COLORS.travel },
+  { value: 'pets', label: 'Pets', icon: Dog, color: CATEGORY_COLORS.pets },
+  { value: 'personal', label: 'Cuidados Pessoais', icon: Sparkles, color: CATEGORY_COLORS.personal },
+]
+
+type FilterPeriod = 'today' | 'week' | 'month' | 'year' | 'custom'
+type ChartType = 'expense' | 'income' | 'credit'
+type TransactionFilter = 'all' | 'income' | 'expense'
+
+export function Dashboard() {
+  // 1. HOOKS (Sempre no topo)
+  const { transactions, loading, addTransaction, deleteTransaction, updateTransaction } = useTransactions()
+  const { cards, addCard, deleteCard, updateCard } = useCards()
+  const { incomeCategories, expenseCategories, addCategory } = useCategories()
+
+  // 2. ESTADOS (Todos os useState devem ficar aqui, ANTES das funções auxiliares)
+  const [showModal, setShowModal] = useState(false)
+  const [showCardSettings, setShowCardSettings] = useState(false)
+  const [showHealthModal, setShowHealthModal] = useState(false)
+  const [showHealthInfo, setShowHealthInfo] = useState(false)
+  
+  // Estado para a cor do cartão (Trazido para DENTRO ✅)
+  const [selectedCardColor, setSelectedCardColor] = useState('#8b5cf6')
+
+  // Estado para evitar clique duplo
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Filtros
+  const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>('month')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
+  const [periodOffset, setPeriodOffset] = useState(0)
+  
+  // ⚠️ Importante: chartType deve ser declarado ANTES de ser usado nas funções abaixo
+  const [chartType, setChartType] = useState<ChartType>('expense')
+  
+  const [searchTerm, setSearchTerm] = useState('')
+  const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all')
+  const [visibleCount, setVisibleCount] = useState(15)
+  const [selectedCategoryDetails, setSelectedCategoryDetails] = useState<string | null>(null)
+  
+  // Formulário
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [editingCard, setEditingCard] = useState<CardData | null>(null)
+  
+
+  const [paymentMethod, setPaymentMethod] = useState<'debit' | 'credit'>('debit')
+  const [selectedCardId, setSelectedCardId] = useState('')
+  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0])
+
+  const [isFixed, setIsFixed] = useState(false)
+  const [isRepeated, setIsRepeated] = useState(false)
+  const [repeatCount, setRepeatCount] = useState('2')
+  const [repeatInterval, setRepeatInterval] = useState<'months' | 'weeks' | 'years'>('months')
+  
+  const [formData, setFormData] = useState({
+    description: '',
+    amount: '',
+    type: 'expense' as 'income' | 'expense',
+    category: '',
+    status: 'paid' as 'paid' | 'pending',
+    date: new Date().toISOString().split('T')[0],
+  })
+
+  // 3. HELPERS VISUAIS (Atualizados para aceitar 'credit')
+  const getCategoryIcon = (catValue: string, type: ChartType) => {
+    // Se for 'income', usa categorias de receita. Se for 'expense' OU 'credit', usa despesa.
+    const list = (type === 'income' ? incomeCategories : expenseCategories) || []
+    const found = list.find(c => c.value === catValue)
+    return found?.icon || Wallet
+  }
+
+  const getCategoryLabel = (catValue: string, type: ChartType) => {
+    const list = (type === 'income' ? incomeCategories : expenseCategories) || []
+    const found = list.find(c => c.value === catValue)
+    return found?.label || 'Outros'
+  }
+
+  const getCategoryColor = (catValue: string, type?: ChartType) => {
+    const actualType = type || chartType 
+    const list = (actualType === 'income' ? incomeCategories : expenseCategories) || []
+    const found = list.find(c => c.value === catValue)
+    return found?.color || '#a1a1aa'
+  }
+
+  // Helpers do Formulário
+  const currentCategories = formData.type === 'income' ? incomeCategories : expenseCategories
+  const selectedCategory = currentCategories.find(c => c.value === formData.category)
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setCategoryDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Calcular intervalo de datas baseado no filtro
+  const dateRange = useMemo(() => {
+    const now = new Date()
+    
+    if (filterPeriod === 'custom' && customStartDate && customEndDate) {
+      return {
+        start: startOfDay(new Date(customStartDate)),
+        end: endOfDay(new Date(customEndDate)),
+      }
+    }
+    
+    switch (filterPeriod) {
+      case 'today':
+        const targetDay = addDays(now, periodOffset)
+        return {
+          start: startOfDay(targetDay),
+          end: endOfDay(targetDay),
+        }
+      case 'week':
+        const targetWeek = addWeeks(now, periodOffset)
+        return {
+          start: startOfWeek(targetWeek, { locale: ptBR }),
+          end: endOfWeek(targetWeek, { locale: ptBR }),
+        }
+      case 'year':
+        const targetYear = addYears(now, periodOffset)
+        return {
+          start: startOfYear(targetYear),
+          end: endOfYear(targetYear),
+        }
+      case 'month':
+      default:
+        const targetMonth = addMonths(now, periodOffset)
+        return {
+          start: startOfMonth(targetMonth),
+          end: endOfMonth(targetMonth),
+        }
+    }
+  }, [filterPeriod, periodOffset, customStartDate, customEndDate])
+
+  // Filtrar transações do período selecionado
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      const transactionDate = stringToDate(transaction.date) // ✅ Correção aplicada
+      return isWithinInterval(transactionDate, dateRange)
+    })
+  }, [transactions, dateRange])
+
+  // Calcular totais dos 4 cards
+  const cardTotals = useMemo(() => {
+    const totals = {
+      incomePaid: 0,
+      incomePending: 0,
+      expensePaid: 0,
+      expensePending: 0,
+    }
+
+    filteredTransactions.forEach(transaction => {
+      if (transaction.type === 'income') {
+        if (transaction.status === 'paid' || !transaction.status) {
+          totals.incomePaid += transaction.amount
+        } else if (transaction.status === 'pending') {
+          totals.incomePending += transaction.amount
+        }
+      } else {
+        if (transaction.status === 'paid' || !transaction.status) {
+          totals.expensePaid += transaction.amount
+        } else if (transaction.status === 'pending') {
+          totals.expensePending += transaction.amount
+        }
+      }
+    })
+
+    return totals
+  }, [filteredTransactions])
+
+  // Dados para o gráfico de rosca
+  const chartData = useMemo(() => {
+    const categoryMap = new Map<string, number>()
+    
+    filteredTransactions
+      .filter(t => {
+        // Se filtro for 'credit', pega despesas que são de cartão
+        if (chartType === 'credit') return t.type === 'expense' && t.payment_method === 'credit' && (t.status === 'paid' || !t.status || t.status === 'pending')
+        
+        // Se filtro for normal, pega pelo tipo
+        return t.type === chartType && t.category && (t.status === 'paid' || !t.status)
+      })
+
+    const data = Array.from(categoryMap.entries()).map(([category, value]) => ({
+      name: getCategoryLabel(category, chartType),
+      value: Math.round(value * 100) / 100,
+      category,
+      color: getCategoryColor(category),
+    })).sort((a, b) => b.value - a.value)
+
+    return data
+  }, [filteredTransactions, chartType])
+
+  // Calcular total do gráfico
+  const chartTotal = useMemo(() => {
+    return chartData.reduce((sum, item) => sum + item.value, 0)
+  }, [chartData])
+
+  // Filtrar transações para a lista (busca + tipo + categoria do gráfico)
+  const listFilteredTransactions = useMemo(() => {
+    let filtered = filteredTransactions
+
+    // Filtro de busca
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(t =>
+        t.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Filtro de tipo
+    if (transactionFilter !== 'all') {
+      filtered = filtered.filter(t => t.type === transactionFilter)
+    }
+    
+    // FILTRO DE STATUS "paid" & "pending"
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(t => t.status === statusFilter)
+    }
+
+    // Filtro por categoria do gráfico
+    if (selectedCategoryDetails) {
+      filtered = filtered.filter(t => t.category === selectedCategoryDetails)
+    }
+
+    // Ordenar por data (mais recente primeiro)
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [filteredTransactions, searchTerm, transactionFilter, statusFilter])
+
+  // Transações visíveis (paginação)
+  const visibleTransactions = useMemo(() => {
+    return listFilteredTransactions.slice(0, visibleCount)
+  }, [listFilteredTransactions, visibleCount])
+
+  // --- CÁLCULO DE FATURAS (NOVO BOX) ---
+  const creditCardBills = useMemo(() => {
+    const bills = new Map<string, { cardName: string, amount: number, dueDate: Date, cardId: string, color: string }>()
+    
+    // Filtra apenas compras no crédito que ainda não foram consolidadas (pendentes)
+    const creditTransactions = transactions.filter(t => t.payment_method === 'credit' && t.status === 'pending')
+
+    creditTransactions.forEach(t => {
+      const card = cards.find(c => c.id === t.card_id)
+      if (!card) return
+
+      const tDate = stringToDate(t.date)
+      const dueDate = getInvoiceDueDate(tDate, card.closing_day, card.due_day)
+
+      // Só mostra se a fatura vence DENTRO do mês selecionado no filtro
+      if (isWithinInterval(dueDate, dateRange)) {
+        const current = bills.get(card.id) || { 
+          cardName: card.name, 
+          amount: 0, 
+          dueDate, 
+          cardId: card.id, 
+          color: card.color 
+        }
+        current.amount += t.amount
+        bills.set(card.id, current)
+      }
+    })
+
+    return Array.from(bills.values())
+  }, [transactions, cards, dateRange])
+
+  const totalBillsAmount = creditCardBills.reduce((acc, bill) => acc + bill.amount, 0)
+
+  // Função para Pagar a Fatura
+  const handlePayInvoice = async (bill: { cardId: string, amount: number, dueDate: Date, cardName: string }) => {
+    if (!confirm(`Confirmar pagamento da fatura ${bill.cardName} no valor de ${formatCurrency(bill.amount)}?`)) return
+
+    try {
+      setIsSubmitting(true)
+
+      // 1. Encontra as transações originais dessa fatura
+      const txsToUpdate = transactions.filter(t => {
+         if (t.payment_method !== 'credit' || t.status !== 'pending' || t.card_id !== bill.cardId) return false
+         const dueDate = getInvoiceDueDate(stringToDate(t.date), cards.find(c=>c.id===bill.cardId)!.closing_day, cards.find(c=>c.id===bill.cardId)!.due_day)
+         return isWithinInterval(dueDate, dateRange)
+      })
+
+      // 2. Marca elas como PAGAS (para saírem da pendência)
+      // Nota: Não usamos updateTransaction do hook aqui para poder fazer em lote sem perguntar
+      for (const tx of txsToUpdate) {
+        await supabase.from('transactions').update({ status: 'paid' }).eq('id', tx.id)
+      }
+
+      // 3. Cria a transação de "Pagamento de Fatura" (Saída real do dinheiro)
+      await addTransaction({
+        description: `Fatura ${bill.cardName}`,
+        amount: bill.amount,
+        type: 'expense',
+        category: 'other', // Pode criar uma categoria 'fatura' depois
+        status: 'paid', // Saiu do dinheiro agora
+        date: format(new Date(), 'yyyy-MM-dd'), // Paga hoje
+        payment_method: 'debit' // Sai da conta corrente
+      })
+
+      alert('Fatura paga com sucesso!')
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao pagar fatura')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handlePreviousPeriod = () => {
+    if (filterPeriod !== 'custom') {
+      setPeriodOffset(prev => prev - 1)
+    }
+  }
+
+  const handleNextPeriod = () => {
+    if (filterPeriod !== 'custom') {
+      setPeriodOffset(prev => prev + 1)
+    }
+  }
+
+  const handlePeriodChange = (period: FilterPeriod) => {
+    setFilterPeriod(period)
+    setPeriodOffset(0)
+  }
+
+  const getPeriodLabel = () => {
+    if (filterPeriod === 'custom' && customStartDate && customEndDate) {
+      return `${format(new Date(customStartDate), 'dd/MM/yyyy')} - ${format(new Date(customEndDate), 'dd/MM/yyyy')}`
+    }
+    
+    switch (filterPeriod) {
+      case 'today':
+        return format(dateRange.start, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+      case 'week':
+        return `${format(dateRange.start, 'dd/MM')} - ${format(dateRange.end, 'dd/MM/yyyy')}`
+      case 'year':
+        return format(dateRange.start, 'yyyy')
+      case 'month':
+      default:
+        return format(dateRange.start, "MMMM 'de' yyyy", { locale: ptBR })
+    }
+  }
+
+  // Força status "pending" (A Pagar) quando seleciona Crédito
+  useEffect(() => {
+    if (paymentMethod === 'credit') {
+      setFormData(prev => ({ ...prev, status: 'pending' }))
+    }
+  }, [paymentMethod])
+
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction) // Salva quem está sendo editado
+     // Preenche o formulário com os dados da transação
+    setFormData({
+      description: transaction.description,
+      amount: transaction.amount.toString(),
+      type: transaction.type,
+      category: transaction.category || '',
+      status: (transaction.status || 'paid') as 'paid' | 'pending',
+      date: transaction.date.split('T')[0], // Garante formato YYYY-MM-DD
+    })
+    setIsFixed(transaction.is_fixed || false)
+    setIsRepeated(false) // Desabilita repetição na edição para simplificar
+    setShowModal(true) // Abre o modal
+  }
+
+  // Quando escolhe um cartão, APENAS força o status para pendente (mantém a data da compra)
+  useEffect(() => {
+    if (paymentMethod === 'credit' && selectedCardId && purchaseDate) {
+      const card = cards.find(c => c.id === selectedCardId)
+      
+      if (card) {
+        // NÃO mudamos mais a data aqui. A data fica sendo a da compra (Competência).
+        setFormData(prev => ({ ...prev, status: 'pending' }))
+      }
+    }
+  }, [paymentMethod, selectedCardId, purchaseDate, cards])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.category) { alert('Selecione uma categoria'); return }
+    if (isSubmitting) return // 🔒 1. Se já está salvando, para aqui.
+    setIsSubmitting(true)    // 🔒 2. Ativa a trava
+
+    try {
+      if (editingTransaction) {
+        // Passamos o group_id para a função de update saber se atualiza todos
+        await updateTransaction(editingTransaction.id, {
+          description: formData.description,
+          amount: parseFloat(formData.amount),
+          type: formData.type,
+          category: formData.category,
+          status: formData.status,
+          date: formData.date,
+          is_fixed: isFixed,
+        }, editingTransaction.group_id) // <--- Passando o ID do grupo
+        
+        setEditingTransaction(null)
+      } else {
+        // --- CRIAÇÃO ---
+        const groupId = (isRepeated || isFixed) ? crypto.randomUUID() : undefined // Gera ID único para o grupo
+        
+        let finalIsRepeated = isRepeated
+        let finalRepeatCount = repeatCount
+        let finalRepeatInterval = repeatInterval
+
+        // Se é fixa e não colocou repetir, repete por 12 meses
+        if (isFixed && !isRepeated) {
+           finalIsRepeated = true
+           finalRepeatCount = '12'
+           finalRepeatInterval = 'months'
+        }
+
+        if (!finalIsRepeated) {
+          await addTransaction({
+            description: formData.description,
+            amount: parseFloat(formData.amount),
+            type: formData.type,
+            category: formData.category,
+            status: formData.status,
+            date: formData.date,
+            is_fixed: isFixed,
+            payment_method: paymentMethod,
+            card_id: paymentMethod === 'credit' ? selectedCardId : undefined,
+            group_id: undefined
+          })
+        } else {
+          const total = parseInt(finalRepeatCount)
+          // Correção da data base para não voltar 1 dia
+          const [y, m, d] = formData.date.split('-').map(Number)
+          const baseDate = new Date(y, m - 1, d, 12, 0, 0)
+          
+          const installments = []
+          const today = new Date()
+          
+          for (let i = 0; i < total; i++) {
+            let installmentDate = new Date(baseDate)
+            
+            if (finalRepeatInterval === 'months') installmentDate = addMonths(baseDate, i)
+            else if (finalRepeatInterval === 'weeks') installmentDate = addWeeks(baseDate, i)
+            else if (finalRepeatInterval === 'years') installmentDate = addYears(baseDate, i)
+            
+            // Status Futuro
+            const installmentStatus = installmentDate > today ? 'pending' : formData.status
+
+            installments.push(addTransaction({
+              description: `${formData.description} (${i + 1}/${total})`,
+              amount: parseFloat(formData.amount),
+              type: formData.type,
+              category: formData.category,
+              status: installmentStatus,
+              date: format(installmentDate, 'yyyy-MM-dd'),
+              is_fixed: isFixed,
+              installment_number: i + 1,
+              installment_total: total,
+              payment_method: paymentMethod,
+              card_id: paymentMethod === 'credit' ? selectedCardId : undefined,
+              group_id: groupId // <--- Vincula todas as parcelas
+            }))
+          }
+          await Promise.all(installments)
+        }
+      }
+
+      setShowModal(false)
+      setFormData({
+        description: '', amount: '', type: 'expense', category: '', status: 'paid', date: new Date().toISOString().split('T')[0]
+      })
+      setIsFixed(false); setIsRepeated(false); setRepeatCount('2')
+    } catch (error) {
+      console.error(error); alert('Erro ao salvar')
+    } finally {
+      setIsSubmitting(false) // 🔓 3. Destrava o botão
+    }
+  }
+  
+
+
+  const handleDelete = async (id: string, groupId?: string) => {
+    // Se for transação ÚNICA (sem grupo), pede confirmação simples aqui.
+    // Se tiver grupo, o hook já vai mostrar aquele alerta especial de "Todas ou Uma".
+    if (!groupId) {
+       if (!window.confirm("Tem certeza que deseja excluir esta transação?")) return
+    }
+    
+    await deleteTransaction(id, groupId)
+  }
+
+  const handleLogout = async () => {
+    if (window.confirm('Deseja sair?')) {
+      await supabase.auth.signOut()
+    }
+  }
+
+  const handleCategoryClick = (category: string) => {
+    setSelectedCategoryDetails(category)
+    setVisibleCount(15) // Reset pagination
+  }
+
+  const clearCategoryFilter = () => {
+    setSelectedCategoryDetails(null)
+    setVisibleCount(15)
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value)
+  }
+
+  const formatDate = (dateString: string) => {
+    // Força o horário para meio-dia para evitar UTC-3 virar dia anterior
+    const [y, m, d] = dateString.split('-').map(Number)
+    const date = new Date(y, m - 1, d, 12, 0, 0)
+    return format(date, 'dd/MM/yyyy', { locale: ptBR })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+          <p className="text-zinc-400">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Cálculos do Painel Mestre de Saldo
+   const currentBalance = cardTotals.incomePaid - cardTotals.expensePaid
+   const projectedBalance = (cardTotals.incomePaid + cardTotals.incomePending) - (cardTotals.expensePaid + cardTotals.expensePending)
+   const progressPercentage = projectedBalance !== 0 ? Math.min(Math.max((currentBalance / projectedBalance) * 100, 0), 100) : 0
+  
+  // Cálculos de Saúde Financeira (Mês Atual)
+  const monthIncome = filteredTransactions
+    .filter(t => t.type === 'income' && (t.status === 'paid' || !t.status))
+    .reduce((sum, t) => sum + t.amount, 0)
+  
+  const monthFixedExpenses = filteredTransactions
+    .filter(t => t.type === 'expense' && t.is_fixed && (t.status === 'paid' || !t.status))
+    .reduce((sum, t) => sum + t.amount, 0)
+  
+  const monthTotalExpenses = filteredTransactions
+    .filter(t => t.type === 'expense' && (t.status === 'paid' || !t.status))
+    .reduce((sum, t) => sum + t.amount, 0)
+  
+  const monthBalance = monthIncome - monthTotalExpenses
+  
+  // Regras de Score (0 a 100)
+  let healthScore = 0
+  const isPositiveBalance = monthBalance > 0
+  const fixedPercentage = monthIncome > 0 ? (monthFixedExpenses / monthIncome) * 100 : 0
+  const isFixedOk = fixedPercentage <= 50
+  const savingsPercentage = monthIncome > 0 ? (monthBalance / monthIncome) * 100 : 0
+  const isSavingsOk = savingsPercentage >= 20
+  
+  // Pontuação
+  if (isPositiveBalance) healthScore += 30
+  if (isFixedOk) healthScore += 40
+  if (isSavingsOk) healthScore += 30
+  
+  // Cor da barra de progresso
+  const getHealthColor = (score: number) => {
+    if (score < 40) return 'from-red-500 to-red-600'
+    if (score < 70) return 'from-yellow-500 to-orange-500'
+    return 'from-green-500 to-emerald-500'
+  }
+  
+  // Helper para retornar Status + Cor + Emoji
+  const getHealthStatus = (score: number) => {
+    if (score < 40) return { label: '🚨 Crítico', color: 'text-red-400' }
+    if (score < 70) return { label: '🥵 Sufocado', color: 'text-orange-400' }
+    if (score < 100) return { label: '🙂 Equilibrado', color: 'text-yellow-400' }
+    return { label: '🤩 Excelente', color: 'text-green-400' }
+  }
+  const statusDetails = getHealthStatus(healthScore)
+
+  
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white">
+      {/* Header */}
+      <header className="border-b border-zinc-800/50 backdrop-blur-sm bg-zinc-950/80 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-green-400 via-green-400 to-purple-500 bg-clip-text text-transparent">
+            Financeiro App
+          </h1>
+          <button
+              onClick={() => setShowCardSettings(true)}
+              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
+              title="Gerenciar Cartões"
+            >
+              <CreditCard className="w-5 h-5" />
+          </button>
+          
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-zinc-900/50"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sair</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-6 md:py-8">
+        {/* Filtros de Período com Navegação */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={handlePreviousPeriod}
+              disabled={filterPeriod === 'custom'}
+              className="p-2 rounded-lg bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            
+            <div className="flex-1 flex gap-2 overflow-x-auto pb-2">
+              <button
+                onClick={() => handlePeriodChange('today')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                  filterPeriod === 'today'
+                    ? "bg-purple-500/20 text-purple-400 border border-purple-500/50"
+                    : "bg-zinc-900/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-900"
+                )}
+              >
+                Hoje
+              </button>
+              <button
+                onClick={() => handlePeriodChange('week')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                  filterPeriod === 'week'
+                    ? "bg-purple-500/20 text-purple-400 border border-purple-500/50"
+                    : "bg-zinc-900/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-900"
+                )}
+              >
+                Esta Semana
+              </button>
+              <button
+                onClick={() => handlePeriodChange('month')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                  filterPeriod === 'month'
+                    ? "bg-purple-500/20 text-purple-400 border border-purple-500/50"
+                    : "bg-zinc-900/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-900"
+                )}
+              >
+                Este Mês
+              </button>
+              <button
+                onClick={() => handlePeriodChange('year')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                  filterPeriod === 'year'
+                    ? "bg-purple-500/20 text-purple-400 border border-purple-500/50"
+                    : "bg-zinc-900/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-900"
+                )}
+              >
+                Este Ano
+              </button>
+              <button
+                onClick={() => handlePeriodChange('custom')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                  filterPeriod === 'custom'
+                    ? "bg-purple-500/20 text-purple-400 border border-purple-500/50"
+                    : "bg-zinc-900/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-900"
+                )}
+              >
+                Período
+              </button>
+            </div>
+
+            <button
+              onClick={handleNextPeriod}
+              disabled={filterPeriod === 'custom'}
+              className="p-2 rounded-lg bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Inputs de data customizada */}
+          {filterPeriod === 'custom' && (
+            <div className="flex gap-3 items-center">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="flex-1 rounded-lg bg-zinc-900 px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all border border-zinc-800"
+              />
+              <span className="text-zinc-500">até</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="flex-1 rounded-lg bg-zinc-900 px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all border border-zinc-800"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Período e Botão de Saúde Financeira */}
+         <div className="flex items-center justify-center gap-3 mb-4">
+            <p className="text-sm text-zinc-400 capitalize">
+              {getPeriodLabel()}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowHealthModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500/20 to-purple-500/20 border border-violet-500/30 hover:border-violet-500/50 transition-all group"
+            >
+              <Activity className="w-4 h-4 text-violet-400 group-hover:text-violet-300" />
+              <span className="text-xs font-medium text-violet-300 group-hover:text-violet-200">
+                Diagnóstico
+              </span>
+            </button>
+          </div>
+
+
+        {/* Painel Mestre de Saldo */}
+        <div className="w-full mb-6 p-6 md:p-8 rounded-2xl relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900 to-violet-900/20 border border-zinc-800 shadow-2xl">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 relative z-10">
+            {/* Saldo Atual */}
+            <div className="flex-1">
+              <p className="text-sm md:text-base text-zinc-400 mb-2 font-medium">Saldo Atual</p>
+              <p className={cn(
+                "text-3xl md:text-5xl font-bold tracking-tight",
+                currentBalance >= 0 ? "text-white" : "text-red-400"
+              )}>
+                {formatCurrency(currentBalance)}
+              </p>
+              <p className="text-xs md:text-sm text-zinc-500 mt-2">
+                Baseado em transações realizadas
+              </p>
+            </div>
+
+            {/* Divisor Vertical (apenas desktop) */}
+            <div className="hidden md:block w-px h-20 bg-zinc-800" />
+
+            {/* Previsão de Fechamento */}
+            <div className="flex-1 md:text-right">
+              <p className="text-sm md:text-base text-zinc-400 mb-2 font-medium">Previsão de Fechamento</p>
+              <p className={cn(
+                "text-xl md:text-3xl font-bold tracking-tight",
+                projectedBalance >= 0 ? "text-emerald-400" : "text-red-400"
+              )}>
+                {formatCurrency(projectedBalance)}
+              </p>
+              <p className="text-xs md:text-sm text-zinc-500 mt-2">
+                Incluindo valores pendentes
+              </p>
+            </div>
+          </div>
+
+          {/* Barra de Progresso */}
+          <div className="mt-6 relative">
+            <div className="flex items-center justify-between text-xs text-zinc-500 mb-2">
+              <span>Progresso do período</span>
+              <span className="font-medium text-zinc-400">{progressPercentage.toFixed(0)}%</span>
+            </div>
+            <div className="w-full h-2 bg-zinc-800/50 rounded-full overflow-hidden backdrop-blur-sm">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-700 ease-out",
+                  currentBalance >= 0
+                    ? "bg-gradient-to-r from-emerald-500 to-green-400"
+                    : "bg-gradient-to-r from-red-500 to-orange-400"
+                )}
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Efeito de Brilho Sutil no Canto */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl pointer-events-none" />
+        </div>
+        
+        {/* Box de Faturas (Sempre Visível) */}
+        {creditCardBills.length > 0 && (
+          <div className="mb-6">
+          <details className="group bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden" open={creditCardBills.length > 0}>
+            <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-zinc-800/50 transition-colors list-none">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-zinc-400 text-xs uppercase font-bold tracking-wider">Faturas de Cartão (Este Mês)</p>
+                  <p className="text-xl font-bold text-white">{formatCurrency(totalBillsAmount)}</p>
+                </div>
+              </div>
+              <ChevronDown className="w-5 h-5 text-zinc-500 group-open:rotate-180 transition-transform" />
+            </summary>
+            
+            <div className="border-t border-zinc-800 p-2 space-y-2 bg-zinc-950/30">
+              {creditCardBills.length === 0 ? (
+                <p className="text-zinc-500 text-sm text-center py-2">Nenhuma fatura vencendo neste mês.</p>
+              ) : (
+                creditCardBills.map(bill => (
+                  <div key={bill.cardId} className="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full shadow-[0_0_8px]" style={{ backgroundColor: bill.color, boxShadow: `0 0 10px ${bill.color}40` }} />
+                      <div>
+                        <p className="font-bold text-sm">{bill.cardName}</p>
+                        <p className="text-xs text-zinc-500">Vence dia {format(bill.dueDate, 'dd/MM')}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="font-bold">{formatCurrency(bill.amount)}</p>
+                      <button 
+                        onClick={() => handlePayInvoice(bill)}
+                        disabled={isSubmitting}
+                        className="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-md font-bold transition-colors"
+                      >
+                        Pagar
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </details>
+        </div>
+        )}
+
+        {/* Cards de Resumo - Grid Responsivo */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {/* Card 1: Receitas Realizadas */}
+          <div className="bg-zinc-900 rounded-xl p-4 md:p-6 border border-green-500/30 shadow-lg shadow-green-500/10">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1">
+                <p className="text-xs md:text-sm text-zinc-400 mb-1">Receitas Realizadas</p>
+                <p className="text-xl md:text-2xl font-bold text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]">
+                  {formatCurrency(cardTotals.incomePaid)}
+                </p>
+              </div>
+              <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                <ArrowUpCircle className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: A Receber */}
+          <div className="bg-zinc-900 rounded-xl p-4 md:p-6 border border-green-500/10 shadow-lg">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1">
+                <p className="text-xs md:text-sm text-zinc-400 mb-1">A Receber</p>
+                <p className="text-xl md:text-2xl font-bold text-green-500/60">
+                  {formatCurrency(cardTotals.incomePending)}
+                </p>
+              </div>
+              <div className="p-2 rounded-lg bg-green-500/5 border border-green-500/10 border-dashed">
+                <ArrowUpCircle className="w-5 h-5 md:w-6 md:h-6 text-green-500/40" />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Despesas Pagas */}
+          <div className="bg-zinc-900 rounded-xl p-4 md:p-6 border border-red-500/30 shadow-lg shadow-red-500/10">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1">
+                <p className="text-xs md:text-sm text-zinc-400 mb-1">Despesas Pagas</p>
+                <p className="text-xl md:text-2xl font-bold text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]">
+                  {formatCurrency(cardTotals.expensePaid)}
+                </p>
+              </div>
+              <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30">
+                <ArrowDownCircle className="w-5 h-5 md:w-6 md:h-6 text-red-400" />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: A Pagar */}
+          <div className="bg-zinc-900 rounded-xl p-4 md:p-6 border border-red-500/10 shadow-lg">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1">
+                <p className="text-xs md:text-sm text-zinc-400 mb-1">A Pagar</p>
+                <p className="text-xl md:text-2xl font-bold text-red-500/60">
+                  {formatCurrency(cardTotals.expensePending)}
+                </p>
+              </div>
+              <div className="p-2 rounded-lg bg-red-500/5 border border-red-500/10 border-dashed">
+                <ArrowDownCircle className="w-5 h-5 md:w-6 md:h-6 text-red-500/40" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Botão Nova Transação */}
+        <button
+          onClick={() => setShowModal(true)}
+          className="w-full mb-6 flex items-center justify-center gap-3 px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-xl hover:from-green-400 hover:to-green-500 transition-all duration-300 shadow-sm shadow-green-500/50 hover:shadow-green-500/70 hover:scale-[1.02]"
+        >
+          <Plus className="w-6 h-6" />
+          <span className="text-lg">Nova Transação</span>
+        </button>
+
+        {/* Gráfico de Rosca Interativo */}
+        <div className="mb-6 bg-zinc-900 rounded-xl p-4 md:p-6 border border-zinc-800/50">
+          {/* Toggle Despesas/Receitas */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setChartType('expense')}
+              className={cn(
+                "flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                chartType === 'expense'
+                  ? "bg-red-500/20 text-red-400 border border-red-500/50"
+                  : "bg-zinc-800/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-800"
+              )}
+            >
+              Despesas
+            </button>
+            <button
+              onClick={() => setChartType('income')}
+              className={cn(
+                "flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                chartType === 'income'
+                  ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                  : "bg-zinc-800/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-800"
+              )}
+            >
+              Receitas
+            </button>
+            {/* NOVO BOTÃO CRÉDITO */}
+            <button onClick={() => setChartType('credit')} className={cn("flex-1 py-1.5 rounded-md text-xs font-medium transition-all", chartType === 'credit' ? "bg-purple-500/10 text-purple-400 border border-purple-500/20 shadow-sm" : "text-zinc-400 hover:text-white hover:bg-zinc-800")}>
+              Crédito
+            </button>
+          </div>
+
+          {/* Navegação de Período no Gráfico */}
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <button
+              onClick={handlePreviousPeriod}
+              disabled={filterPeriod === 'custom'}
+              className="p-1 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors disabled:opacity-30"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            <span className="text-md text-zinc-100 capitalize font-medium">
+              {getPeriodLabel()}
+            </span>
+
+            <button
+              onClick={handleNextPeriod}
+              disabled={filterPeriod === 'custom'}
+              className="p-1 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors disabled:opacity-30"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Gráfico */}
+          {chartData.length > 0 ? (
+            <>
+              <div className="h-80 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={90}
+                      outerRadius={110}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#18181b',
+                        border: '1px solid #3f3f46',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
+                      formatter={(value: number | undefined) => formatCurrency(value || 0)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                
+                {/* Total no centro */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-500 mb-1">Total</p>
+                    <p className={cn(
+                      "text-2xl font-bold",
+                      chartType === 'expense' ? 'text-red-400' : 'text-green-400'
+                    )}>
+                      {formatCurrency(chartTotal)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista de Detalhes por Categoria */}
+              <div className="mt-6 space-y-3">
+                {chartData.map((item, index) => {
+                  const percentage = chartTotal > 0 ? (item.value / chartTotal) * 100 : 0
+                  const isSelected = selectedCategoryDetails === item.category
+                  
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleCategoryClick(item.category)}
+                      className={cn(
+                        "w-full text-left space-y-2 p-3 rounded-lg transition-all",
+                        isSelected 
+                          ? "bg-purple-500/10 border border-purple-500/50"
+                          : "hover:bg-zinc-800/50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-white font-medium">{item.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-zinc-400">{formatCurrency(item.value)}</span>
+                          <span className="text-zinc-500 text-xs w-12 text-right">
+                            {percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-zinc-800/50 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${percentage}%`,
+                            backgroundColor: item.color
+                          }}
+                        />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="h-80 flex items-center justify-center text-zinc-500">
+              <p>Nenhuma transação no período</p>
+            </div>
+          )}
+        </div>
+
+        {/* Lista de Transações */}
+        <div className="bg-zinc-900 rounded-xl border border-zinc-800/50 overflow-hidden">
+          <div className="p-4 md:p-6 border-b border-zinc-800/50">
+            {/* 👇 ATUALIZAÇÃO: Cabeçalho com Navegação */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <h2 className="text-lg md:text-xl font-semibold text-white">Transações</h2>
+
+              {/* Controles de Navegação */}
+              <div className="flex items-center gap-2 bg-zinc-800/50 p-1 rounded-lg border border-zinc-800/50 self-start sm:self-auto">
+                <button
+                  onClick={handlePreviousPeriod}
+                  disabled={filterPeriod === 'custom'}
+                  className="p-1.5 rounded-md hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors disabled:opacity-30"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <span className="text-xs font-medium text-zinc-300 min-w-[90px] text-center capitalize">
+                  {getPeriodLabel()}
+                </span>
+
+                <button
+                  onClick={handleNextPeriod}
+                  disabled={filterPeriod === 'custom'}
+                  className="p-1.5 rounded-md hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors disabled:opacity-30"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            {/* 👆 FIM DA ATUALIZAÇÃO */}
+            
+            {/* Barra de Ferramentas - Busca e Filtros */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-3">
+              {/* Input de Busca */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar transação..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value)
+                    setVisibleCount(15)
+                  }}
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-zinc-800/50 text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all border border-zinc-800"
+                />
+              </div>
+
+              {/* Filtros de Tipo */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setTransactionFilter('all')
+                    setVisibleCount(15)
+                  }}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                    transactionFilter === 'all'
+                      ? "bg-purple-500/20 text-purple-400 border border-purple-500/50"
+                      : "bg-zinc-800/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-800"
+                  )}
+                >
+                  Todos
+                </button>
+                <button
+                  onClick={() => {
+                    setTransactionFilter('income')
+                    setVisibleCount(15)
+                  }}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                    transactionFilter === 'income'
+                      ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                      : "bg-zinc-800/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-800"
+                  )}
+                >
+                  Receitas
+                </button>
+                <button
+                  onClick={() => {
+                    setTransactionFilter('expense')
+                    setVisibleCount(15)
+                  }}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                    transactionFilter === 'expense'
+                      ? "bg-red-500/20 text-red-400 border border-red-500/50"
+                      : "bg-zinc-800/50 text-zinc-400 border border-zinc-800 hover:bg-zinc-800"
+                  )}
+                >
+                  Despesas
+                </button>
+              </div>
+              {/* Filtros de Status (Novo) */}
+              <div className="flex gap-2 p-1 bg-zinc-900 rounded-lg border border-zinc-800 self-start sm:self-auto">
+                 <button
+                  onClick={() => setStatusFilter('all')}
+                  className={cn("px-3 py-1.5 text-xs font-medium rounded-md transition-all", statusFilter === 'all' ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-white")}
+                >
+                  Tudo
+                </button>
+                <button
+                  onClick={() => setStatusFilter('paid')}
+                  className={cn("px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1", statusFilter === 'paid' ? "bg-emerald-500/20 text-emerald-400" : "text-zinc-400 hover:text-emerald-400")}
+                >
+                  <CheckCircle2 className="w-3 h-3" /> Realizados
+                </button>
+                <button
+                  onClick={() => setStatusFilter('pending')}
+                  className={cn("px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1", statusFilter === 'pending' ? "bg-orange-500/20 text-orange-400" : "text-zinc-400 hover:text-orange-400")}
+                >
+                  <Clock className="w-3 h-3" /> Agendados
+                </button>
+              </div>
+            </div>
+
+            {/* Botão Limpar Filtro de Categoria */}
+            {selectedCategoryDetails && (
+              <button
+                onClick={clearCategoryFilter}
+                className="text-sm text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-2 mb-3"
+              >
+                <X className="w-3 h-3" />
+                Limpar filtro de categoria ({getCategoryLabel(selectedCategoryDetails, chartType)})
+              </button>
+            )}
+
+            {/* Contador de Transações */}
+            {listFilteredTransactions.length > 0 && (
+              <p className="text-xs text-zinc-500">
+                Exibindo {visibleTransactions.length} de {listFilteredTransactions.length} transações
+              </p>
+            )}
+          </div>
+
+          {listFilteredTransactions.length === 0 ? (
+            <div className="p-8 md:p-12 text-center">
+              <div className="inline-block p-4 rounded-full bg-zinc-800/50 mb-4">
+                <Wallet className="w-8 h-8 md:w-12 md:h-12 text-zinc-600" />
+              </div>
+              <p className="text-zinc-500 text-sm md:text-lg">
+                {searchTerm || transactionFilter !== 'all' || selectedCategoryDetails
+                  ? 'Nenhuma transação encontrada.' 
+                  : 'Nenhuma transação no período.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="divide-y divide-zinc-800/50">
+                {visibleTransactions.map((transaction) => {
+                  const IconComponent = getCategoryIcon(transaction.category || 'other', transaction.type)
+                  const isPending = transaction.status === 'pending'
+                  
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="p-4 hover:bg-zinc-800/30 transition-colors duration-200 border-b border-zinc-800/50 last:border-0"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                        
+                        {/* Bloco Esquerdo: Ícone + Descrição + Data */}
+                        <div className="flex items-start gap-3 w-full sm:flex-1 min-w-0">
+                          <div className={cn(
+                            "p-2 rounded-lg flex-shrink-0 mt-1 sm:mt-0",
+                            transaction.type === 'income'
+                              ? 'bg-green-500/10 border border-green-500/30'
+                              : 'bg-red-500/10 border border-red-500/30'
+                          )}>
+                            <IconComponent className={cn(
+                              "w-5 h-5",
+                              transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
+                            )} />
+                          </div>
+                          
+                          <div className="min-w-0 flex-1">
+                            {/* 🔥 Correção: break-words permite quebra de linha em nomes longos */}
+                            <p className="font-medium text-white text-base leading-snug break-words pr-2">
+                               {transaction.description}
+                            </p>
+
+                            {/* TAG DO CARTÃO (NOVO) */}
+                            {transaction.payment_method === 'credit' && transaction.card_id && (
+                              <div className="mt-1">
+                                <span 
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white uppercase tracking-wider shadow-sm"
+                                  style={{ 
+                                    backgroundColor: cards.find(c => c.id === transaction.card_id)?.color || '#52525b' 
+                                  }}
+                                >
+                                  <CreditCard className="w-3 h-3" />
+                                  {cards.find(c => c.id === transaction.card_id)?.name}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-zinc-400 mt-1">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {formatDate(transaction.date)}
+                              </span>
+                              <span className="text-zinc-600">•</span>
+                              <span className="flex items-center gap-1">
+                                {getCategoryLabel(transaction.category || 'other', transaction.type)}
+                              </span>
+                              {isPending && (
+                                <span className="flex items-center gap-1 text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded ml-1">
+                                  <Clock className="w-3 h-3" /> Pendente
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bloco Direito: Valor + Botões (Vai para baixo no mobile) */}
+                        <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-1 sm:mt-0 pl-[3.25rem] sm:pl-0">
+                          <p className={cn(
+                            "font-bold text-lg",
+                            transaction.type === 'income'
+                              ? 'text-green-400'
+                              : 'text-red-400'
+                          )}>
+                            {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
+                          </p>
+                          
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleEdit(transaction)}
+                              className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                            >
+                              <Pencil className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(transaction.id, transaction.group_id)}
+                              className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Botões de Paginação */}
+              {listFilteredTransactions.length > 15 && (
+                <div className="p-4 border-t border-zinc-800/50 flex gap-3 justify-center">
+                  {visibleCount < listFilteredTransactions.length && (
+                    <button
+                      onClick={() => setVisibleCount(prev => prev + 15)}
+                      className="px-6 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                    >
+                      Ver mais transações
+                    </button>
+                  )}
+                  {visibleCount > 15 && (
+                    <button
+                      onClick={() => setVisibleCount(15)}
+                      className="px-6 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                    >
+                      Ver menos
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </main>
+
+      {/* Modal de Adicionar Transação */}
+      {showModal && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div 
+            className="bg-zinc-900 rounded-xl border border-zinc-800/50 shadow-2xl shadow-black/50 max-w-md w-full p-6 max-h-[90vh] overflow-y-auto relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-xl md:text-2xl font-bold text-white mb-6 bg-gradient-to-r from-green-400 to-purple-400 bg-clip-text text-transparent pr-10">
+            {editingTransaction ? 'Editar Transação' : 'Nova Transação'}
+            </h3>
+            
+            {/* Reutilizando seu formulário existente */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+               <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Tipo</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => {
+                    const newType = e.target.value as 'income' | 'expense'
+                    setFormData({ ...formData, type: newType, category: '' })
+                  }}
+                  className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all border border-zinc-800"
+                >
+                  <option value="income" className="bg-zinc-900">Receita</option>
+                  <option value="expense" className="bg-zinc-900">Despesa</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Categoria</label>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                    className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all border border-zinc-800 flex items-center justify-between"
+                  >
+                    {selectedCategory ? (
+                      <div className="flex items-center gap-3">
+                        <selectedCategory.icon className="w-5 h-5" style={{ color: selectedCategory.color }} />
+                        <span>{selectedCategory.label}</span>
+                      </div>
+                    ) : (
+                      <span className="text-zinc-500">Selecione uma categoria</span>
+                    )}
+                    <ChevronDown className={cn("w-5 h-5 text-zinc-400 transition-transform", categoryDropdownOpen && "rotate-180")} />
+                  </button>
+
+                  {/* Dropdown de Categorias */}
+                  {categoryDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                      <div className="p-1 grid grid-cols-1 gap-1">
+                        
+                        {/* Lista as categorias existentes */}
+                        {currentCategories.map((cat) => (
+                          <button
+                            key={cat.value}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, category: cat.value })
+                              setCategoryDropdownOpen(false)
+                            }}
+                            className="flex items-center gap-3 w-full p-2 hover:bg-zinc-800 rounded-md transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-800" style={{ color: cat.color }}>
+                              <cat.icon className="w-4 h-4" />
+                            </div>
+                            <span className="text-sm text-zinc-300">{cat.label}</span>
+                            {formData.category === cat.value && (
+                              <Check className="w-4 h-4 text-purple-500 ml-auto" />
+                            )}
+                          </button>
+                        ))}
+
+                        {/* 👇 BOTÃO DE ADICIONAR NOVA CATEGORIA */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCatName = window.prompt(`Nova categoria de ${formData.type === 'income' ? 'Receita' : 'Despesa'}:`)
+                            if (newCatName && newCatName.trim()) {
+                              addCategory(newCatName, formData.type as 'income' | 'expense')
+                            }
+                          }}
+                          className="flex items-center gap-3 w-full p-2 hover:bg-zinc-800/80 border-t border-zinc-800 mt-1 rounded-md transition-colors text-zinc-400 hover:text-white"
+                        >
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-800 border border-dashed border-zinc-600">
+                            <Plus className="w-4 h-4" />
+                          </div>
+                          <span className="text-sm italic">Criar "{formData.type === 'income' ? 'Restituição' : 'Manutenção'}..."</span>
+                        </button>
+
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Descrição</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all border border-zinc-800"
+                  placeholder="Ex: Salário, Aluguel, etc."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Valor</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all border border-zinc-800"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Seleção de Método de Pagamento */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Método de Pagamento</label>
+                
+                {/* Botões Débito vs Crédito */}
+                <div className="flex gap-2 p-1 bg-zinc-900 rounded-lg border border-zinc-800 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentMethod('debit'); setSelectedCardId(''); }}
+                    className={cn("flex-1 py-2 text-sm font-medium rounded-md transition-all", paymentMethod === 'debit' ? "bg-zinc-700 text-white shadow" : "text-zinc-400 hover:text-zinc-200")}
+                  >
+                    💵 Débito / Pix
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('credit')}
+                    className={cn("flex-1 py-2 text-sm font-medium rounded-md transition-all", paymentMethod === 'credit' ? "bg-purple-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200")}
+                  >
+                    💳 Crédito
+                  </button>
+                </div>
+
+                {/* Se for Crédito, mostra a lista de cartões */}
+                {paymentMethod === 'credit' && (
+                  <div className="animate-in fade-in slide-in-from-top-2 p-3 bg-zinc-800/30 rounded-lg border border-zinc-800">
+                    <label className="block text-xs font-medium text-zinc-400 mb-2">Selecione o Cartão</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {cards.map(card => (
+                        <button
+                          key={card.id}
+                          type="button"
+                          onClick={() => setSelectedCardId(card.id)}
+                          className={cn("p-2 text-left rounded-lg border transition-all", selectedCardId === card.id ? "bg-purple-500/20 border-purple-500 text-white" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700")}
+                        >
+                          <span className="block text-sm font-bold">{card.name}</span>
+                          <span className="text-xs opacity-70">Fecha dia {card.closing_day}</span>
+                        </button>
+                      ))}
+                      
+                      {/* Botão Atalho para Configurar Cartões */}
+                      <button
+                         type="button"
+                         onClick={() => { setShowModal(false); setShowCardSettings(true); }}
+                         className="p-2 text-center rounded-lg border border-dashed border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-500 flex items-center justify-center gap-1 text-xs"
+                      >
+                        <Plus className="w-3 h-3" /> Configurar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Data</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.date}
+                  onChange={(e) => {
+                    setFormData({ ...formData, date: e.target.value })
+                    // 👇 Se for débito, a data de compra segue a data do input.
+                    // Se for crédito, atualizamos a base de cálculo.
+                    if (paymentMethod === 'debit') {
+                       setPurchaseDate(e.target.value)
+                    } else {
+                       // Se o usuário mexer na data enquanto está em crédito, 
+                       // assumimos que ele quer mudar a data da COMPRA, e recalculamos o vencimento
+                       setPurchaseDate(e.target.value)
+                    }
+                  }}
+                  className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all border border-zinc-800"
+                />
+              </div>
+
+              {/* Opções Extras */}
+              <div>
+                 <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-500/10"><CheckCircle2 className="w-4 h-4 text-purple-400" /></div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{formData.type === 'expense' ? 'Despesa Fixa' : 'Receita Fixa'}</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setIsFixed(!isFixed)} className={cn("relative w-11 h-6 rounded-full transition-colors duration-200", isFixed ? "bg-green-500" : "bg-zinc-700")}>
+                    <div className={cn("absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200", isFixed && "translate-x-5")} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg border border-zinc-800">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10"><Clock className="w-4 h-4 text-blue-400" /></div>
+                    <div>
+                      <p className="text-sm font-medium text-white">Repetir/Parcelar</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setIsRepeated(!isRepeated)} className={cn("relative w-11 h-6 rounded-full transition-colors duration-200", isRepeated ? "bg-green-500" : "bg-zinc-700")}>
+                    <div className={cn("absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200", isRepeated && "translate-x-5")} />
+                  </button>
+                </div>
+
+                {isRepeated && (
+                  <div className="mt-3 grid grid-cols-2 gap-3 p-3 bg-zinc-800/30 rounded-lg border border-zinc-800">
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-400 mb-1">Qtd</label>
+                        <input type="number" min="2" max="120" value={repeatCount} onChange={(e) => setRepeatCount(e.target.value)} className="w-full rounded-lg bg-zinc-900 px-3 py-2 text-white text-sm border border-zinc-800" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-400 mb-1">Intervalo</label>
+                        <select value={repeatInterval} onChange={(e) => setRepeatInterval(e.target.value as any)} className="w-full rounded-lg bg-zinc-900 px-3 py-2 text-white text-sm border border-zinc-800">
+                          <option value="months">Meses</option>
+                          <option value="weeks">Semanas</option>
+                          <option value="years">Anos</option>
+                        </select>
+                      </div>
+                  </div>
+                )}
+              </div>
+
+               <div className="mt-4">
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Status</label>
+                <select 
+                  value={formData.status} 
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })} 
+                  className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-white border border-zinc-800 outline-none focus:ring-2 focus:ring-purple-500/50"
+                >
+                  {formData.type === 'expense' ? (
+                    <>
+                      <option value="paid" className="bg-zinc-900">Pago</option>
+                      {/* Se for crédito, visualmente mostramos A Pagar */}
+                      <option value="pending" className="bg-zinc-900">A Pagar</option> 
+                    </>
+                  ) : (
+                    <>
+                      <option value="paid" className="bg-zinc-900">Recebido</option>
+                      <option value="pending" className="bg-zinc-900">A Receber</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-3 border border-zinc-700 rounded-lg text-zinc-300 hover:bg-zinc-800 transition-all">Cancelar</button>
+                <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className={cn(
+                  "w-full py-3 font-bold rounded-lg mt-2 transition-all",
+                  isSubmitting 
+                    ? "bg-zinc-700 text-zinc-400 cursor-not-allowed" // Visual cinza quando estiver salvando
+                    : "bg-green-600 hover:bg-green-500 text-white"   // Visual verde normal
+                )}
+              >
+                {isSubmitting ? 'Salvando...' : 'Salvar Transação'}
+              </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 2: SAÚDE FINANCEIRA --- */}
+      {showHealthModal && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowHealthModal(false)}
+        >
+          <div 
+            className="bg-zinc-900 rounded-2xl border border-zinc-800/50 shadow-2xl shadow-black/50 max-w-lg w-full p-6 md:p-8 max-h-[90vh] overflow-y-auto relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowHealthModal(false)}
+              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30">
+                <Activity className="w-6 h-6 text-violet-400" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Saúde Financeira</h3>
+                <p className="text-sm text-zinc-400">Análise do período selecionado</p>
+              </div>
+            </div>
+
+            {/* Barra de Score */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-zinc-300">Pontuação</span>
+                <span className={cn("text-sm font-bold", statusDetails.color)}>
+                {statusDetails.label}
+                </span>
+              </div>
+              <div className="relative w-full h-8 bg-zinc-800/50 rounded-full overflow-hidden border border-zinc-800">
+                <div
+                  className={cn("h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r", getHealthColor(healthScore))}
+                  style={{ width: `${healthScore}%` }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-sm font-bold text-white drop-shadow-lg">{healthScore}/100</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Checklist Gamificado */}
+            <div className="mb-6 space-y-3">
+              <div className={cn("flex items-center gap-3 p-3 rounded-lg border transition-all", isPositiveBalance ? "bg-green-500/10 border-green-500/30" : "bg-zinc-800/30 border-zinc-800")}>
+                <div className={cn("w-6 h-6 rounded-full flex items-center justify-center", isPositiveBalance ? "bg-green-500" : "bg-zinc-700")}>
+                  {isPositiveBalance ? <Check className="w-4 h-4 text-white" /> : <X className="w-4 h-4 text-zinc-400" />}
+                </div>
+                <div className="flex-1">
+                  <p className={cn("text-sm font-medium", isPositiveBalance ? "text-green-400" : "text-zinc-400")}>Fechar no Azul</p>
+                  <p className="text-xs text-zinc-500">Saldo: {formatCurrency(monthBalance)}</p>
+                </div>
+                <span className={cn("text-xs font-bold", isPositiveBalance ? "text-green-400" : "text-zinc-600")}>+30pts</span>
+              </div>
+
+              <div className={cn("flex items-center gap-3 p-3 rounded-lg border transition-all", isFixedOk ? "bg-green-500/10 border-green-500/30" : "bg-zinc-800/30 border-zinc-800")}>
+                <div className={cn("w-6 h-6 rounded-full flex items-center justify-center", isFixedOk ? "bg-green-500" : "bg-zinc-700")}>
+                  {isFixedOk ? <Check className="w-4 h-4 text-white" /> : <X className="w-4 h-4 text-zinc-400" />}
+                </div>
+                <div className="flex-1">
+                  <p className={cn("text-sm font-medium", isFixedOk ? "text-green-400" : "text-zinc-400")}>Gastos Fixos {'<'} 50%</p>
+                  <p className="text-xs text-zinc-500">Atual: {fixedPercentage.toFixed(1)}%</p>
+                </div>
+                <span className={cn("text-xs font-bold", isFixedOk ? "text-green-400" : "text-zinc-600")}>+40pts</span>
+              </div>
+
+              <div className={cn("flex items-center gap-3 p-3 rounded-lg border transition-all", isSavingsOk ? "bg-green-500/10 border-green-500/30" : "bg-zinc-800/30 border-zinc-800")}>
+                <div className={cn("w-6 h-6 rounded-full flex items-center justify-center", isSavingsOk ? "bg-green-500" : "bg-zinc-700")}>
+                  {isSavingsOk ? <Check className="w-4 h-4 text-white" /> : <X className="w-4 h-4 text-zinc-400" />}
+                </div>
+                <div className="flex-1">
+                  <p className={cn("text-sm font-medium", isSavingsOk ? "text-green-400" : "text-zinc-400")}>Poupar {'>'} 20%</p>
+                  <p className="text-xs text-zinc-500">Atual: {savingsPercentage.toFixed(1)}%</p>
+                </div>
+                <span className={cn("text-xs font-bold", isSavingsOk ? "text-green-400" : "text-zinc-600")}>+30pts</span>
+              </div>
+            </div>
+
+            {/* Box Educativo Expansível */}
+            <div className="rounded-lg bg-zinc-800/50 border border-zinc-700 overflow-hidden transition-all duration-300">
+              <button 
+                type="button"
+                onClick={() => setShowHealthInfo(!showHealthInfo)}
+                className="w-full flex items-center gap-3 p-4 text-left hover:bg-zinc-800 transition-colors"
+              >
+                <div className="p-2 rounded-lg bg-blue-500/10 mt-0.5">
+                  <Info className="w-4 h-4 text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h5 className="text-sm font-semibold text-white mb-1 flex items-center justify-between">
+                    Metodologia 50-30-20
+                    <ChevronDown className={cn("w-4 h-4 text-zinc-400 transition-transform duration-300", showHealthInfo && "rotate-180")} />
+                  </h5>
+                  <p className="text-xs text-zinc-400">
+                    Clique para entender como sua nota é calculada.
+                  </p>
+                </div>
+              </button>
+
+              {/* Área do Texto Completo (Só aparece se clicar) */}
+              {showHealthInfo && (
+                <div className="px-4 pb-4 pt-0 text-xs text-zinc-300 space-y-3 border-t border-zinc-700/50 mt-2">
+                  <div className="pt-3">
+                    <p className="mb-2"><strong className="text-white">Como funciona:</strong> O ideal é dividir sua renda em:</p>
+                    <ul className="space-y-1 pl-1">
+                      <li>🏠 <strong className="text-white">50% Essenciais:</strong> Aluguel, contas, fixos.</li>
+                      <li>🎉 <strong className="text-white">30% Estilo de Vida:</strong> Lazer, iFood, compras.</li>
+                      <li>💰 <strong className="text-white">20% Futuro:</strong> Investimentos e reservas.</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <p className="mb-1"><strong className="text-white">O que significa seu Status?</strong></p>
+                    <ul className="grid grid-cols-1 gap-1">
+                      <li>🤩 <span className="text-green-400">Excelente:</span> Sobra dinheiro e fixos baixos.</li>
+                      <li>🙂 <span className="text-yellow-400">Equilibrado:</span> Paga as contas, mas sobra pouco.</li>
+                      <li>🥵 <span className="text-orange-400">Sufocado:</span> Fixos acima de 70%. Perigo!</li>
+                      <li>🚨 <span className="text-red-400">Crítico:</span> Gastou mais do que recebeu.</li>
+                    </ul>
+                  </div>
+                  <p className="text-zinc-500 italic border-t border-zinc-700/50 pt-2 mt-2">
+                    "Saúde financeira não é sobre quanto ganha, mas como equilibra os gastos."
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowHealthModal(false)}
+              className="w-full mt-6 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white font-semibold rounded-lg hover:from-violet-400 hover:to-purple-400 transition-all shadow-lg shadow-purple-500/30"
+            >
+              Entendido
+            </button>
+          </div>
+        </div> // fecha div modal saúde
+      )}
+
+      {/* MODAL 3 - Gerenciar Cartões */}
+      {showCardSettings && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-zinc-950 rounded-2xl border border-zinc-800 w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">Meus Cartões</h3>
+              <button onClick={() => { setShowCardSettings(false); setEditingCard(null); }} className="text-zinc-400 hover:text-white">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+
+            {/* Lista de Cartões Existentes */}
+            <div className="space-y-3 mb-6 max-h-48 overflow-y-auto">
+              {cards.map(card => (
+                <div key={card.id} className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg border border-zinc-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: card.color }}></div>
+                    <div>
+                      <p className="font-bold text-white text-sm">{card.name}</p>
+                      <p className="text-xs text-zinc-400">Fecha dia {card.closing_day} • Vence dia {card.due_day}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    {/* Botão Editar Cartão */}
+                    <button 
+                      onClick={() => {
+                        setEditingCard(card)
+                        setSelectedCardColor(card.color)
+                      }} 
+                      className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
+                    >
+                      <Pencil className="w-4 h-4"/>
+                    </button>
+                    {/* Botão Excluir Cartão */}
+                    <button onClick={() => deleteCard(card.id)} className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors">
+                      <Trash2 className="w-4 h-4"/>
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {cards.length === 0 && <p className="text-center text-zinc-500 text-sm">Nenhum cartão cadastrado.</p>}
+            </div>
+
+            {/* Formulário de Adicionar / Editar */}
+            <form 
+              key={editingCard ? editingCard.id : 'new'} // Força o formulário a resetar quando troca de modo
+              onSubmit={async (e: any) => { 
+                e.preventDefault();
+                const formData = {
+                  name: e.target.name.value, 
+                  closing_day: +e.target.closing.value, 
+                  due_day: +e.target.due.value, 
+                  color: selectedCardColor 
+                }
+
+                if (editingCard) {
+                  // Modo Edição
+                  await updateCard(editingCard.id, formData) // Você precisa adicionar updateCard no useCards.ts (Passo 1)
+                  setEditingCard(null) // Sai do modo edição
+                } else {
+                  // Modo Criação
+                  await addCard(formData); 
+                }
+                
+                e.target.reset() 
+                setSelectedCardColor('#8b5cf6') // Reseta cor
+              }} 
+              className="pt-4 border-t border-zinc-800 grid gap-3"
+            >
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-medium text-white">
+                  {editingCard ? `Editando: ${editingCard.name}` : 'Adicionar Novo'}
+                </h4>
+                {editingCard && (
+                  <button type="button" onClick={() => { setEditingCard(null); setSelectedCardColor('#8b5cf6'); }} className="text-xs text-zinc-500 hover:text-white underline">
+                    Cancelar Edição
+                  </button>
+                )}
+              </div>
+
+              <input 
+                name="name" 
+                placeholder="Nome (ex: Nubank)" 
+                required 
+                defaultValue={editingCard?.name}
+                className="bg-zinc-900 border border-zinc-800 p-3 rounded-lg w-full outline-none focus:border-purple-500 transition-colors text-white text-sm" 
+              />
+              
+              <div className="flex gap-2">
+                <input 
+                  name="closing" 
+                  type="number" 
+                  min="1" max="31" 
+                  placeholder="Dia Fechamento" 
+                  required 
+                  defaultValue={editingCard?.closing_day}
+                  className="bg-zinc-900 border border-zinc-800 p-3 rounded-lg flex-1 outline-none focus:border-purple-500 transition-colors text-white text-sm" 
+                />
+                <input 
+                  name="due" 
+                  type="number" 
+                  min="1" max="31" 
+                  placeholder="Dia Vencimento" 
+                  required 
+                  defaultValue={editingCard?.due_day}
+                  className="bg-zinc-900 border border-zinc-800 p-3 rounded-lg flex-1 outline-none focus:border-purple-500 transition-colors text-white text-sm" 
+                />
+              </div>
+
+              {/* Seletor de Cores */}
+              <div>
+                <p className="text-xs text-zinc-500 mb-2">Cor da Tag</p>
+                <div className="flex gap-3 justify-between">
+                  {['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'].map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setSelectedCardColor(color)}
+                      className={cn("w-6 h-6 rounded-full transition-transform hover:scale-110", selectedCardColor === color ? "ring-2 ring-white scale-110" : "")}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <button className={cn("w-full p-3 rounded-lg font-bold text-white mt-2 transition-colors", editingCard ? "bg-blue-600 hover:bg-blue-500" : "bg-purple-600 hover:bg-purple-500")}>
+                {editingCard ? 'Salvar Alterações' : 'Cadastrar Cartão'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div> // fecha div min-h-screen (Principal do App)
+  )
+}

@@ -6,12 +6,14 @@ $ErrorActionPreference = "Stop"
 $RepoDir = $PSScriptRoot
 $OrigemPrefixo = "00 - BACKUP"
 
-# Repos de cliente que já têm backup próprio (commit/push direto no projeto) — não duplicar aqui
+# Repos de cliente que já têm backup próprio (commit/push direto no projeto) — não duplicar aqui.
+# Robocopy /XD só exclui de forma confiável pelo nome da pasta (não pelo caminho completo com espaços),
+# então usamos só o nome final — são únicos o suficiente para não colidir com outra coisa.
 $PastasComRepoProprio = @(
-    "02 - Dr Arlan\website-dr-arlan",
-    "03 - Dra Gabrielle Leão\website-dra-gabrielle",
-    "04 - Santa Podologa\site-santa-podologa-backup",
-    "05 - RVF Odontologia\website-rvf-odontologia"
+    "website-dr-arlan",
+    "website-dra-gabrielle",
+    "site-santa-podologa-backup",
+    "website-rvf-odontologia"
 )
 
 # 1. Achar a pasta de origem
@@ -31,17 +33,9 @@ Write-Host "Pasta de origem: $($origem.FullName)" -ForegroundColor Cyan
 $destino = Join-Path $RepoDir "conteudo"
 if (-not (Test-Path $destino)) { New-Item -ItemType Directory -Path $destino | Out-Null }
 
-$excludeArgs = @("/XD", "node_modules", ".git")
-foreach ($p in $PastasComRepoProprio) {
-    $excludeArgs += "/XD"
-    $excludeArgs += (Join-Path $origem.FullName $p)
-}
+$excludeArgs = @("/XD", "node_modules", ".git", "wp-restore", "wp-data") + $PastasComRepoProprio
 
 Write-Host "Copiando arquivos (isso pode levar alguns minutos)..." -ForegroundColor Cyan
-$excludeArgs += "/XD"
-$excludeArgs += "wp-restore"
-$excludeArgs += "wp-data"
-
 robocopy $origem.FullName $destino /MIR /XF "*.mp4" "*.mov" "*.avi" "*.mkv" ".env" ".env.*" @excludeArgs /NFL /NDL /NJH /R:1 /W:1 | Out-Null
 
 # GitHub recusa arquivos acima de 100MB — remove do destino (o original na pasta de origem continua intacto)
@@ -62,7 +56,7 @@ $videos = Get-ChildItem $origem.FullName -Recurse -File -Include *.mp4, *.mov -E
         $rel = $_.FullName
         $emRepoProprio = $false
         foreach ($p in $PastasComRepoProprio) {
-            if ($rel -like "*$p*") { $emRepoProprio = $true }
+            if ($rel -like "*\$p\*") { $emRepoProprio = $true }
         }
         -not $emRepoProprio
     }

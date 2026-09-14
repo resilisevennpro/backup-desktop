@@ -1,0 +1,144 @@
+
+**ENXAQUECA**
+Grupo A — adicionar (5 palavras em correspondência de frase):
+
+"médico dor de cabeça Manaus"
+"consulta dor de cabeça"
+"clínica dor de cabeça Manaus"
+"neurologista dor de cabeça Manaus"
+"médico para dor de cabeça crônica"
+"médico para dor de cabeça frequente"
+
+Grupo B — adicionar (4 palavras em correspondência de frase):
+
+[dor de cabeça que não passa com remédio]
+"enxaqueca que não passa com remédio"
+"dor de cabeça forte frequente"
+"dor de cabeça constante"
+"dor de cabeça que não passa"
+"dor de cabeça crônica"
+"dor de cabeça todo dia"
+"dor de cabeça frequente"
+
+"sentir dor de cabeça todos os dias"
+"acordo com dor de cabeça todos os dias"
+"tenho dor de cabeça todos os dias"
+"sinto dor de cabeça todos os dias"
+"cabeça latejando todo dia"
+
+
+Total: X palavras novas — enxutas, intenção alta, sem desperdiçar orçamento em termos informativos sem conversão.
+
+_______________________
+
+CIRURGIA**
+GRUPO 01
+"médico para dor na coluna"
+"médico para coluna manaus"
+[médico coluna manaus]
+"especialista coluna manaus"
+"dor nas costas manaus"
+"tratamento coluna manaus"
+"clínica coluna manaus"
+"médico particular coluna manaus"
+"coluna particular manaus"
+"neurocirurgião coluna manaus"
+"cirurgião de coluna manaus"
+"médico especialista coluna manaus"
+"cirurgião coluna particular manaus"
+
+
+GRUPO 02
+"hérnia de disco lombar tratamento"
+"hérnia de disco cervical tratamento"
+"hérnia de disco cervical"
+"hérnia de disco lombar"
+"dor ciática tratamento"
+"nervo ciático pinçado tratamento"
+"estenose de canal vertebral"
+"dor lombar crônica tratamento"
+
+GRUPO 03
+"cirurgia de coluna manaus"
+"cirurgia hérnia de disco manaus"
+"cirurgia hérnia cervical manaus"
+"microcirurgia coluna manaus"
+"cirurgia minimamente invasiva coluna"
+"neurocirurgia coluna manaus"
+"cirurgia coluna particular manaus"
+
+
+NEGATIVAS CONCORRENTE - ENXAQUECA
+
+dra aline vieira
+dr emerson
+dr olavo
+dr pablo neurologista
+alexandre venturi neurologista
+robson amorim neurologista
+jefferson neurologista
+
+
+NEGATIVAS SOBREPOSIÇÃO ENXAQUECA
+"cirurgião de cabeça e pescoço"
+cirurgião de cabeça
+neurocirurgião
+"neurologista Manaus"
+"clínica neurológica"
+neurocirurgia
+neurocirurgião
+coluna
+"hérnia de disco"
+
+NEGATIVAS SOBREPOSIÇÃO NEUROLOGISTA
+enxaqueca 
+"dor de cabeça crônica"
+neurocirurgia
+neurocirurgião
+"hérnia de disco"
+"cirurgia de coluna"
+
+
+NEGATIVAS INTENÇÃO NÃO COMERCIAL - ENXAQUECA
+"qual a especialidade do neurologista"
+"melhor neurologista do brasil"
+neurologistas
+"tem cura"
+"tem cura enxaqueca"
+"enxaqueca tem cura"
+"cefaleia tem cura"
+"é normal"
+"tudo sobre enxaqueca"
+
+
+NEGATIVAR REMEDIOS
+medicação
+
+NEGATIVAR INFORMAÇÃO GERAL
+"onde é a dor"
+"l4 e l5 tem cura"
+"espondilolistese lombar tem cura"
+"exercícios para bico de papagaio"
+
+
+VERIFICAR GRUPO 01 E PAUSAR
+"anterolistese degenerativa"❌ Pausar>90% IS perdida, 0 cliques
+"pinçamento lombar"❌ Pausar0 cliques, sem dados
+
+
+
+⚠️ Manter e observar — qualificadas com 0 impressões (podem estar sufocadas):
+
+"clínica de coluna manaus"
+"cirurgia de espondilolistese"
+"cirurgia para anterolistese"
+"anterolistese tratamento"
+"tratamento estenose de canal vertebral"
+"cirurgia de hérnia de disco"
+"médico para cirurgia de coluna"
+"cirurgia discectomia lombar"
+"recuperação cirurgia artrodese"
+"cirurgia hérnia de disco extrusa"
+"endoscopia de coluna"
+"bloqueio na coluna"
+"cirurgia coluna laser"
